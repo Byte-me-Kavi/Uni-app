@@ -4,7 +4,7 @@ import { SparkleIcon } from 'phosphor-react-native/src/icons/Sparkle';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // Empty state for the feed. Says what will appear and what unlocks it; no invented content.
-export function QuietFeed({ hasCohort }: { hasCohort: boolean }) {
+export function QuietFeed() {
   const theme = useTheme();
   const styles = useStyles();
   return (
@@ -18,9 +18,8 @@ export function QuietFeed({ hasCohort }: { hasCohort: boolean }) {
         </View>
         <Text style={styles.title}>Quiet for now</Text>
         <Text style={styles.body}>
-          {hasCohort
-            ? 'New notes, kuppi and events from your batch will show up here.'
-            : 'Once you join your batch, new notes, kuppi and events from your batchmates show up here.'}
+          New notes, kuppi and events from your university and from students across the country will
+          show up here.
         </Text>
       </View>
     </View>

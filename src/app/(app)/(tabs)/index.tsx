@@ -2,75 +2,57 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { UniEraMark } from '@/components/brand/uni-era-mark';
 import { BrandCard } from '@/components/home/brand-card';
 import { HomeSkeleton } from '@/components/home/home-skeleton';
 import { QuietFeed } from '@/components/home/quiet-feed';
 import { SetupList, type SetupStep } from '@/components/home/setup-list';
 import { StaffCard } from '@/components/home/staff-card';
 import { EntranceContext, Reveal } from '@/components/motion/reveal';
-import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
-import { PressableScale } from '@/components/ui/pressable-scale';
-import { Screen } from '@/components/ui/screen';
-import { firstName, useHome, type MyHome } from '@/lib/use-home';
+import { firstName, type MyHome } from '@/lib/use-home';
+import { useHomeData } from '@/providers/home-provider';
 import { brand, createThemedStyles, fonts, space, useTheme } from '@/theme/tokens';
 
 // The home entrance (content rising in, the cap dropping onto the u in the brand card) plays once
-// per launch. Coming back to home later shows it instantly.
+// per launch. Coming back to Home later shows it instantly.
 let homeIntroPlayed = false;
 
+// Home tab: only the content. The top bar and tab bar live in (tabs)/_layout.tsx.
 export default function Home() {
   const theme = useTheme();
   const styles = useStyles();
-  const { state, refreshing, refresh, retry } = useHome();
+  const { state, refreshing, refresh, retry } = useHomeData();
   const [entrance] = useState(() => {
     const play = !homeIntroPlayed;
     homeIntroPlayed = true;
     return play;
   });
 
-  const home = state.status === 'ready' ? state.home : null;
-
   return (
     <EntranceContext value={entrance}>
-      <Screen style={styles.safe} edges={['top']}>
-        <View style={styles.topBar}>
-          <UniEraMark size={30} color={theme.text} tasselColor={brand.red} />
-          {home ? (
-            <PressableScale
-              onPress={() => router.push('/profile')}
-              accessibilityRole="button"
-              accessibilityLabel="Your account"
-              hitSlop={8}>
-              <Avatar name={home.full_name} />
-            </PressableScale>
-          ) : null}
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={refresh}
-              tintColor={brand.red}
-              colors={[brand.red]}
-              progressBackgroundColor={theme.surface}
-            />
-          }>
-          {state.status === 'loading' ? <HomeSkeleton /> : null}
-          {state.status === 'error' ? (
-            <View style={styles.error}>
-              <FormMessage message="Could not load your home. Check your connection and try again." />
-              <Button label="Try again" variant="quiet" onPress={retry} />
-            </View>
-          ) : null}
-          {home ? <HomeContent home={home} entrance={entrance} /> : null}
-        </ScrollView>
-      </Screen>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            tintColor={brand.red}
+            colors={[brand.red]}
+            progressBackgroundColor={theme.surface}
+          />
+        }>
+        {state.status === 'loading' ? <HomeSkeleton /> : null}
+        {state.status === 'error' ? (
+          <View style={styles.error}>
+            <FormMessage message="Could not load your home. Check your connection and try again." />
+            <Button label="Try again" variant="quiet" onPress={retry} />
+          </View>
+        ) : null}
+        {state.status === 'ready' ? <HomeContent home={state.home} entrance={entrance} /> : null}
+      </ScrollView>
     </EntranceContext>
   );
 }
@@ -82,7 +64,13 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
   const steps: SetupStep[] = [
     { key: 'email', label: 'Confirm your university email', done: true },
     { key: 'approved', label: 'Get approved by a moderator', done: home.account_status === 'active' },
-    { key: 'batch', label: 'Find your batch', done: home.has_cohort, comingSoon: true },
+    {
+      key: 'batch',
+      label: home.batch ? 'Joined your batch' : 'Join your batch group',
+      done: home.has_cohort,
+      detail: home.batch ? `${home.batch.programme}, ${home.batch.intake_year} intake` : undefined,
+      onPress: () => router.push('/batch'),
+    },
     { key: 'modules', label: 'Add your modules', done: home.module_count > 0, comingSoon: true },
   ];
 
@@ -110,23 +98,14 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
       </Reveal>
 
       <Reveal order={4}>
-        <QuietFeed hasCohort={home.has_cohort} />
+        <QuietFeed />
       </Reveal>
     </View>
   );
 }
 
 const useStyles = createThemedStyles((t) => ({
-  safe: { flex: 1, backgroundColor: t.background },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: space.xl,
-    paddingTop: space.sm,
-    paddingBottom: space.md,
-    minHeight: 56,
-  },
+  scroll: { flex: 1 },
   content: { paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.xxxl },
   stack: { gap: space.xl, width: '100%', maxWidth: 560, alignSelf: 'center' },
   greeting: { fontFamily: fonts.display, fontSize: 32, lineHeight: 38, color: t.text, letterSpacing: -0.3 },

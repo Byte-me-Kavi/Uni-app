@@ -21,6 +21,15 @@ export type Database = {
     }
     Functions: {
       app_config: { Args: never; Returns: Json }
+      batch_suggestion: { Args: never; Returns: Json }
+      join_batch: {
+        Args: {
+          p_intake_year?: number
+          p_programme_id?: number
+          p_programme_name?: string
+        }
+        Returns: Json
+      }
       my_account: { Args: never; Returns: Json }
       my_home: { Args: never; Returns: Json }
       pending_accounts: {
@@ -40,10 +49,32 @@ export type Database = {
           user_id: string
         }[]
       }
+      person: { Args: { p_user_id: string }; Returns: Json }
       review_account: {
         Args: { p_decision: string; p_reason?: string; p_user_id: string }
         Returns: string
       }
+      search_people: {
+        Args: { p_query: string }
+        Returns: {
+          corrected: boolean
+          full_name: string
+          institution: string
+          intake_year: number
+          programme: string
+          relation: string
+          user_id: string
+        }[]
+      }
+      search_programmes: {
+        Args: { p_intake_year?: number; p_query: string }
+        Returns: {
+          id: number
+          members: number
+          name: string
+        }[]
+      }
+      set_findable_by: { Args: { p_findable_by: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

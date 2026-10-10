@@ -4,6 +4,7 @@ The student app (Expo, Android and iOS) and the Supabase backend. The admin dash
 
 - Build plan: https://claude.ai/artifact/8SXMCpNDCpRvGRLDA5y3D8#ba48b1a8-9d3e.m42j0byq35d.58457
 - Task list: `Gansiya-MVP-Build-Tasks.pdf` (task IDs such as `B2` are used in branch names)
+- Current scope (tabs, grouping, Shop, what is built): [docs/scope.md](docs/scope.md)
 
 ## What's in here
 

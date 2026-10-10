@@ -24,8 +24,8 @@ select id, f.name
 from identity.institutions, (values ('Faculty of Science'), ('Faculty of Engineering')) as f (name)
 where short_name = 'GTU';
 
-insert into academics.programmes (faculty_id, name)
-select f.id, p.name
+insert into academics.programmes (institution_id, faculty_id, name)
+select f.institution_id, f.id, p.name
 from academics.faculties f
 join (values
   ('Faculty of Science', 'BSc in Computer Science'),
