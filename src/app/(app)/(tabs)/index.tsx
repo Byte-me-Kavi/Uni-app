@@ -63,7 +63,7 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
   // Real account state only. Steps that are not built yet say so instead of linking nowhere.
   const steps: SetupStep[] = [
     { key: 'email', label: 'Confirm your university email', done: true },
-    { key: 'approved', label: 'Get approved by a moderator', done: home.account_status === 'active' },
+    { key: 'approved', label: 'Get approved by the Uni Era team', done: home.account_status === 'active' },
     {
       key: 'batch',
       label: home.batch ? 'Joined your batch' : 'Join your batch group',

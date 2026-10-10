@@ -59,7 +59,8 @@
             "./assets/fonts/Nunito-ExtraBold.ttf"
           ]
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

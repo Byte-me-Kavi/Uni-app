@@ -66,6 +66,7 @@ export function SearchPanel({ query, onOpen }: Props) {
 }
 
 function describe(person: PersonResult) {
+  if (person.blocked) return 'You blocked them';
   const where = person.relation === 'batchmate' ? 'Batchmate' : person.institution;
   const batch = person.programme ? `${person.programme}, ${person.intake_year}` : null;
   return batch ? `${where} · ${batch}` : where;
@@ -86,7 +87,7 @@ function PersonRow({ person, typed, onPress }: { person: PersonResult; typed: st
         <Text style={styles.name} numberOfLines={1}>
           <HighlightedName name={person.full_name} typed={typed} />
         </Text>
-        <Text style={styles.meta} numberOfLines={1}>
+        <Text style={[styles.meta, person.blocked && styles.metaBlocked]} numberOfLines={1}>
           {meta}
         </Text>
       </View>
@@ -169,6 +170,7 @@ const useStyles = createThemedStyles((t) => ({
   name: { fontFamily: fonts.bodySemiBold, fontSize: 16, lineHeight: 22, color: t.text },
   match: { fontFamily: fonts.display },
   meta: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
+  metaBlocked: { fontFamily: fonts.bodyBold, color: t.dangerText },
   skeletonAvatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: t.surface },
   skeletonLine: { height: 14, borderRadius: radius.sm, backgroundColor: t.surface },
   skeletonMeta: { height: 12, marginTop: 6 },

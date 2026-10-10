@@ -1,15 +1,17 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
 
 import { ActionSheet } from '@/components/ui/action-sheet';
 import { Avatar } from '@/components/ui/avatar';
+import { BackHeader } from '@/components/ui/back-header';
 import { Button } from '@/components/ui/button';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
+import { startDirect } from '@/lib/chat/engine';
 import { supabase } from '@/lib/supabase';
-import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { clearSearchCache } from '@/lib/use-people-search';
+import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 type Person = {
   user_id: string;
@@ -17,46 +19,42 @@ type Person = {
   avatar_path: string | null;
   bio: string | null;
   institution: { name: string; short_name: string | null };
-  batch: { programme: string; intake_year: number } | null;
+  batch: { name: string; programme: string; intake_year: number } | null;
   relation: 'you' | 'batchmate' | 'university' | null;
+  blocked: false;
 };
+
+// What api.person returns for a student you blocked: just enough to recognise them and unblock.
+type BlockedPerson = { user_id: string; full_name: string; avatar_path: string | null; blocked: true };
+
+type State =
+  | { status: 'loading' }
+  | { status: 'missing' }
+  | { status: 'error' }
+  | { status: 'ready'; person: Person | BlockedPerson };
 
 const RELATION = { you: 'This is you', batchmate: 'Your batchmate', university: 'At your university' } as const;
 
 // A student's card, opened from search: name, university and batch. Messaging opens with Chats.
 export default function PersonScreen() {
-  const theme = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [state, setState] = useState<
-    { status: 'loading' } | { status: 'missing' } | { status: 'error' } | { status: 'ready'; person: Person }
-  >({ status: 'loading' });
+  const [state, setState] = useState<State>({ status: 'loading' });
+
+  const load = useCallback(async () => {
+    const { data, error } = await supabase.rpc('person', { p_user_id: id });
+    if (error) setState({ status: 'error' });
+    else if (!data) setState({ status: 'missing' });
+    else setState({ status: 'ready', person: data as Person | BlockedPerson });
+  }, [id]);
 
   useEffect(() => {
-    let current = true;
-    supabase.rpc('person', { p_user_id: id }).then(({ data, error }) => {
-      if (!current) return;
-      if (error) setState({ status: 'error' });
-      else if (!data) setState({ status: 'missing' });
-      else setState({ status: 'ready', person: data as Person });
-    });
-    return () => {
-      current = false;
-    };
-  }, [id]);
+    load();
+  }, [load]);
 
   return (
     <Screen style={styles.screen}>
-      <View style={styles.topBar}>
-        <PressableScale
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={12}
-          style={styles.back}>
-          <CaretLeftIcon size={22} weight="bold" color={theme.text} />
-        </PressableScale>
-      </View>
+      <BackHeader />
 
       <ScrollView contentContainerStyle={styles.content}>
         {state.status === 'loading' ? (
@@ -67,40 +65,52 @@ export default function PersonScreen() {
           </View>
         ) : null}
 
+        {/* Also what a student who blocked you sees: a block is never revealed to the person blocked. */}
         {state.status === 'missing' || state.status === 'error' ? (
           <View style={styles.note}>
             <Text style={styles.noteTitle}>
               {state.status === 'missing' ? 'This student isn’t available' : 'Could not load this student'}
             </Text>
             <Text style={styles.noteBody}>
-              {state.status === 'missing'
-                ? 'They may have changed who can find them.'
-                : 'Check your connection and try again.'}
+              {state.status === 'missing' ? 'They may have changed who can find them.' : 'Check your connection and try again.'}
             </Text>
           </View>
         ) : null}
 
-        {state.status === 'ready' ? <PersonCard person={state.person} /> : null}
+        {state.status === 'ready' && state.person.blocked ? <BlockedCard person={state.person} onChange={load} /> : null}
+        {state.status === 'ready' && !state.person.blocked ? <PersonCard person={state.person} onChange={load} /> : null}
       </ScrollView>
     </Screen>
   );
 }
 
-function PersonCard({ person }: { person: Person }) {
+function PersonCard({ person, onChange }: { person: Person; onChange: () => void }) {
   const styles = useStyles();
   const relation = person.relation ? RELATION[person.relation] : null;
   const firstName = person.full_name.split(' ')[0];
   const [confirmBlock, setConfirmBlock] = useState(false);
-  const [blockError, setBlockError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+
+  // Opens (or creates) the direct chat. The server applies their "who can message me" setting.
+  async function message() {
+    setError(null);
+    setOpening(true);
+    const result = await startDirect(person);
+    setOpening(false);
+    if ('error' in result) setError(result.error ?? 'Could not open the chat. Try again.');
+    else router.push({ pathname: '/chat/[id]', params: { id: result.conversationId } });
+  }
 
   async function block() {
-    setBlockError(null);
-    const { error } = await supabase.rpc('block_user', { p_user_id: person.user_id });
-    if (error) {
-      setBlockError('Could not block. Check your connection and try again.');
+    setError(null);
+    const { error: blockError } = await supabase.rpc('block_user', { p_user_id: person.user_id });
+    if (blockError) {
+      setError('Could not block. Check your connection and try again.');
       return;
     }
-    router.back();
+    clearSearchCache(); // so search shows them as blocked straight away
+    onChange();
   }
 
   return (
@@ -115,17 +125,13 @@ function PersonCard({ person }: { person: Person }) {
 
       <View style={styles.list}>
         <Row label="University" value={person.institution.name} />
-        <Row
-          label="Batch"
-          value={person.batch ? `${person.batch.programme}, ${person.batch.intake_year} intake` : 'Not joined yet'}
-        />
+        <Row label="Batch" value={person.batch?.name ?? 'Not joined yet'} />
         {person.bio ? <Row label="About" value={person.bio} /> : null}
       </View>
 
       {person.relation !== 'you' ? (
         <View style={styles.actions}>
-          <Button label="Message" onPress={() => {}} disabled />
-          <Text style={styles.soon}>Messages open soon, with Chats.</Text>
+          <Button label={`Message ${firstName}`} onPress={message} loading={opening} />
           <PressableScale
             onPress={() => setConfirmBlock(true)}
             accessibilityRole="button"
@@ -133,16 +139,69 @@ function PersonCard({ person }: { person: Person }) {
             style={styles.block}>
             <Text style={styles.blockText}>Block {firstName}</Text>
           </PressableScale>
-          {blockError ? <Text style={styles.blockError}>{blockError}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       ) : null}
 
       <ActionSheet
         visible={confirmBlock}
         title={`Block ${person.full_name}?`}
-        message="They will not be able to find you, see your profile or message you. They will not be told. You can unblock them in your profile."
+        message="They will not be able to find you, see your profile or message you, and they will not be told. You can unblock them from here or from your profile."
         actions={[{ label: 'Block', destructive: true, onPress: block }]}
         onClose={() => setConfirmBlock(false)}
+      />
+    </View>
+  );
+}
+
+// A student you blocked: who they are, what the block does, and the way back.
+function BlockedCard({ person, onChange }: { person: BlockedPerson; onChange: () => void }) {
+  const styles = useStyles();
+  const firstName = person.full_name.split(' ')[0];
+  const [confirm, setConfirm] = useState(false);
+  const [unblocking, setUnblocking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function unblock() {
+    setError(null);
+    setUnblocking(true);
+    const { error: unblockError } = await supabase.rpc('unblock_user', { p_user_id: person.user_id });
+    setUnblocking(false);
+    if (unblockError) {
+      setError(`Could not unblock ${firstName}. Check your connection and try again.`);
+      return;
+    }
+    clearSearchCache();
+    onChange(); // shows their full card again, if their privacy settings allow
+  }
+
+  return (
+    <View style={styles.stack}>
+      <View style={styles.identity}>
+        <Avatar name={person.full_name} path={person.avatar_path} size={96} />
+        <Text style={styles.name} accessibilityRole="header">
+          {person.full_name}
+        </Text>
+        <Text style={styles.blockedLine}>You blocked {firstName}</Text>
+      </View>
+
+      <View style={styles.list}>
+        <Text style={styles.blockedBody}>
+          {firstName} cannot find you, see your profile or message you. They have not been told.
+        </Text>
+      </View>
+
+      <View style={styles.actions}>
+        <Button label={`Unblock ${firstName}`} variant="quiet" onPress={() => setConfirm(true)} loading={unblocking} />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+      </View>
+
+      <ActionSheet
+        visible={confirm}
+        title={`Unblock ${person.full_name}?`}
+        message="They will be able to find you and see your profile again, depending on your privacy settings."
+        actions={[{ label: 'Unblock', onPress: unblock }]}
+        onClose={() => setConfirm(false)}
       />
     </View>
   );
@@ -160,8 +219,6 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const useStyles = createThemedStyles((t) => ({
   screen: { backgroundColor: t.background },
-  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, minHeight: 56 },
-  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   content: { padding: space.xl, paddingTop: space.sm, width: '100%', maxWidth: 560, alignSelf: 'center' },
   stack: { gap: space.xl },
   identity: { alignItems: 'center', gap: space.sm, paddingBottom: space.sm },
@@ -175,6 +232,8 @@ const useStyles = createThemedStyles((t) => ({
     letterSpacing: -0.2,
   },
   relation: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.textMuted },
+  blockedLine: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.dangerText },
+  blockedBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: t.text },
   list: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.lg, gap: space.lg },
   row: { gap: 2 },
   rowLabel: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted },
@@ -183,7 +242,7 @@ const useStyles = createThemedStyles((t) => ({
   soon: { fontFamily: fonts.body, fontSize: 14, color: t.textMuted, textAlign: 'center' },
   block: { alignSelf: 'center', paddingHorizontal: space.lg, paddingVertical: space.md, marginTop: space.lg },
   blockText: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.dangerText },
-  blockError: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.dangerText, textAlign: 'center' },
+  error: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.dangerText, textAlign: 'center' },
   note: { paddingTop: space.xxl, gap: space.xs, alignItems: 'center' },
   noteTitle: { fontFamily: fonts.bodyBold, fontSize: 18, color: t.text, textAlign: 'center' },
   noteBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted, textAlign: 'center' },

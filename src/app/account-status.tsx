@@ -46,7 +46,7 @@ export default function AccountStatus() {
     if (error) {
       setMessage('Could not check right now. Try again in a moment.');
     } else if (status === 'pending') {
-      setMessage('Still waiting for a moderator. We will let you in as soon as you are approved.');
+      setMessage('Still waiting for approval. We will let you in as soon as the Uni Era team approves you.');
     }
   }
 
@@ -58,15 +58,15 @@ export default function AccountStatus() {
   const copy = {
     pending: {
       title: firstName ? `Thanks, ${firstName}` : 'Thanks for signing up',
-      body: `A moderator at ${institution} checks every new account so Uni Era stays students-only. This usually takes less than a day.`,
+      body: `The Uni Era team checks every new account at ${institution} so Uni Era stays students-only. This usually takes less than a day.`,
     },
     rejected: {
       title: 'We could not approve this account',
-      body: 'A moderator reviewed your sign-up and could not confirm you are a student here.',
+      body: 'The Uni Era team reviewed your sign-up and could not confirm you are a student here.',
     },
     suspended: {
       title: 'This account is suspended',
-      body: 'A moderator suspended this account for breaking the community guidelines.',
+      body: 'The Uni Era team suspended this account for breaking the community guidelines.',
     },
     active: { title: 'You are in', body: 'Opening Uni Era...' },
   }[status];

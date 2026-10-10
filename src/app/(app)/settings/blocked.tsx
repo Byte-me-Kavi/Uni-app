@@ -9,6 +9,7 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { supabase } from '@/lib/supabase';
+import { clearSearchCache } from '@/lib/use-people-search';
 import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 type Blocked = { user_id: string; full_name: string; avatar_path: string | null; institution: string };
@@ -39,7 +40,9 @@ export default function BlockedStudents() {
     if (unblockError) {
       setError(`Could not unblock ${student.full_name}. Try again.`);
       load();
+      return;
     }
+    clearSearchCache();
   }
 
   return (

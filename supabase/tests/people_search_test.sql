@@ -61,10 +61,10 @@ select api.join_batch((select id from academics.programmes where institution_id 
 -- ---------------------------------------------------------------- matching and ranking
 select pg_temp.act_as('00000000-0000-0000-0000-00000000e001');
 select is(pg_temp.names('kav'),
-  array['Kavisha Dilshan Munasinghe', 'Kavindu Munasinghe', 'Kavinda Jayasuriya'],
+  array['Kavisha Dilshan Munasinghe', 'Kavindu Munasinghe', 'Kavithma Blocked', 'Kavinda Jayasuriya'],
   'a prefix finds batchmates first, then the same university, then other universities');
 select is((select array_agg(coalesce(relation, '-')) from api.search_people('kav') where institution in ('TEU', 'TZU')),
-  array['batchmate', 'university', '-'], 'each result says how it relates to the searcher');
+  array['batchmate', 'university', 'university', '-'], 'each result says how it relates to the searcher');
 select is((select programme || ' ' || intake_year from api.search_people('kavisha') where institution = 'TEU'),
   'BSc in Computer Science 2024', 'results show the batch');
 select is(pg_temp.names('munasinghe'), array['Kavisha Dilshan Munasinghe', 'Kavindu Munasinghe'], 'a surname matches');
@@ -85,7 +85,8 @@ select is((select count(*)::int from api.search_people('kavishka silva') where f
 select is((select count(*)::int from api.search_people('kaveesha hidden') where full_name = 'Kaveesha Hidden'), 0,
   'nobody: hidden from everyone');
 select is((select count(*)::int from api.search_people('kavya') where full_name = 'Kavya Pending'), 0, 'pending accounts are not listed');
-select is((select count(*)::int from api.search_people('kavithma') where full_name = 'Kavithma Blocked'), 0, 'someone I blocked is not listed');
+select is((select blocked from api.search_people('kavithma') where full_name = 'Kavithma Blocked'), true,
+  'someone I blocked is listed, marked as blocked, so I can find them to unblock');
 select is((select count(*)::int from api.search_people('kavin blocker') where full_name = 'Kavin Blocker'), 0, 'someone who blocked me is not listed');
 select is((select count(*)::int from api.search_people('nimal') where full_name = 'Nimal Perera'), 0, 'I am not listed in my own search');
 
@@ -99,7 +100,9 @@ select throws_ok($$ select * from api.search_people('kav') $$, '42501', null, 'p
 select pg_temp.act_as('00000000-0000-0000-0000-00000000e001');
 select is(api.person('00000000-0000-0000-0000-00000000e002') ->> 'relation', 'batchmate', 'a batchmate card');
 select is(api.person('00000000-0000-0000-0000-00000000f002'), null, 'no card for someone hidden from me');
-select is(api.person('00000000-0000-0000-0000-00000000e005'), null, 'no card for someone I blocked');
+select is(api.person('00000000-0000-0000-0000-00000000e005'),
+  '{"user_id": "00000000-0000-0000-0000-00000000e005", "full_name": "Kavithma Blocked", "avatar_path": null, "blocked": true}'::jsonb,
+  'the card of someone I blocked shows only name and photo, marked as blocked');
 
 -- ---------------------------------------------------------------- the student's own setting
 select pg_temp.act_as('00000000-0000-0000-0000-00000000e002');

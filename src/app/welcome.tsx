@@ -13,7 +13,7 @@ import { createThemedStyles, fonts } from '@/theme/tokens';
 
 type Account = { full_name: string; email: string };
 
-// First launch after a moderator approves the account: the student chooses the name other students
+// First launch after the Uni Era team approves the account: the student chooses the name other students
 // will see. Saving it refreshes the access token, whose name_confirmed claim then opens the app.
 export default function Welcome() {
   const styles = useStyles();
@@ -58,14 +58,14 @@ export default function Welcome() {
     <AuthChrome>
       <AuthScreen
         title="You're in"
-        subtitle="A moderator approved your account. Tell students what to call you: your name as it is at your university.">
+        subtitle="The Uni Era team approved your account. Tell students what to call you: your name as it is at your university.">
         <Reveal order={2}>
           <TextField
             label="Your name"
             value={name}
             onChangeText={setName}
             error={fieldError}
-            hint="Shown in search, chats and your batch. You set it once; a moderator can change it later."
+            hint="Shown in search, chats and your batch. You set it once; the Uni Era team can change it later."
             autoCapitalize="words"
             autoComplete="name"
             textContentType="name"

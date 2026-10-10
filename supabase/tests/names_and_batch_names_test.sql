@@ -52,7 +52,7 @@ select throws_ok($$ select api.set_my_name('Kasun 123') $$, '22023', null, 'digi
 select throws_ok($$ select api.set_my_name('kasun@uni') $$, '22023', null, 'symbols are refused');
 select throws_ok($$ select api.set_my_name('K') $$, '22023', null, 'one letter is refused');
 select is(api.set_my_name('  Kasun   Bandara '), 'Kasun Bandara', 'the name is saved with spacing tidied');
-select throws_ok($$ select api.set_my_name('Someone Else') $$, '22023', null, 'the name is chosen once; later changes go through a moderator');
+select throws_ok($$ select api.set_my_name('Someone Else') $$, '22023', null, 'the name is chosen once; later changes go through the Uni Era team');
 select set_config('role', 'postgres', true);
 select is(pg_temp.name_claim('00000000-0000-0000-0000-00000000a901'), 'true'::jsonb, 'the token then says the name is chosen');
 

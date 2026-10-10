@@ -6,7 +6,7 @@ begin;
 set local role postgres;
 create extension if not exists pgtap with schema extensions;
 set local search_path to extensions, public;
-select plan(24);
+select plan(26);
 
 -- ---------------------------------------------------------------- fixtures
 insert into identity.institutions (id, name, short_name, kind, status) overriding system value values
@@ -81,7 +81,11 @@ select throws_ok($$ select api.block_user('00000000-0000-0000-0000-00000000c001'
 select api.block_user('00000000-0000-0000-0000-00000000c002');
 select is((select array_agg(full_name) from api.blocked_users()), array['Ruwan Perera'], 'blocked students are listed');
 select is((api.my_account() ->> 'blocked_count')::int, 1, 'the account counts blocked students');
-select is(api.person('00000000-0000-0000-0000-00000000c002'), null, 'a blocked student''s card is hidden');
+select is((api.person('00000000-0000-0000-0000-00000000c002') ->> 'blocked')::boolean, true, 'a blocked student''s card says they are blocked');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000c002');
+select is(api.person('00000000-0000-0000-0000-00000000c001'), null, 'the blocked student sees no card for the blocker, so the block is not revealed');
+select is((select count(*)::int from api.search_people('amaya')), 0, 'and cannot find the blocker in search');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000c001');
 select api.unblock_user('00000000-0000-0000-0000-00000000c002');
 select is((select count(*)::int from api.blocked_users()), 0, 'unblocking removes them from the list');
 

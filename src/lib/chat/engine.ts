@@ -1,0 +1,582 @@
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { AppState, type AppStateStatus, type NativeEventSubscription } from 'react-native';
+
+import { openLocalDb, type LocalDb } from '@/lib/chat/local-db';
+import { getChatState, resetChatState, setChatState } from '@/lib/chat/store';
+import type { Chat, Message, MessagePayload } from '@/lib/chat/types';
+import { uuidv7 } from '@/lib/chat/uuid';
+import { supabase } from '@/lib/supabase';
+
+// The chat engine. One live connection while the app is in the foreground:
+//   user:<me>        always: direct messages and read receipts arrive here.
+//   chat:<id>        only for the chat on screen: group messages, and typing in direct chats.
+// Group messages are not followed live from the list (that would count a Realtime message per
+// member for every message); the list refreshes when Chats is opened, on reconnect and on return
+// to the app. The database is the source of truth: whenever the connection (re)joins, the engine
+// fetches what it missed. Messages are written to the phone first and sent from an outbox, so
+// they survive a lost connection or a closed app, and a retry can never send one twice.
+
+const PAGE = 50;
+const CATCH_UP_PAGE = 200;
+const CATCH_UP_MAX_PAGES = 5; // after more than 1,000 missed messages, jump to the newest instead
+const GROUP_KEEP = 1000; // messages kept on the phone per group; direct chats are kept whole
+const BACKGROUND_DISCONNECT_MS = 30_000;
+const TYPING_SEND_EVERY_MS = 4000;
+const TYPING_SHOW_MS = 5000;
+const READ_EVERY_MS = 2000;
+
+let db: LocalDb | null = null;
+let me: string | null = null;
+let inbox: RealtimeChannel | null = null;
+let open: { id: string; channel: RealtimeChannel | null } | null = null;
+let appStateSub: NativeEventSubscription | null = null;
+let backgroundTimer: ReturnType<typeof setTimeout> | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryDelay = 2000;
+let flushing = false;
+let generation = 0; // async work from a previous account is ignored
+const lastTypingSent: Record<string, number> = {};
+const readTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+const readUpTo: Record<string, string> = {};
+
+const tsOf = (iso: string) => Date.parse(iso);
+const activity = (c: Chat) => c.last_message_at ?? c.created_at;
+const sortChats = (chats: Chat[]) => [...chats].sort((a, b) => (activity(a) < activity(b) ? 1 : -1));
+
+type Row = {
+  id: string;
+  sender_id: string | null;
+  sender_name: string | null;
+  sender_avatar: string | null;
+  body: string | null;
+  reply_to_id: string | null;
+  created_at: string;
+  deleted: boolean;
+};
+
+const fromRow = (conversationId: string, r: Row): Message => ({
+  id: r.id,
+  conversation_id: conversationId,
+  sender_id: r.sender_id,
+  sender_name: r.sender_name,
+  sender_avatar: r.sender_avatar,
+  body: r.body,
+  reply_to_id: r.reply_to_id,
+  created_at: r.created_at,
+  ts: tsOf(r.created_at),
+  status: 'sent',
+  error: null,
+  deleted: r.deleted,
+});
+
+const fromPayload = (p: MessagePayload): Message => ({
+  id: p.id,
+  conversation_id: p.conversation_id,
+  sender_id: p.sender_id,
+  sender_name: p.sender_name,
+  sender_avatar: p.sender_avatar,
+  body: p.body,
+  reply_to_id: p.reply_to_id,
+  created_at: p.created_at,
+  ts: tsOf(p.created_at),
+  status: 'sent',
+  error: null,
+  deleted: false,
+});
+
+// ---------------------------------------------------------------------------------------------
+// State helpers
+// ---------------------------------------------------------------------------------------------
+
+function putMessages(conversationId: string, incoming: Message[], replace = false) {
+  setChatState((s) => {
+    const current = s.messages[conversationId];
+    if (!current && !replace) return {};
+    const byId = new Map((replace ? [] : current ?? []).map((m) => [m.id, m]));
+    for (const m of incoming) byId.set(m.id, m);
+    const next = [...byId.values()].sort((a, b) => b.ts - a.ts || (a.id < b.id ? 1 : -1));
+    return { messages: { ...s.messages, [conversationId]: next } };
+  });
+}
+
+function updateChat(conversationId: string, update: (c: Chat) => Chat) {
+  setChatState((s) => ({ chats: sortChats(s.chats.map((c) => (c.conversation_id === conversationId ? update(c) : c))) }));
+}
+
+const isPermanent = (code: string | undefined) =>
+  !!code && /^[0-9A-Z]{5}$/.test(code) && code !== 'PT429' && !code.startsWith('PGRST');
+
+// ---------------------------------------------------------------------------------------------
+// Lifecycle
+// ---------------------------------------------------------------------------------------------
+
+// Starting and stopping run strictly one after another. React mounts effects twice in development
+// and Fast Refresh restarts them, so without this queue a second "open database" could begin while
+// the first was still setting up the file, and SQLite answers "database is locked".
+let lifecycle: Promise<void> = Promise.resolve();
+
+export function startChat(userId: string) {
+  const run = generation;
+  lifecycle = lifecycle
+    .then(() => (run === generation ? start(userId) : undefined))
+    .catch((error) => console.warn('[chat] could not start', error));
+  return lifecycle;
+}
+
+export function stopChat() {
+  generation++; // anything still in flight for the old session stops at its next check
+  lifecycle = lifecycle.then(stop).catch((error) => console.warn('[chat] could not stop cleanly', error));
+  return lifecycle;
+}
+
+async function start(userId: string) {
+  if (me === userId && db) return;
+  await stop();
+  const run = generation;
+  const local = await openLocalDb(userId);
+  if (run !== generation) {
+    await local.close();
+    return;
+  }
+  db = local;
+  me = userId;
+  const chats = sortChats(await local.loadChats());
+  setChatState({ me: userId, chats, chatsLoaded: chats.length > 0, connection: 'connecting' });
+  appStateSub = AppState.addEventListener('change', onAppState);
+  connectInbox();
+  refreshChats();
+  flushOutbox();
+}
+
+async function stop() {
+  appStateSub?.remove();
+  appStateSub = null;
+  if (backgroundTimer) clearTimeout(backgroundTimer);
+  if (retryTimer) clearTimeout(retryTimer);
+  disconnectLive();
+  open = null;
+  const closing = db;
+  db = null;
+  me = null;
+  resetChatState();
+  await closing?.close();
+}
+
+function onAppState(next: AppStateStatus) {
+  if (next === 'active') {
+    if (backgroundTimer) clearTimeout(backgroundTimer);
+    backgroundTimer = null;
+    if (!inbox) {
+      connectInbox();
+      if (open) subscribeOpen(open.id);
+    } else {
+      catchUp();
+    }
+  } else if (!backgroundTimer) {
+    // Push notifications take over in the background; holding the socket would only use a
+    // connection (and battery) nobody is looking at.
+    backgroundTimer = setTimeout(() => {
+      backgroundTimer = null;
+      disconnectLive();
+    }, BACKGROUND_DISCONNECT_MS);
+  }
+}
+
+function disconnectLive() {
+  if (inbox) supabase.removeChannel(inbox);
+  inbox = null;
+  if (open?.channel) supabase.removeChannel(open.channel);
+  if (open) open.channel = null;
+  setChatState({ connection: 'offline' });
+}
+
+async function connectInboxUnsafe() {
+  if (!me || inbox) return;
+  const run = generation;
+  await supabase.realtime.setAuth();
+  if (run !== generation || inbox) return;
+  inbox = supabase
+    .channel(`user:${me}`, { config: { private: true } })
+    .on('broadcast', { event: 'message' }, ({ payload }) => receive(payload as MessagePayload))
+    .on('broadcast', { event: 'read' }, ({ payload }) => receiveRead(payload as ReadPayload))
+    .subscribe((status) => {
+      if (run !== generation) return;
+      if (status === 'SUBSCRIBED') {
+        setChatState({ connection: 'live' });
+        catchUp(); // first join, and every rejoin after a dropped connection
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        setChatState({ connection: 'offline' });
+      }
+    });
+}
+
+function catchUp() {
+  refreshChats();
+  if (open) fetchNewer(open.id);
+  flushOutbox();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Chat list
+// ---------------------------------------------------------------------------------------------
+
+async function refreshChatsUnsafe() {
+  const run = generation;
+  const { data, error } = await supabase.rpc('my_chats');
+  if (error || run !== generation || !db) return;
+  const chats = sortChats(
+    (data as Chat[]).map((c) => (open?.id === c.conversation_id ? { ...c, unread: 0 } : c)),
+  );
+  // Keep a placeholder for a direct chat opened but not yet messaged.
+  const placeholder = getChatState().chats.find(
+    (c) => c.conversation_id === open?.id && !chats.some((x) => x.conversation_id === c.conversation_id),
+  );
+  setChatState({ chats: placeholder ? sortChats([...chats, placeholder]) : chats, chatsLoaded: true });
+  await db.saveChats(chats);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Incoming
+// ---------------------------------------------------------------------------------------------
+
+async function receiveUnsafe(p: MessagePayload) {
+  if (!db) return;
+  const message = fromPayload(p);
+  const known = getChatState().messages[p.conversation_id]?.some((m) => m.id === p.id && m.status === 'sent');
+  await db.saveMessages([message]);
+  putMessages(p.conversation_id, [message]);
+
+  const chat = getChatState().chats.find((c) => c.conversation_id === p.conversation_id);
+  if (!chat) {
+    refreshChats(); // a new direct chat or request
+    return;
+  }
+  const onScreen = open?.id === p.conversation_id;
+  updateChat(p.conversation_id, (c) => ({
+    ...c,
+    last_message_at: p.created_at,
+    last_message_preview: p.body.slice(0, 140),
+    last_sender_id: p.sender_id,
+    last_sender_name: p.sender_name,
+    unread: p.sender_id === me || onScreen || known ? c.unread : c.unread + 1,
+  }));
+  if (p.sender_id !== me) {
+    setChatState((s) => ({ typingUntil: { ...s.typingUntil, [p.conversation_id]: 0 } }));
+    if (onScreen) markRead(p.conversation_id, p.created_at);
+  }
+}
+
+type ReadPayload = { conversation_id: string; user_id: string; last_read_at: string };
+function receiveRead(p: ReadPayload) {
+  if (p.user_id === me) return;
+  updateChat(p.conversation_id, (c) => ({
+    ...c,
+    other_last_read_at: !c.other_last_read_at || c.other_last_read_at < p.last_read_at ? p.last_read_at : c.other_last_read_at,
+  }));
+}
+
+function receiveTyping(conversationId: string, payload: { user_id?: string }) {
+  if (!payload.user_id || payload.user_id === me) return;
+  setChatState((s) => ({ typingUntil: { ...s.typingUntil, [conversationId]: Date.now() + TYPING_SHOW_MS } }));
+}
+
+// ---------------------------------------------------------------------------------------------
+// One chat
+// ---------------------------------------------------------------------------------------------
+
+async function openConversationUnsafe(conversationId: string) {
+  if (!db) return;
+  if (open?.id !== conversationId) closeConversation();
+  open = { id: conversationId, channel: null };
+  updateChat(conversationId, (c) => ({ ...c, unread: 0 }));
+
+  // The phone's copy first: on screen in milliseconds, offline too.
+  const local = await db.loadMessages(conversationId, undefined, PAGE);
+  if (open?.id !== conversationId) return;
+  putMessages(conversationId, local, true);
+  setChatState((s) => ({ hasOlder: { ...s.hasOlder, [conversationId]: true } }));
+
+  if (inbox) subscribeOpen(conversationId);
+  await fetchNewer(conversationId);
+}
+
+function subscribeOpen(conversationId: string) {
+  if (!open || open.id !== conversationId || open.channel) return;
+  const chat = getChatState().chats.find((c) => c.conversation_id === conversationId);
+  // Direct messages already arrive on user:<me>; a direct chat's own channel is only for typing,
+  // which needs an accepted chat.
+  if (chat?.kind === 'direct' && chat.request) return;
+  open.channel = supabase
+    .channel(`chat:${conversationId}`, { config: { private: true } })
+    .on('broadcast', { event: 'message' }, ({ payload }) => receive(payload as MessagePayload))
+    .on('broadcast', { event: 'typing' }, ({ payload }) => receiveTyping(conversationId, payload as { user_id?: string }))
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED' && open?.id === conversationId) fetchNewer(conversationId);
+    });
+}
+
+export function closeConversation() {
+  if (!open) return;
+  const { id, channel } = open;
+  if (channel) supabase.removeChannel(channel);
+  open = null;
+  const chat = getChatState().chats.find((c) => c.conversation_id === id);
+  if (chat && chat.kind !== 'direct') db?.prune(id, GROUP_KEEP).catch(() => {});
+  setChatState((s) => {
+    const messages = { ...s.messages };
+    delete messages[id];
+    return { messages };
+  });
+}
+
+// Everything newer than the phone has, oldest first, in pages.
+async function fetchNewerUnsafe(conversationId: string) {
+  const local = db;
+  if (!local) return;
+  const confirmed = await local.latestConfirmed(conversationId);
+  if (!confirmed) {
+    const { data, error } = await supabase.rpc('chat_messages', { p_conversation_id: conversationId, p_limit: PAGE });
+    if (error || db !== local) return;
+    const rows = (data as Row[]).map((r) => fromRow(conversationId, r));
+    await local.saveMessages(rows);
+    putMessages(conversationId, rows);
+    setChatState((s) => ({ hasOlder: { ...s.hasOlder, [conversationId]: rows.length === PAGE } }));
+    if (rows[0]) markRead(conversationId, rows[0].created_at);
+    return;
+  }
+
+  let cursor: string = confirmed;
+  for (let page = 0; page < CATCH_UP_MAX_PAGES; page++) {
+    const { data, error }: { data: unknown; error: unknown } = await supabase.rpc('chat_messages', {
+      p_conversation_id: conversationId,
+      p_after: cursor,
+      p_limit: CATCH_UP_PAGE,
+    });
+    if (error || db !== local) return;
+    const rows = (data as Row[]).map((r) => fromRow(conversationId, r));
+    if (rows.length) {
+      await local.saveMessages(rows);
+      putMessages(conversationId, rows);
+      cursor = rows[rows.length - 1].created_at;
+      if (open?.id === conversationId) markRead(conversationId, cursor);
+    }
+    if (rows.length < CATCH_UP_PAGE) return;
+  }
+  // Far behind (a busy group after days away): start again from the newest messages.
+  await local.clearConversation(conversationId);
+  putMessages(conversationId, [], true);
+  await fetchNewer(conversationId);
+}
+
+async function loadOlderUnsafe(conversationId: string) {
+  const local = db;
+  const loaded = getChatState().messages[conversationId];
+  if (!local || !loaded || getChatState().hasOlder[conversationId] === false) return;
+  const oldest = loaded[loaded.length - 1];
+
+  const fromPhone = await local.loadMessages(conversationId, oldest?.ts, PAGE);
+  if (fromPhone.length) putMessages(conversationId, fromPhone);
+  if (fromPhone.length === PAGE) return;
+
+  const before = (fromPhone[fromPhone.length - 1] ?? oldest)?.created_at;
+  const { data, error } = await supabase.rpc('chat_messages', {
+    p_conversation_id: conversationId,
+    p_before: before,
+    p_limit: PAGE,
+  });
+  if (error || db !== local) return;
+  const rows = (data as Row[]).map((r) => fromRow(conversationId, r));
+  await local.saveMessages(rows);
+  putMessages(conversationId, rows);
+  setChatState((s) => ({ hasOlder: { ...s.hasOlder, [conversationId]: rows.length === PAGE } }));
+}
+
+// Read position, at most once every 2 seconds per chat.
+function markRead(conversationId: string, upTo: string) {
+  updateChat(conversationId, (c) => ({ ...c, unread: 0 }));
+  // Looking at a message request must not tell the sender it was seen (no read receipt).
+  if (getChatState().chats.find((c) => c.conversation_id === conversationId)?.request === 'incoming') return;
+  if (!readUpTo[conversationId] || readUpTo[conversationId] < upTo) readUpTo[conversationId] = upTo;
+  if (readTimers[conversationId]) return;
+  readTimers[conversationId] = setTimeout(() => {
+    delete readTimers[conversationId];
+    const until = readUpTo[conversationId];
+    delete readUpTo[conversationId];
+    if (until) supabase.rpc('mark_read', { p_conversation_id: conversationId, p_up_to: until });
+  }, READ_EVERY_MS);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Sending
+// ---------------------------------------------------------------------------------------------
+
+async function sendMessageUnsafe(conversationId: string, body: string) {
+  const text = body.trim();
+  if (!text || !me || !db) return;
+  const now = Date.now();
+  const message: Message = {
+    id: uuidv7(),
+    conversation_id: conversationId,
+    sender_id: me,
+    sender_name: null,
+    sender_avatar: null,
+    body: text,
+    reply_to_id: null,
+    created_at: new Date(now).toISOString(),
+    ts: now,
+    status: 'pending',
+    error: null,
+    deleted: false,
+  };
+  await db.saveMessages([message]);
+  putMessages(conversationId, [message]);
+  updateChat(conversationId, (c) => ({
+    ...c,
+    last_message_at: message.created_at,
+    last_message_preview: text.slice(0, 140),
+    last_sender_id: me,
+  }));
+  flushOutbox();
+}
+
+async function retryMessageUnsafe(message: Message) {
+  if (!db) return;
+  const again = { ...message, status: 'pending' as const, error: null };
+  await db.saveMessages([again]);
+  putMessages(message.conversation_id, [again]);
+  flushOutbox();
+}
+
+// Sends waiting messages in order. A network failure or rate limit leaves them waiting and
+// retries with backoff (2 s, 4 s ... 30 s); a refusal (blocked, request pending) marks them failed.
+async function flushOutboxUnsafe() {
+  const local = db;
+  if (flushing || !local) return;
+  flushing = true;
+  try {
+    for (const message of await local.pendingMessages()) {
+      const { data, error } = await supabase.rpc('send_message', {
+        p_conversation_id: message.conversation_id,
+        p_id: message.id,
+        p_body: message.body ?? '',
+      });
+      if (db !== local) return;
+      if (error) {
+        if (isPermanent(error.code)) {
+          const failed = { ...message, status: 'failed' as const, error: error.message };
+          await local.saveMessages([failed]);
+          putMessages(message.conversation_id, [failed]);
+          continue;
+        }
+        scheduleRetry();
+        return;
+      }
+      const created = (data as { created_at: string }).created_at;
+      const sent: Message = { ...message, status: 'sent', created_at: created, ts: tsOf(created), error: null };
+      // The server has it: show ✓ now, then record it on the phone.
+      putMessages(message.conversation_id, [sent]);
+      updateChat(message.conversation_id, (c) =>
+        c.last_sender_id === me && c.last_message_preview === (message.body ?? '').slice(0, 140)
+          ? { ...c, last_message_at: created }
+          : c,
+      );
+      await local.saveMessages([sent]);
+    }
+    retryDelay = 2000;
+  } catch (error) {
+    // Anything unexpected (the phone database busy, a dropped connection mid-request): try again
+    // shortly. Safe, because the server recognises a message it already saved by its id.
+    scheduleRetry();
+    throw error;
+  } finally {
+    flushing = false;
+  }
+}
+
+function scheduleRetry() {
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    flushOutbox();
+  }, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, 30_000);
+}
+
+// Typing, direct chats only: once when you start, then every 4 seconds while you type.
+export function notifyTyping(conversationId: string) {
+  if (!open || open.id !== conversationId || !open.channel || !me) return;
+  const now = Date.now();
+  if (now - (lastTypingSent[conversationId] ?? 0) < TYPING_SEND_EVERY_MS) return;
+  const chat = getChatState().chats.find((c) => c.conversation_id === conversationId);
+  if (chat?.kind !== 'direct' || chat.request) return;
+  lastTypingSent[conversationId] = now;
+  open.channel.send({ type: 'broadcast', event: 'typing', payload: { user_id: me } });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Direct chats and requests
+// ---------------------------------------------------------------------------------------------
+
+export async function startDirect(person: { user_id: string; full_name: string; avatar_path: string | null }) {
+  const { data, error } = await supabase.rpc('start_direct', { p_user_id: person.user_id });
+  if (error) return { error: error.message };
+  const { conversation_id, request_status } = data as { conversation_id: string; request_status: string };
+  if (!getChatState().chats.some((c) => c.conversation_id === conversation_id)) {
+    const now = new Date().toISOString();
+    const placeholder: Chat = {
+      conversation_id,
+      kind: 'direct',
+      title: person.full_name,
+      other_user_id: person.user_id,
+      other_avatar_path: person.avatar_path,
+      last_message_at: null,
+      last_message_preview: null,
+      last_sender_id: null,
+      last_sender_name: null,
+      unread: 0,
+      muted: false,
+      request: request_status === 'pending' ? 'outgoing' : null,
+      member_count: 2,
+      my_last_read_at: null,
+      other_last_read_at: null,
+      created_at: now,
+    };
+    setChatState((s) => ({ chats: sortChats([...s.chats, placeholder]) }));
+  }
+  return { conversationId: conversation_id };
+}
+
+export async function respondRequest(conversationId: string, accept: boolean) {
+  const { error } = await supabase.rpc('respond_request', { p_conversation_id: conversationId, p_accept: accept });
+  if (error) return error.message;
+  if (accept) {
+    updateChat(conversationId, (c) => ({ ...c, request: null }));
+    if (open?.id === conversationId && inbox) subscribeOpen(conversationId); // typing works from now on
+  } else setChatState((s) => ({ chats: s.chats.filter((c) => c.conversation_id !== conversationId) }));
+  return null;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Everything that runs in the background (live events, timers, screens that do not wait) goes
+// through these wrappers: if the database was closed by a sign-out or the network failed half way,
+// the failure is logged and the next sync picks up, instead of surfacing as an uncaught error.
+// ---------------------------------------------------------------------------------------------
+function safely<A extends unknown[]>(label: string, run: (...args: A) => Promise<unknown>) {
+  return (...args: A): Promise<void> =>
+    run(...args).then(
+      () => undefined,
+      (error) => {
+        if (__DEV__) console.warn(`[chat] ${label} failed`, error);
+      },
+    );
+}
+
+export const refreshChats = safely('refresh chats', refreshChatsUnsafe);
+export const openConversation = safely('open chat', openConversationUnsafe);
+export const loadOlder = safely('load older messages', loadOlderUnsafe);
+export const sendMessage = safely('send', sendMessageUnsafe);
+export const retryMessage = safely('retry', retryMessageUnsafe);
+const receive = safely('receive', receiveUnsafe);
+const fetchNewer = safely('catch up', fetchNewerUnsafe);
+const flushOutbox = safely('send waiting messages', flushOutboxUnsafe);
+const connectInbox = safely('connect', connectInboxUnsafe);

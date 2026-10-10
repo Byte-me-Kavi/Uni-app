@@ -10,6 +10,8 @@ import { brand, createThemedStyles, fonts, useTheme } from '@/theme/tokens';
 type Props = TabTriggerSlotProps & {
   label: string;
   Icon: ComponentType<IconProps>;
+  /** Unread count shown on the icon (Chats). */
+  badge?: number;
   ref?: Ref<View>;
 };
 
@@ -17,7 +19,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // One tab in the bottom bar. The active tab is red (red means "you", here: where you are) with a
 // filled icon; the rest are quiet. A small press-in confirms the tap.
-export function TabButton({ label, Icon, isFocused, ref, ...props }: Props) {
+export function TabButton({ label, Icon, badge = 0, isFocused, ref, ...props }: Props) {
   const theme = useTheme();
   const styles = useStyles();
   const pressed = useSharedValue(0);
@@ -36,10 +38,18 @@ export function TabButton({ label, Icon, isFocused, ref, ...props }: Props) {
         props.onPressOut?.(e);
       }}
       accessibilityRole="tab"
-      accessibilityLabel={label}
+      accessibilityLabel={badge > 0 ? `${label}, ${badge} unread` : label}
       accessibilityState={{ selected: !!isFocused }}
       style={[styles.button, pressStyle]}>
-      <Icon size={25} weight={isFocused ? 'fill' : 'regular'} color={isFocused ? brand.red : theme.textMuted} />
+      <View>
+        <Icon size={25} weight={isFocused ? 'fill' : 'regular'} color={isFocused ? brand.red : theme.textMuted} />
+        {badge > 0 ? (
+          // Red with Ink text, like every unread count.
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+          </View>
+        ) : null}
+      </View>
       <Text style={[styles.label, isFocused && styles.labelActive]} numberOfLines={1}>
         {label}
       </Text>
@@ -51,4 +61,19 @@ const useStyles = createThemedStyles((t) => ({
   button: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingTop: 8, paddingBottom: 6, minHeight: 56 },
   label: { fontFamily: fonts.bodyBold, fontSize: 11.5, color: t.textMuted },
   labelActive: { color: t.text },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    left: 15,
+    minWidth: 19,
+    height: 19,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    backgroundColor: brand.red,
+    borderWidth: 2,
+    borderColor: t.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { fontFamily: fonts.bodyBold, fontSize: 10, lineHeight: 12, color: brand.ink },
 }));

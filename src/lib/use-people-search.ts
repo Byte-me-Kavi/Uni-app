@@ -12,6 +12,8 @@ export type PersonResult = {
   relation: 'batchmate' | 'university' | null;
   /** True when nothing matched as typed and these are matches for the closest spelling. */
   corrected: boolean;
+  /** A student you blocked: listed so you can find them and unblock. */
+  blocked: boolean;
 };
 
 export type SearchState =
@@ -26,6 +28,11 @@ const CACHE_SIZE = 60;
 
 // Recent answers for this app session, newest last. Backspacing or retyping a name is instant.
 const cache = new Map<string, PersonResult[]>();
+
+// Blocking or unblocking changes results, so the next search asks the server again.
+export function clearSearchCache() {
+  cache.clear();
+}
 
 function remember(key: string, results: PersonResult[]) {
   cache.delete(key);

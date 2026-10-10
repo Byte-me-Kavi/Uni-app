@@ -243,7 +243,7 @@ export default function Batch() {
                 <Text style={styles.batchMeta}>{members(joined.members)}</Text>
               </View>
               <Text style={styles.lead}>
-                Your batch group chat opens with Chats. Need to change your batch? Ask a moderator.
+                Your batch group chat opens with Chats. Need to change your batch? Contact the Uni Era team.
               </Text>
               <Button label="Done" onPress={() => router.back()} />
             </View>

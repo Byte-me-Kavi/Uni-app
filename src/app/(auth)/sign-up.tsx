@@ -64,7 +64,7 @@ export default function SignUp() {
   return (
     <AuthScreen
       title="Start your uni era"
-      subtitle="Use your university email. A moderator approves every new account, so Uni Era stays students-only."
+      subtitle="Use your university email. The Uni Era team approves every new account, so Uni Era stays students-only."
       footer={
         <Text style={styles.footer}>
           Already have an account?{' '}

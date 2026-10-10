@@ -117,7 +117,7 @@ export default function Profile() {
           <SettingsRow
             Icon={IdentificationBadgeIcon}
             label="Name"
-            value={account ? `${account.full_name}. Ask a moderator to change it.` : undefined}
+            value={account ? `${account.full_name}. Contact the Uni Era team to change it.` : undefined}
           />
         </SettingsGroup>
 
@@ -146,7 +146,7 @@ export default function Profile() {
         <SettingsGroup title="Account">
           <SettingsRow first Icon={GraduationCapIcon} label="University" value={account?.institution.name} />
           <SettingsRow Icon={EnvelopeSimpleIcon} label="Email" value={account ? `${account.email} (only you see this)` : undefined} />
-          <SettingsRow Icon={ShieldCheckIcon} label="Verified student" value="Approved by a moderator at your university" />
+          <SettingsRow Icon={ShieldCheckIcon} label="Verified student" value="Checked and approved by the Uni Era team" />
           <SettingsRow Icon={MoonIcon} label="Appearance" value="Follows your phone's light or dark mode" />
         </SettingsGroup>
 

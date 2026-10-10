@@ -10,6 +10,7 @@ import { BackHandler, Keyboard, Pressable, Text, TextInput, View } from 'react-n
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { UniEraMark } from '@/components/brand/uni-era-mark';
+import { useUnreadTotal } from '@/lib/chat/store';
 import { SearchField } from '@/components/search/search-field';
 import { SearchPanel } from '@/components/search/search-panel';
 import { TabButton } from '@/components/tabs/tab-button';
@@ -30,6 +31,7 @@ export default function TabsLayout() {
   const { state } = useHomeData();
   const name = state.status === 'ready' ? state.home.full_name : null;
   const photo = state.status === 'ready' ? state.home.avatar_path : null;
+  const unread = useUnreadTotal();
 
   const input = useRef<TextInput>(null);
   const [query, setQuery] = useState('');
@@ -97,7 +99,7 @@ export default function TabsLayout() {
               <TabButton label="Home" Icon={HouseIcon} />
             </TabTrigger>
             <TabTrigger name="chats" href="/chats" asChild>
-              <TabButton label="Chats" Icon={ChatsCircleIcon} />
+              <TabButton label="Chats" Icon={ChatsCircleIcon} badge={unread} />
             </TabTrigger>
             <TabTrigger name="resources" href="/resources" asChild>
               <TabButton label="Resources" Icon={BookOpenIcon} />

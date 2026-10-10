@@ -34,6 +34,25 @@ export type Database = {
           user_id: string
         }[]
       }
+      chat_messages: {
+        Args: {
+          p_after?: string
+          p_before?: string
+          p_conversation_id: string
+          p_limit?: number
+        }
+        Returns: {
+          body: string
+          created_at: string
+          deleted: boolean
+          edited_at: string
+          id: string
+          reply_to_id: string
+          sender_avatar: string
+          sender_id: string
+          sender_name: string
+        }[]
+      }
       join_batch: {
         Args: {
           p_intake_year?: number
@@ -42,7 +61,32 @@ export type Database = {
         }
         Returns: Json
       }
+      mark_read: {
+        Args: { p_conversation_id: string; p_up_to: string }
+        Returns: string
+      }
       my_account: { Args: never; Returns: Json }
+      my_chats: {
+        Args: never
+        Returns: {
+          conversation_id: string
+          created_at: string
+          kind: string
+          last_message_at: string
+          last_message_preview: string
+          last_sender_id: string
+          last_sender_name: string
+          member_count: number
+          muted: boolean
+          my_last_read_at: string
+          other_avatar_path: string
+          other_last_read_at: string
+          other_user_id: string
+          request: string
+          title: string
+          unread: number
+        }[]
+      }
       my_home: { Args: never; Returns: Json }
       pending_accounts: {
         Args: {
@@ -62,6 +106,10 @@ export type Database = {
         }[]
       }
       person: { Args: { p_user_id: string }; Returns: Json }
+      respond_request: {
+        Args: { p_accept: boolean; p_conversation_id: string }
+        Returns: string
+      }
       review_account: {
         Args: { p_decision: string; p_reason?: string; p_user_id: string }
         Returns: string
@@ -70,6 +118,7 @@ export type Database = {
         Args: { p_query: string }
         Returns: {
           avatar_path: string
+          blocked: boolean
           corrected: boolean
           full_name: string
           institution: string
@@ -87,9 +136,19 @@ export type Database = {
           name: string
         }[]
       }
+      send_message: {
+        Args: {
+          p_body: string
+          p_conversation_id: string
+          p_id: string
+          p_reply_to_id?: string
+        }
+        Returns: Json
+      }
       set_findable_by: { Args: { p_findable_by: string }; Returns: string }
       set_my_avatar: { Args: { p_path: string }; Returns: string }
       set_my_name: { Args: { p_full_name: string }; Returns: string }
+      start_direct: { Args: { p_user_id: string }; Returns: Json }
       unblock_user: { Args: { p_user_id: string }; Returns: undefined }
       update_bio: { Args: { p_bio: string }; Returns: string }
       update_privacy: {
