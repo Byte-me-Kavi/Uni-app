@@ -41,6 +41,14 @@
       ],
       "expo-secure-store",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Uni Era uses your photos so you can choose a profile picture.",
+          "cameraPermission": "Uni Era uses the camera so you can take a profile picture.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-font",
         {
           "fonts": [

@@ -1,56 +1,61 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
+import { useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { CameraIcon } from 'phosphor-react-native/src/icons/Camera';
+import { ChatCircleDotsIcon } from 'phosphor-react-native/src/icons/ChatCircleDots';
+import { EnvelopeSimpleIcon } from 'phosphor-react-native/src/icons/EnvelopeSimple';
+import { GraduationCapIcon } from 'phosphor-react-native/src/icons/GraduationCap';
+import { IdentificationBadgeIcon } from 'phosphor-react-native/src/icons/IdentificationBadge';
+import { MagnifyingGlassIcon } from 'phosphor-react-native/src/icons/MagnifyingGlass';
+import { MoonIcon } from 'phosphor-react-native/src/icons/Moon';
+import { ProhibitIcon } from 'phosphor-react-native/src/icons/Prohibit';
+import { QuotesIcon } from 'phosphor-react-native/src/icons/Quotes';
+import { ShieldCheckIcon } from 'phosphor-react-native/src/icons/ShieldCheck';
 
+import { SettingsGroup, SettingsRow } from '@/components/settings/settings-group';
+import { ActionSheet, type SheetAction } from '@/components/ui/action-sheet';
 import { Avatar } from '@/components/ui/avatar';
+import { BackHeader } from '@/components/ui/back-header';
 import { Button } from '@/components/ui/button';
+import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
+import { changePhoto, removePhoto } from '@/lib/avatar-upload';
 import { supabase } from '@/lib/supabase';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
-
-type Findable = 'everyone' | 'my_institution' | 'nobody';
-
-type Account = {
-  full_name: string;
-  email: string;
-  institution: { name: string } | null;
-  staff_role: 'admin' | 'moderator' | null;
-  findable_by: Findable;
-};
-
-const FINDABLE: { value: Findable; label: string; detail: string }[] = [
-  { value: 'everyone', label: 'Every university', detail: 'Any verified student can find you by name' },
-  { value: 'my_institution', label: 'My university', detail: 'Only students at your university' },
-  { value: 'nobody', label: 'No one', detail: 'You do not appear in search' },
-];
+import { FINDABLE, labelFor, useAccount, WHO_CAN_MESSAGE } from '@/lib/use-account';
+import { useHomeData } from '@/providers/home-provider';
+import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 const ROLE_LABEL = { admin: 'Admin', moderator: 'Moderator' } as const;
+const PHOTO = 104;
 
+// Your profile as other students see it, with your settings underneath.
 export default function Profile() {
-  const theme = useTheme();
   const styles = useStyles();
-  const [account, setAccount] = useState<Account | null>(null);
+  const { account, failed, reload, setAccount } = useAccount();
+  const { refresh: refreshHome } = useHomeData();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
-  const [findableError, setFindableError] = useState(false);
 
-  useEffect(() => {
-    supabase.rpc('my_account').then(({ data }) => setAccount((data as Account | null) ?? null));
-  }, []);
-
-  // Shows the choice at once and puts it back if the server refuses.
-  async function setFindable(value: Findable) {
-    if (!account || account.findable_by === value) return;
-    const previous = account.findable_by;
-    setAccount({ ...account, findable_by: value });
-    setFindableError(false);
-    const { error } = await supabase.rpc('set_findable_by', { p_findable_by: value });
-    if (error) {
-      setAccount((a) => (a ? { ...a, findable_by: previous } : a));
-      setFindableError(true);
+  async function updatePhoto(run: () => ReturnType<typeof removePhoto>) {
+    setPhotoError(null);
+    setUploading(true);
+    const result = await run().catch(() => ({ status: 'error' as const, message: 'Could not update your photo. Try again.' }));
+    setUploading(false);
+    if (result.status === 'error') setPhotoError(result.message);
+    if (result.status === 'done') {
+      setAccount((a) => (a ? { ...a, avatar_path: result.path } : a));
+      refreshHome(); // the top bar shows the new photo too
     }
   }
+
+  const photoActions: SheetAction[] = [
+    { label: 'Choose from library', onPress: () => updatePhoto(() => changePhoto('library')) },
+    { label: 'Take a photo', onPress: () => updatePhoto(() => changePhoto('camera')) },
+    ...(account?.avatar_path ? [{ label: 'Remove photo', destructive: true, onPress: () => updatePhoto(removePhoto) }] : []),
+  ];
 
   async function signOut() {
     setSigningOut(true);
@@ -59,106 +64,154 @@ export default function Profile() {
   }
 
   return (
-    <Screen style={styles.safe}>
-      <View style={styles.topBar}>
-        <PressableScale
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={12}
-          style={styles.back}>
-          <CaretLeftIcon size={22} weight="bold" color={theme.text} />
-        </PressableScale>
-        <Text style={styles.title} accessibilityRole="header">
-          Account
-        </Text>
-        <View style={styles.back} />
-      </View>
+    <Screen style={styles.screen}>
+      <BackHeader title="Profile" />
 
       <ScrollView contentContainerStyle={styles.content}>
         {account ? (
           <View style={styles.identity}>
-            <Avatar name={account.full_name} size={76} />
+            <PressableScale
+              onPress={() => setSheetOpen(true)}
+              disabled={uploading}
+              accessibilityRole="button"
+              accessibilityLabel={account.avatar_path ? 'Change profile photo' : 'Add a profile photo'}
+              style={styles.photoButton}>
+              <Avatar name={account.full_name} path={account.avatar_path} size={PHOTO} />
+              {uploading ? (
+                <View style={styles.photoBusy}>
+                  <ActivityIndicator color={brand.white} />
+                </View>
+              ) : null}
+              {/* Red marks the thing to do; what sits on red is Ink. */}
+              <View style={styles.cameraBadge}>
+                <CameraIcon size={17} weight="bold" color={brand.ink} />
+              </View>
+            </PressableScale>
             <Text style={styles.name}>{account.full_name}</Text>
-            <Text style={styles.email}>{account.email}</Text>
+            <Text style={styles.where}>{account.batch?.name ?? account.institution.name}</Text>
+            {account.bio ? <Text style={styles.bio}>{account.bio}</Text> : null}
             {account.staff_role ? <Text style={styles.role}>{ROLE_LABEL[account.staff_role]}</Text> : null}
+            <FormMessage message={photoError} />
+          </View>
+        ) : failed ? (
+          <View style={styles.identity}>
+            <FormMessage message="Could not load your profile. Check your connection." />
+            <Button label="Try again" variant="quiet" onPress={reload} />
           </View>
         ) : (
-          <View style={[styles.identity, styles.placeholder]} />
+          <View style={styles.identity} accessible accessibilityLabel="Loading">
+            <View style={styles.skeletonPhoto} />
+            <View style={[styles.skeletonLine, { width: '50%', height: 24 }]} />
+            <View style={[styles.skeletonLine, { width: '70%' }]} />
+          </View>
         )}
 
-        <View style={styles.list}>
-          <Row label="University" value={account?.institution?.name ?? ' '} />
-          <Row label="Appearance" value="Follows your phone's light or dark mode" />
-        </View>
+        <SettingsGroup title="Profile">
+          <SettingsRow
+            first
+            Icon={QuotesIcon}
+            label="About you"
+            value={account?.bio ?? 'Add a line so students know who you are'}
+            onPress={() => router.push('/settings/about')}
+          />
+          <SettingsRow
+            Icon={IdentificationBadgeIcon}
+            label="Name"
+            value={account ? `${account.full_name}. Ask a moderator to change it.` : undefined}
+          />
+        </SettingsGroup>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Who can find you in search</Text>
-          <View style={styles.options} accessibilityRole="radiogroup">
-            {FINDABLE.map((option) => {
-              const selected = account?.findable_by === option.value;
-              return (
-                <PressableScale
-                  key={option.value}
-                  onPress={() => setFindable(option.value)}
-                  disabled={!account}
-                  scale={0.985}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected, disabled: !account }}
-                  accessibilityLabel={`${option.label}. ${option.detail}`}
-                  style={[styles.option, selected && styles.optionSelected]}>
-                  <View style={[styles.radio, selected && styles.radioSelected]}>
-                    {selected ? <View style={styles.radioDot} /> : null}
-                  </View>
-                  <View style={styles.optionText}>
-                    <Text style={styles.optionLabel}>{option.label}</Text>
-                    <Text style={styles.optionDetail}>{option.detail}</Text>
-                  </View>
-                </PressableScale>
-              );
-            })}
-          </View>
-          {findableError ? (
-            <Text style={styles.error} accessibilityLiveRegion="polite">
-              Could not change this. Check your connection and try again.
-            </Text>
-          ) : (
-            <Text style={styles.sectionNote}>Search shows your name, university and batch. Never your email.</Text>
-          )}
-        </View>
+        <SettingsGroup title="Privacy" footer="Search and cards show your name, photo, university and batch. Never your email.">
+          <SettingsRow
+            first
+            Icon={MagnifyingGlassIcon}
+            label="Who can find me"
+            value={labelFor(FINDABLE, account?.findable_by)}
+            onPress={() => router.push('/settings/find')}
+          />
+          <SettingsRow
+            Icon={ChatCircleDotsIcon}
+            label="Who can message me"
+            value={labelFor(WHO_CAN_MESSAGE, account?.who_can_message)}
+            onPress={() => router.push('/settings/message')}
+          />
+          <SettingsRow
+            Icon={ProhibitIcon}
+            label="Blocked students"
+            value={account ? (account.blocked_count === 0 ? 'None' : `${account.blocked_count}`) : undefined}
+            onPress={() => router.push('/settings/blocked')}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="Account">
+          <SettingsRow first Icon={GraduationCapIcon} label="University" value={account?.institution.name} />
+          <SettingsRow Icon={EnvelopeSimpleIcon} label="Email" value={account ? `${account.email} (only you see this)` : undefined} />
+          <SettingsRow Icon={ShieldCheckIcon} label="Verified student" value="Approved by a moderator at your university" />
+          <SettingsRow Icon={MoonIcon} label="Appearance" value="Follows your phone's light or dark mode" />
+        </SettingsGroup>
 
         <Button label="Sign out" variant="quiet" onPress={signOut} loading={signingOut} />
       </ScrollView>
+
+      <ActionSheet
+        visible={sheetOpen}
+        title="Profile photo"
+        message="Students see it in search, on your card and in chats."
+        actions={photoActions}
+        onClose={() => setSheetOpen(false)}
+      />
     </Screen>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  const styles = useStyles();
-  return (
-    <View style={styles.row} accessible accessibilityLabel={`${label}: ${value}`}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
-    </View>
-  );
-}
-
 const useStyles = createThemedStyles((t) => ({
-  safe: { flex: 1, backgroundColor: t.background },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: space.lg,
-    minHeight: 56,
+  screen: { backgroundColor: t.background },
+  content: {
+    paddingHorizontal: space.xl,
+    paddingTop: space.sm,
+    paddingBottom: space.xxxl,
+    gap: space.xl,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
-  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  title: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
-  content: { padding: space.xl, gap: space.xl, width: '100%', maxWidth: 560, alignSelf: 'center' },
-  identity: { alignItems: 'center', gap: space.xs, paddingVertical: space.lg },
-  placeholder: { height: 168 },
-  name: { fontFamily: fonts.display, fontSize: 24, color: t.text, marginTop: space.md, textAlign: 'center' },
-  email: { fontFamily: fonts.body, fontSize: 15, color: t.textMuted, textAlign: 'center' },
+  identity: { alignItems: 'center', gap: space.xs, paddingBottom: space.sm },
+  photoButton: { width: PHOTO, height: PHOTO, marginBottom: space.md },
+  photoBusy: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: PHOTO / 2,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: brand.red,
+    borderWidth: 3,
+    borderColor: t.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  name: { fontFamily: fonts.display, fontSize: 26, lineHeight: 32, color: t.text, textAlign: 'center', letterSpacing: -0.2 },
+  where: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: t.textMuted, textAlign: 'center' },
+  bio: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: t.text,
+    textAlign: 'center',
+    marginTop: space.sm,
+    maxWidth: 420,
+  },
   role: {
     marginTop: space.sm,
     fontFamily: fonts.bodyBold,
@@ -170,39 +223,6 @@ const useStyles = createThemedStyles((t) => ({
     borderRadius: radius.pill,
     overflow: 'hidden',
   },
-  list: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.lg, gap: space.lg },
-  row: { gap: 2 },
-  rowLabel: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted },
-  rowValue: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: t.text },
-  section: { gap: space.md },
-  sectionTitle: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
-  sectionNote: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
-  error: { fontFamily: fonts.bodyBold, fontSize: 14, lineHeight: 19, color: t.dangerText },
-  options: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.xs, gap: 2 },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.md,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  optionSelected: { borderColor: t.focus, backgroundColor: t.background },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: t.borderFilled,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Selected: red with an Ink centre (brand rule: what is on red is Ink).
-  radioSelected: { borderColor: brand.red, backgroundColor: brand.red },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: brand.ink },
-  optionText: { flex: 1, gap: 1 },
-  optionLabel: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text },
-  optionDetail: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
+  skeletonPhoto: { width: PHOTO, height: PHOTO, borderRadius: PHOTO / 2, backgroundColor: t.surface, marginBottom: space.md },
+  skeletonLine: { height: 16, borderRadius: radius.sm, backgroundColor: t.surface, marginTop: space.xs },
 }));

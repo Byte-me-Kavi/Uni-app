@@ -119,7 +119,8 @@ select is(pg_temp.names('munasinghe'), array['Kavisha Dilshan Munasinghe'], 'a r
 
 select set_config('role', 'postgres', true);
 delete from auth.users where id = '00000000-0000-0000-0000-00000000e003';
-select is((select count(*)::int from identity.search_words where word in ('kavindu', 'rathnayake')), 0,
+-- 'rathnayake' belongs only to this student here; 'kavindu' may belong to real students too.
+select is((select count(*)::int from identity.search_words where word = 'rathnayake'), 0,
   'deleting an account removes its words from the typo dictionary');
 
 -- ---------------------------------------------------------------- rate limit

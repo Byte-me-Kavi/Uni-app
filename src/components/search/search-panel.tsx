@@ -81,7 +81,7 @@ function PersonRow({ person, typed, onPress }: { person: PersonResult; typed: st
       accessibilityRole="button"
       accessibilityLabel={`${person.full_name}, ${meta}`}
       style={styles.row}>
-      <Avatar name={person.full_name} size={46} />
+      <Avatar name={person.full_name} path={person.avatar_path} size={46} />
       <View style={styles.rowText}>
         <Text style={styles.name} numberOfLines={1}>
           <HighlightedName name={person.full_name} typed={typed} />
