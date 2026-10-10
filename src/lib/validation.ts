@@ -17,7 +17,11 @@ export function newPasswordError(value: string): string | null {
   return null;
 }
 
+// Same rule as api.set_my_name: 2 to 80 characters, letters in any script, spaces, dots,
+// apostrophes and hyphens.
 export function fullNameError(value: string): string | null {
-  const length = value.trim().length;
-  return length >= 2 && length <= 80 ? null : 'Enter your full name.';
+  const name = value.trim().replace(/\s+/g, ' ');
+  if (name.length < 2 || name.length > 80) return 'Enter your name (2 to 80 characters).';
+  if (/[\d@#$%^&*_=+<>/\\|{}~`!?:;"[\]]/.test(name)) return 'Use letters only: your name as it is at your university.';
+  return null;
 }

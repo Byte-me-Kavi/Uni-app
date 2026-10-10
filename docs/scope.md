@@ -31,7 +31,7 @@ A search box in the top bar finds students by name at every university, as they 
 
 | Group | Who is in it | How they get there |
 | --- | --- | --- |
-| Batch | Same university, degree programme and intake year | Suggested from the student email (e.g. `2023cs115` gives code "cs", 2023 intake) and confirmed with one tap; otherwise the student types the programme and picks from matching batches at their university. Joining adds them to the batch group chat. |
+| Batch | Same university, degree programme and intake year. Named with all three, e.g. "UCSC · BSc in Computer Science · 2023", so the same programme at two universities never looks like one group | Suggested from the student email (e.g. `2023cs115` gives code "cs", 2023 intake) and confirmed with one tap; otherwise the student types the programme and picks from matching batches at their university. Joining adds them to the batch group chat. |
 | Course groups | Students taking the same module | Added when a student adds the module (opens soon) |
 | Faculty and university | Everyone at that faculty or university | From the verified email and batch |
 | National groups | Anyone, by subject or interest | The national subject index links the same subject across universities |
@@ -60,8 +60,8 @@ Safety rules, built in from the first version:
 
 | Area | Built |
 | --- | --- |
-| Accounts | University-email sign-up with 6-digit code, password sign-in, admin approval, account status screen, account screen with sign-out |
-| Batches | Email suggestion, typed programmes with matching, intake year, one-batch rule, batch group chat created on join (chat screens open soon) |
+| Accounts | University-email sign-up with 6-digit code (no name needed), password sign-in, admin approval, account status screen, name chosen on first launch after approval (once; later changes through a moderator), account screen with sign-out |
+| Batches | Email suggestion, typed programmes with matching, intake year, one-batch rule, batch group chat created on join and named with the university ("UCSC · BSc in Computer Science · 2023"; chat screens open soon) |
 | Home | Greeting, brand card, set-up steps, staff approval count, empty feed |
 | Search | Name search across universities in the top bar, student cards, "who can find you" setting, typo correction, rate limit |
 | Brand | Uni Era mark, lockup, app icons, light and dark themes |

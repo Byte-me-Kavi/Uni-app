@@ -8,7 +8,8 @@ export type MyHome = {
   institution: { name: string; short_name: string | null };
   staff_role: 'admin' | 'moderator' | null;
   has_cohort: boolean;
-  batch: { programme: string; intake_year: number; members: number } | null;
+  /** name: "UCSC · BSc in Computer Science · 2023", unique across universities. */
+  batch: { name: string; programme: string; intake_year: number; members: number } | null;
   module_count: number;
   /** Accounts waiting for approval in the caller's staff scope; null for students. */
   pending_accounts: number | null;

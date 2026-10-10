@@ -68,7 +68,7 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
       key: 'batch',
       label: home.batch ? 'Joined your batch' : 'Join your batch group',
       done: home.has_cohort,
-      detail: home.batch ? `${home.batch.programme}, ${home.batch.intake_year} intake` : undefined,
+      detail: home.batch?.name,
       onPress: () => router.push('/batch'),
     },
     { key: 'modules', label: 'Add your modules', done: home.module_count > 0, comingSoon: true },

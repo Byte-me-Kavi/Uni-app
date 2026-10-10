@@ -75,6 +75,7 @@ export type Database = {
         }[]
       }
       set_findable_by: { Args: { p_findable_by: string }; Returns: string }
+      set_my_name: { Args: { p_full_name: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

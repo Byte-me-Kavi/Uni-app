@@ -17,7 +17,8 @@ insert into identity.institution_email_domains (domain, institution_id) values (
 create function pg_temp.make_user(p_id uuid, p_email text, p_name text, p_active boolean default true) returns void language sql as $$
   insert into auth.users (id, email, raw_user_meta_data, email_confirmed_at, aud, role)
   values (p_id, p_email, jsonb_build_object('full_name', p_name), now(), 'authenticated', 'authenticated');
-  update identity.profiles set account_status = 'active' where user_id = p_id and p_active;
+  update identity.profiles set account_status = 'active', name_confirmed_at = now()
+  where user_id = p_id and p_active;
 $$;
 create function pg_temp.act_as(p_id uuid) returns void language plpgsql as $$
 begin

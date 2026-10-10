@@ -73,6 +73,7 @@ function RootNavigator() {
 
   const signedIn = session.status === 'signed_in';
   const active = signedIn && session.claims.accountStatus === 'active';
+  const named = active && session.claims.nameConfirmed;
 
   // Client-side guards only decide which screens to show. Data access is enforced by the database.
   return (
@@ -90,7 +91,10 @@ function RootNavigator() {
         <Stack.Protected guard={signedIn && !active}>
           <Stack.Screen name="account-status" />
         </Stack.Protected>
-        <Stack.Protected guard={active}>
+        <Stack.Protected guard={active && !named}>
+          <Stack.Screen name="welcome" />
+        </Stack.Protected>
+        <Stack.Protected guard={named}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>

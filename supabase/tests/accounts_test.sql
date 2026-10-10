@@ -55,8 +55,8 @@ select is(
 
 select is(
   identity.before_user_created(pg_temp.signup_event('someone@alpha.test',
-    '{"full_name":"A","age_confirmed":true,"guidelines_accepted":true}'))->'error'->>'http_code',
-  '400', 'hook rejects a one-letter name');
+    '{"age_confirmed":true,"guidelines_accepted":true}')),
+  '{}'::jsonb, 'hook accepts a sign-up without a name (students choose it after approval)');
 
 select is(
   identity.before_user_created(pg_temp.signup_event('Someone@ALPHA.test',

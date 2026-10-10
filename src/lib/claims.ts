@@ -5,6 +5,8 @@ export type AppClaims = {
   accountStatus: AccountStatus;
   institutionId: number | null;
   staffRole: StaffRole;
+  /** False until the student types their name, on first launch after approval. */
+  nameConfirmed: boolean;
 };
 
 const STATUSES: readonly AccountStatus[] = ['pending', 'active', 'rejected', 'suspended'];
@@ -12,7 +14,7 @@ const STATUSES: readonly AccountStatus[] = ['pending', 'active', 'rejected', 'su
 // Reads the claims our custom_access_token hook adds, for routing only. The token is not verified
 // here and does not need to be: every permission is enforced by the database, never by these values.
 export function readAppClaims(accessToken: string): AppClaims {
-  const fallback: AppClaims = { accountStatus: 'pending', institutionId: null, staffRole: null };
+  const fallback: AppClaims = { accountStatus: 'pending', institutionId: null, staffRole: null, nameConfirmed: false };
   try {
     const part = accessToken.split('.')[1];
     if (!part) return fallback;
@@ -25,6 +27,9 @@ export function readAppClaims(accessToken: string): AppClaims {
       accountStatus: STATUSES.includes(status as AccountStatus) ? (status as AccountStatus) : 'pending',
       institutionId: typeof meta.institution_id === 'number' ? meta.institution_id : null,
       staffRole: meta.staff_role === 'admin' || meta.staff_role === 'moderator' ? meta.staff_role : null,
+      // Tokens issued before this claim existed lack it; they belong to accounts that already have a
+      // name in use, and the next refresh (within the hour) brings the real value.
+      nameConfirmed: meta.name_confirmed !== false,
     };
   } catch {
     return fallback;

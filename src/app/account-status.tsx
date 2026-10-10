@@ -12,6 +12,7 @@ import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 type Account = {
   full_name: string;
+  name_confirmed: boolean;
   institution: { name: string } | null;
   last_review: { decision: string; reason: string | null } | null;
 };
@@ -51,7 +52,8 @@ export default function AccountStatus() {
 
   const institution = account?.institution?.name ?? 'your university';
   const reason = account?.last_review?.reason;
-  const firstName = account?.full_name.split(' ')[0];
+  // Before approval the name is usually still the email placeholder (2023cs115): no greeting by it.
+  const firstName = account?.name_confirmed ? account.full_name.split(' ')[0] : null;
 
   const copy = {
     pending: {

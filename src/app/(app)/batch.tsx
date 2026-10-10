@@ -17,10 +17,10 @@ type Suggestion = {
   email_code: string | null;
   intake_year: number | null;
   programme: { id: number; name: string; members: number } | null;
-  current_batch: { programme: string; intake_year: number; members: number } | null;
+  current_batch: { name: string; programme: string; intake_year: number; members: number } | null;
 };
 type Match = { id: number; name: string; members: number };
-type Joined = { programme: string; intake_year: number; members: number };
+type Joined = { name: string; programme: string; intake_year: number; members: number };
 
 const THIS_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 8 }, (_, i) => THIS_YEAR + 1 - i);
@@ -237,10 +237,10 @@ export default function Batch() {
                 <View style={styles.batchIcon}>
                   <UsersThreeIcon size={26} weight="bold" color={brand.ink} />
                 </View>
-                <Text style={styles.batchName}>{joined.programme}</Text>
-                <Text style={styles.batchMeta}>
-                  {joined.intake_year} intake · {members(joined.members)}
-                </Text>
+                {/* The full batch name carries the university, so groups with the same programme at
+                    other universities never look alike. */}
+                <Text style={styles.batchName}>{joined.name}</Text>
+                <Text style={styles.batchMeta}>{members(joined.members)}</Text>
               </View>
               <Text style={styles.lead}>
                 Your batch group chat opens with Chats. Need to change your batch? Ask a moderator.
