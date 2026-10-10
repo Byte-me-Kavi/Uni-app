@@ -22,6 +22,18 @@ export type Database = {
     Functions: {
       app_config: { Args: never; Returns: Json }
       batch_suggestion: { Args: never; Returns: Json }
+      begin_avatar_upload: { Args: never; Returns: string }
+      block_user: { Args: { p_user_id: string }; Returns: undefined }
+      blocked_users: {
+        Args: never
+        Returns: {
+          avatar_path: string
+          blocked_at: string
+          full_name: string
+          institution: string
+          user_id: string
+        }[]
+      }
       join_batch: {
         Args: {
           p_intake_year?: number
@@ -57,6 +69,7 @@ export type Database = {
       search_people: {
         Args: { p_query: string }
         Returns: {
+          avatar_path: string
           corrected: boolean
           full_name: string
           institution: string
@@ -75,7 +88,14 @@ export type Database = {
         }[]
       }
       set_findable_by: { Args: { p_findable_by: string }; Returns: string }
+      set_my_avatar: { Args: { p_path: string }; Returns: string }
       set_my_name: { Args: { p_full_name: string }; Returns: string }
+      unblock_user: { Args: { p_user_id: string }; Returns: undefined }
+      update_bio: { Args: { p_bio: string }; Returns: string }
+      update_privacy: {
+        Args: { p_findable_by?: string; p_who_can_message?: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

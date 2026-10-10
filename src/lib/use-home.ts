@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 export type MyHome = {
   full_name: string;
+  avatar_path: string | null;
   account_status: 'pending' | 'active' | 'rejected' | 'suspended';
   institution: { name: string; short_name: string | null };
   staff_role: 'admin' | 'moderator' | null;

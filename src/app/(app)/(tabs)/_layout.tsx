@@ -29,6 +29,7 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { state } = useHomeData();
   const name = state.status === 'ready' ? state.home.full_name : null;
+  const photo = state.status === 'ready' ? state.home.avatar_path : null;
 
   const input = useRef<TextInput>(null);
   const [query, setQuery] = useState('');
@@ -81,7 +82,7 @@ export default function TabsLayout() {
             accessibilityRole="button"
             accessibilityLabel="Your account"
             hitSlop={8}>
-            <Avatar name={name} />
+            <Avatar name={name} path={photo} />
           </PressableScale>
         ) : (
           <View style={styles.avatarSpace} />

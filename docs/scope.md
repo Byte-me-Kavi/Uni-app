@@ -63,6 +63,7 @@ Safety rules, built in from the first version:
 | Accounts | University-email sign-up with 6-digit code (no name needed), password sign-in, admin approval, account status screen, name chosen on first launch after approval (once; later changes through a moderator), account screen with sign-out |
 | Batches | Email suggestion, typed programmes with matching, intake year, one-batch rule, batch group chat created on join and named with the university ("UCSC · BSc in Computer Science · 2023"; chat screens open soon) |
 | Home | Greeting, brand card, set-up steps, staff approval count, empty feed |
+| Profile and settings | Profile photo (choose or take, cropped and shrunk on the phone, stored in Cloudflare R2 through a signing Edge Function), about-you line, who can find me, who can message me, block and unblock, blocked list |
 | Search | Name search across universities in the top bar, student cards, "who can find you" setting, typo correction, rate limit |
 | Brand | Uni Era mark, lockup, app icons, light and dark themes |
 | Security | Row-level security on every table, database tests (accounts, batches and search), audit log |

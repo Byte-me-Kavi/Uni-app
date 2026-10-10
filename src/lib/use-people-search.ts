@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 export type PersonResult = {
   user_id: string;
   full_name: string;
+  avatar_path: string | null;
   institution: string;
   programme: string | null;
   intake_year: number | null;

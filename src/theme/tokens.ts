@@ -28,6 +28,11 @@ export type Palette = {
   errorText: string;
   infoBg: string;
   infoText: string;
+  /** Behind sheets and dialogs: hides the page enough that the sheet is the only thing to read. */
+  scrim: string;
+  /** Sheets and dialogs: lifted off the page (white in light mode, a lighter grey in dark). */
+  elevated: string;
+  elevatedPressed: string;
   statusBar: 'light' | 'dark';
 };
 
@@ -48,6 +53,9 @@ export const palettes: Record<'light' | 'dark', Palette> = {
     errorText: brand.ink,
     infoBg: brand.smoke,
     infoText: brand.ink,
+    scrim: 'rgba(20, 20, 20, 0.55)',
+    elevated: brand.white,
+    elevatedPressed: brand.smoke,
     statusBar: 'dark',
   },
   dark: {
@@ -65,6 +73,10 @@ export const palettes: Record<'light' | 'dark', Palette> = {
     errorText: '#FFD3CC',
     infoBg: '#1C1C1C',
     infoText: brand.white,
+    // Darker than in light mode: white text behind a black scrim stays readable much longer.
+    scrim: 'rgba(0, 0, 0, 0.78)',
+    elevated: '#1F1F1F',
+    elevatedPressed: '#2A2A2A',
     statusBar: 'light',
   },
 };

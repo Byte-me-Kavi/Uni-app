@@ -20,6 +20,10 @@ export default function AppLayout() {
         <Stack.Screen name="profile" />
         <Stack.Screen name="batch" />
         <Stack.Screen name="people/[id]" />
+        <Stack.Screen name="settings/about" />
+        <Stack.Screen name="settings/find" />
+        <Stack.Screen name="settings/message" />
+        <Stack.Screen name="settings/blocked" />
       </Stack>
     </HomeProvider>
   );

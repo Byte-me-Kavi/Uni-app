@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
 
+import { ActionSheet } from '@/components/ui/action-sheet';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { PressableScale } from '@/components/ui/pressable-scale';
@@ -13,6 +14,7 @@ import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/toke
 type Person = {
   user_id: string;
   full_name: string;
+  avatar_path: string | null;
   bio: string | null;
   institution: { name: string; short_name: string | null };
   batch: { programme: string; intake_year: number } | null;
@@ -87,10 +89,24 @@ export default function PersonScreen() {
 function PersonCard({ person }: { person: Person }) {
   const styles = useStyles();
   const relation = person.relation ? RELATION[person.relation] : null;
+  const firstName = person.full_name.split(' ')[0];
+  const [confirmBlock, setConfirmBlock] = useState(false);
+  const [blockError, setBlockError] = useState<string | null>(null);
+
+  async function block() {
+    setBlockError(null);
+    const { error } = await supabase.rpc('block_user', { p_user_id: person.user_id });
+    if (error) {
+      setBlockError('Could not block. Check your connection and try again.');
+      return;
+    }
+    router.back();
+  }
+
   return (
     <View style={styles.stack}>
       <View style={styles.identity}>
-        <Avatar name={person.full_name} size={88} />
+        <Avatar name={person.full_name} path={person.avatar_path} size={96} />
         <Text style={styles.name} accessibilityRole="header">
           {person.full_name}
         </Text>
@@ -110,8 +126,24 @@ function PersonCard({ person }: { person: Person }) {
         <View style={styles.actions}>
           <Button label="Message" onPress={() => {}} disabled />
           <Text style={styles.soon}>Messages open soon, with Chats.</Text>
+          <PressableScale
+            onPress={() => setConfirmBlock(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Block ${person.full_name}`}
+            style={styles.block}>
+            <Text style={styles.blockText}>Block {firstName}</Text>
+          </PressableScale>
+          {blockError ? <Text style={styles.blockError}>{blockError}</Text> : null}
         </View>
       ) : null}
+
+      <ActionSheet
+        visible={confirmBlock}
+        title={`Block ${person.full_name}?`}
+        message="They will not be able to find you, see your profile or message you. They will not be told. You can unblock them in your profile."
+        actions={[{ label: 'Block', destructive: true, onPress: block }]}
+        onClose={() => setConfirmBlock(false)}
+      />
     </View>
   );
 }
@@ -149,9 +181,12 @@ const useStyles = createThemedStyles((t) => ({
   rowValue: { fontFamily: fonts.bodySemiBold, fontSize: 16, lineHeight: 22, color: t.text },
   actions: { gap: space.sm },
   soon: { fontFamily: fonts.body, fontSize: 14, color: t.textMuted, textAlign: 'center' },
+  block: { alignSelf: 'center', paddingHorizontal: space.lg, paddingVertical: space.md, marginTop: space.lg },
+  blockText: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.dangerText },
+  blockError: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.dangerText, textAlign: 'center' },
   note: { paddingTop: space.xxl, gap: space.xs, alignItems: 'center' },
   noteTitle: { fontFamily: fonts.bodyBold, fontSize: 18, color: t.text, textAlign: 'center' },
   noteBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted, textAlign: 'center' },
-  skeletonAvatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: t.surface },
+  skeletonAvatar: { width: 96, height: 96, borderRadius: 48, backgroundColor: t.surface },
   skeletonLine: { height: 16, borderRadius: radius.sm, backgroundColor: t.surface, marginTop: space.sm },
 }));
