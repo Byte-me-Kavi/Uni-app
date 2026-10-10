@@ -1,7 +1,17 @@
-import { useState, type Ref } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useEffect, useState, type Ref } from 'react';
+import { Platform, Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  interpolateColor,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { colors, fonts, radius, space } from '@/theme/tokens';
+import { duration, EASE_OUT } from '@/theme/motion';
+import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = TextInputProps & {
   label: string;
@@ -13,30 +23,50 @@ type Props = TextInputProps & {
 };
 
 export function TextField({ label, hint, error, secret = false, ref, style, ...input }: Props) {
-  const [focused, setFocused] = useState(false);
+  const theme = useTheme();
+  const styles = useStyles();
   const [hidden, setHidden] = useState(secret);
+  // Reduced motion and web (pre-rendered pages): hints and errors simply appear.
+  const still = useReducedMotion() || Platform.OS === 'web';
+  const focus = useSharedValue(0);
+  const invalid = useSharedValue(error ? 1 : 0);
+
+  useEffect(() => {
+    invalid.value = withTiming(error ? 1 : 0, { duration: duration.state, easing: EASE_OUT });
+  }, [error, invalid]);
+
+  // Border answers focus (Ink or white, by theme) and errors (red), so the state is visible
+  // without reading.
+  const { border, focus: focusColor, surface, surfaceFocused } = theme;
+  const boxStyle = useAnimatedStyle(() => {
+    const focused = interpolateColor(focus.value, [0, 1], [border, focusColor]);
+    return {
+      borderColor: interpolateColor(invalid.value, [0, 1], [focused, brand.red]),
+      backgroundColor: interpolateColor(focus.value, [0, 1], [surface, surfaceFocused]),
+    };
+  });
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.label} importantForAccessibility="no">
         {label}
       </Text>
-      <View style={[styles.box, focused && styles.boxFocused, !!error && styles.boxError]}>
+      <Animated.View style={[styles.box, boxStyle]}>
         <TextInput
           ref={ref}
           {...input}
           accessibilityLabel={label}
           accessibilityHint={hint}
           secureTextEntry={hidden}
-          placeholderTextColor={colors.onInkMuted}
-          selectionColor={colors.red}
-          cursorColor={colors.red}
+          placeholderTextColor={theme.textMuted}
+          selectionColor={brand.red}
+          cursorColor={brand.red}
           onFocus={(e) => {
-            setFocused(true);
+            focus.value = withTiming(1, { duration: duration.state, easing: EASE_OUT });
             input.onFocus?.(e);
           }}
           onBlur={(e) => {
-            setFocused(false);
+            focus.value = withTiming(0, { duration: duration.state, easing: EASE_OUT });
             input.onBlur?.(e);
           }}
           style={[styles.input, style]}
@@ -48,45 +78,50 @@ export function TextField({ label, hint, error, secret = false, ref, style, ...i
             accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
             hitSlop={12}
             style={styles.toggle}>
-            <Text style={styles.toggleText}>{hidden ? 'Show' : 'Hide'}</Text>
+            <Text style={styles.toggleText} numberOfLines={1}>
+              {hidden ? 'Show' : 'Hide'}
+            </Text>
           </Pressable>
         ) : null}
-      </View>
+      </Animated.View>
       {error ? (
-        <Text style={styles.error} accessibilityLiveRegion="polite">
+        <Animated.Text
+          key="error"
+          entering={still ? undefined : FadeIn.duration(duration.state)}
+          exiting={still ? undefined : FadeOut.duration(120)}
+          style={styles.error}
+          accessibilityLiveRegion="polite">
           {error}
-        </Text>
+        </Animated.Text>
       ) : hint ? (
-        <Text style={styles.hint}>{hint}</Text>
+        <Animated.Text key="hint" entering={still ? undefined : FadeIn.duration(duration.state)} style={styles.hint}>
+          {hint}
+        </Animated.Text>
       ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((t) => ({
   wrap: { gap: space.sm },
-  label: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.white },
+  label: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
   box: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 52,
+    minHeight: 56,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.inkBorder,
-    backgroundColor: colors.inkRaised,
+    borderWidth: 1.5,
   },
-  boxFocused: { borderColor: colors.white },
-  boxError: { borderColor: colors.red },
   input: {
     flex: 1,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 16,
-    color: colors.white,
+    color: t.text,
   },
-  toggle: { paddingHorizontal: space.lg, paddingVertical: space.md },
-  toggleText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.onInkMuted },
-  hint: { fontFamily: fonts.body, fontSize: 13, color: colors.onInkMuted },
-  error: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.red },
-});
+  toggle: { paddingHorizontal: space.lg, paddingVertical: space.md, minWidth: 68, alignItems: 'center' },
+  toggleText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.textMuted },
+  hint: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
+  error: { fontFamily: fonts.bodyBold, fontSize: 14, lineHeight: 19, color: t.dangerText },
+}));

@@ -1,8 +1,9 @@
 import { Link, router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, View, type TextInput } from 'react-native';
+import { Text, type TextInput } from 'react-native';
 
 import { AuthScreen } from '@/components/auth/auth-screen';
+import { Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
 import { CheckRow } from '@/components/ui/check-row';
 import { FormMessage } from '@/components/ui/form-message';
@@ -10,11 +11,12 @@ import { TextField } from '@/components/ui/text-field';
 import { authErrorMessage } from '@/lib/auth-errors';
 import { supabase } from '@/lib/supabase';
 import { emailError, fullNameError, newPasswordError, normaliseEmail } from '@/lib/validation';
-import { colors, fonts, space } from '@/theme/tokens';
+import { createThemedStyles, fonts, space } from '@/theme/tokens';
 
 type FieldErrors = { fullName?: string | null; email?: string | null; password?: string | null };
 
 export default function SignUp() {
+  const styles = useStyles();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -63,79 +65,89 @@ export default function SignUp() {
 
   return (
     <AuthScreen
-      title="Create your account"
-      subtitle="Use your university student email. A moderator checks every new account so Gansiya stays students-only."
+      title="Start your uni era"
+      subtitle="Use your university email. A moderator approves every new account, so Uni Era stays students-only."
       footer={
         <Text style={styles.footer}>
           Already have an account?{' '}
-          <Link href="/sign-in" style={styles.link}>
+          <Link href="/sign-in" dismissTo style={styles.link}>
             Sign in
           </Link>
         </Text>
       }>
-      <TextField
-        label="Full name"
-        value={fullName}
-        onChangeText={setFullName}
-        error={fieldErrors.fullName}
-        autoCapitalize="words"
-        autoComplete="name"
-        textContentType="name"
-        returnKeyType="next"
-        submitBehavior="submit"
-        onSubmitEditing={() => emailRef.current?.focus()}
-      />
-      <TextField
-        ref={emailRef}
-        label="University email"
-        value={email}
-        onChangeText={setEmail}
-        error={fieldErrors.email}
-        placeholder="you@stu.university.ac.lk"
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="email"
-        textContentType="username"
-        keyboardType="email-address"
-        returnKeyType="next"
-        submitBehavior="submit"
-        onSubmitEditing={() => passwordRef.current?.focus()}
-      />
-      <TextField
-        ref={passwordRef}
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        error={fieldErrors.password}
-        hint="At least 10 characters, with letters and numbers."
-        secret
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="new-password"
-        textContentType="newPassword"
-        returnKeyType="done"
-      />
-      <View style={styles.checks}>
+      <Reveal order={2}>
+        <TextField
+          label="Full name"
+          value={fullName}
+          onChangeText={setFullName}
+          error={fieldErrors.fullName}
+          autoCapitalize="words"
+          autoComplete="name"
+          textContentType="name"
+          returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => emailRef.current?.focus()}
+        />
+      </Reveal>
+      <Reveal order={3}>
+        <TextField
+          ref={emailRef}
+          label="University email"
+          value={email}
+          onChangeText={setEmail}
+          error={fieldErrors.email}
+          placeholder="you@stu.university.ac.lk"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="username"
+          keyboardType="email-address"
+          returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
+      </Reveal>
+      <Reveal order={4}>
+        <TextField
+          ref={passwordRef}
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          error={fieldErrors.password}
+          hint="At least 10 characters, with letters and numbers."
+          secret
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="new-password"
+          textContentType="newPassword"
+          returnKeyType="done"
+        />
+      </Reveal>
+      <Reveal order={5} style={styles.checks}>
         <CheckRow label="I am 18 or older" checked={ageConfirmed} onChange={setAgeConfirmed} />
         <CheckRow
           label="I accept the community guidelines"
           checked={guidelinesAccepted}
           onChange={setGuidelinesAccepted}
         />
-      </View>
-      <Text style={styles.notice}>
-        We only use your email to check you are a student and to sign you in. See the privacy notice for
-        what we store and why.
-      </Text>
+      </Reveal>
+      <Reveal order={6}>
+        <Text style={styles.notice}>
+          We only use your email to check you are a student and to sign you in. See the privacy notice for
+          what we store and why.
+        </Text>
+      </Reveal>
       <FormMessage message={error} />
-      <Button label="Create account" onPress={createAccount} loading={loading} />
+      <Reveal order={7}>
+        <Button label="Create account" onPress={createAccount} loading={loading} />
+      </Reveal>
     </AuthScreen>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((t) => ({
   checks: { gap: space.xs },
-  notice: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: colors.onInkMuted },
-  footer: { fontFamily: fonts.body, fontSize: 15, color: colors.onInkMuted },
-  link: { fontFamily: fonts.bodyBold, color: colors.white },
-});
+  notice: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: t.textMuted },
+  footer: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: t.textMuted },
+  link: { fontFamily: fonts.bodyBold, color: t.text },
+}));

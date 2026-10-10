@@ -6,7 +6,7 @@ begin;
 set local role postgres;
 create extension if not exists pgtap with schema extensions;
 set local search_path to extensions, public;
-select plan(25);
+select plan(28);
 
 -- ---------------------------------------------------------------- fixtures
 insert into identity.institutions (id, name, short_name, kind, status) overriding system value values
@@ -112,6 +112,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select is((select count(*)::int from identity.profiles), 1, 'a student sees only their own profile');
 select is((api.my_account() ->> 'account_status'), 'pending', 'my_account returns the caller''s status');
 select ok(not identity.is_active_user(), 'a pending student is not active');
+select is(identity.pending_account_count(), null, 'a student gets no approval count');
 
 select throws_ok(
   $$ update identity.profiles set account_status = 'active' where user_id = '00000000-0000-0000-0000-00000000000a' $$,
@@ -134,6 +135,7 @@ select pg_temp.act_as('00000000-0000-0000-0000-00000000000c');
 
 select is((select count(*)::int from api.pending_accounts()), 0,
   'a moderator sees no pending accounts from other institutions');
+select is(identity.pending_account_count(), 0, 'a moderator''s count covers only their own institution');
 select throws_ok(
   $$ select api.review_account('00000000-0000-0000-0000-00000000000a', 'approved') $$,
   '42501', null, 'a moderator cannot approve at another institution');
@@ -142,6 +144,7 @@ select throws_ok(
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000d');
 
 select is((select count(*)::int from api.pending_accounts(9001)), 2, 'an admin sees the pending queue');
+select ok(identity.pending_account_count() >= 2, 'a national admin''s count covers every institution');
 select throws_ok(
   $$ select api.review_account('00000000-0000-0000-0000-00000000000b', 'rejected', '') $$,
   '22023', null, 'rejecting needs a reason');

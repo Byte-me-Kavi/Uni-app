@@ -27,7 +27,7 @@ export function authErrorMessage(error: unknown): string {
       return 'Sign-up is paused right now. Try again later.';
     default:
       if (error.status && error.status >= 500) {
-        return 'Gansiya is having trouble right now. Try again in a moment.';
+        return 'Uni Era is having trouble right now. Try again in a moment.';
       }
       return error.message || 'Something went wrong. Try again.';
   }

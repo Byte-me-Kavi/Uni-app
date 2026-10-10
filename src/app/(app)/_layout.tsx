@@ -1,7 +1,18 @@
 import { Stack } from 'expo-router';
 
-import { colors } from '@/theme/tokens';
+import { useTheme } from '@/theme/tokens';
 
 export default function AppLayout() {
-  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.white } }} />;
+  const theme = useTheme();
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+        contentStyle: { backgroundColor: theme.background },
+      }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="profile" />
+    </Stack>
+  );
 }

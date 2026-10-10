@@ -1,17 +1,19 @@
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, type TextInput } from 'react-native';
+import { Text, type TextInput } from 'react-native';
 
 import { AuthScreen } from '@/components/auth/auth-screen';
+import { Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { TextField } from '@/components/ui/text-field';
 import { authErrorMessage, isEmailNotConfirmed } from '@/lib/auth-errors';
 import { supabase } from '@/lib/supabase';
 import { emailError, normaliseEmail } from '@/lib/validation';
-import { colors, fonts } from '@/theme/tokens';
+import { createThemedStyles, fonts } from '@/theme/tokens';
 
 export default function SignIn() {
+  const styles = useStyles();
   const params = useLocalSearchParams<{ email?: string }>();
   const [email, setEmail] = useState(params.email ?? '');
   const [password, setPassword] = useState('');
@@ -48,46 +50,52 @@ export default function SignIn() {
       subtitle="Sign in with your university email."
       footer={
         <Text style={styles.footer}>
-          New to Gansiya?{' '}
+          New to Uni Era?{' '}
           <Link href="/sign-up" style={styles.link}>
             Create an account
           </Link>
         </Text>
       }>
-      <TextField
-        label="University email"
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@stu.university.ac.lk"
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="email"
-        textContentType="username"
-        keyboardType="email-address"
-        returnKeyType="next"
-        submitBehavior="submit"
-        onSubmitEditing={() => passwordRef.current?.focus()}
-      />
-      <TextField
-        ref={passwordRef}
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        secret
-        autoCapitalize="none"
-        autoCorrect={false}
-        autoComplete="current-password"
-        textContentType="password"
-        returnKeyType="go"
-        onSubmitEditing={signIn}
-      />
+      <Reveal order={2}>
+        <TextField
+          label="University email"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="you@stu.university.ac.lk"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="username"
+          keyboardType="email-address"
+          returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
+      </Reveal>
+      <Reveal order={3}>
+        <TextField
+          ref={passwordRef}
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          secret
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="current-password"
+          textContentType="password"
+          returnKeyType="go"
+          onSubmitEditing={signIn}
+        />
+      </Reveal>
       <FormMessage message={error} />
-      <Button label="Sign in" onPress={signIn} loading={loading} />
+      <Reveal order={4}>
+        <Button label="Sign in" onPress={signIn} loading={loading} />
+      </Reveal>
     </AuthScreen>
   );
 }
 
-const styles = StyleSheet.create({
-  footer: { fontFamily: fonts.body, fontSize: 15, color: colors.onInkMuted },
-  link: { fontFamily: fonts.bodyBold, color: colors.white },
-});
+const useStyles = createThemedStyles((t) => ({
+  footer: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: t.textMuted },
+  link: { fontFamily: fonts.bodyBold, color: t.text },
+}));

@@ -11,8 +11,8 @@
 --   3. Sign up a second student and approve them with api.review_account.
 
 insert into identity.institutions (name, short_name, kind, status) values
-  ('Gansiya Test University', 'GTU', 'state', 'live'),
-  ('Gansiya Waitlist University', 'GWU', 'state', 'waitlist');
+  ('Uni Era Test University', 'GTU', 'state', 'live'),
+  ('Uni Era Waitlist University', 'GWU', 'state', 'waitlist');
 
 insert into identity.institution_email_domains (domain, institution_id)
 select 'student.test', id from identity.institutions where short_name = 'GTU'

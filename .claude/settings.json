@@ -1,5 +1,16 @@
 {
   "enabledPlugins": {
-    "expo@claude-plugins-official": true
+    "expo@claude-plugins-official": true,
+    "audit-context-building@trailofbits": true,
+    "sharp-edges@trailofbits": true,
+    "differential-review@trailofbits": true
+  },
+  "extraKnownMarketplaces": {
+    "trailofbits": {
+      "source": {
+        "source": "github",
+        "repo": "trailofbits/skills"
+      }
+    }
   }
 }

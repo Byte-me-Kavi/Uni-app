@@ -22,6 +22,7 @@ export type Database = {
     Functions: {
       app_config: { Args: never; Returns: Json }
       my_account: { Args: never; Returns: Json }
+      my_home: { Args: never; Returns: Json }
       pending_accounts: {
         Args: {
           p_after_registered_at?: string

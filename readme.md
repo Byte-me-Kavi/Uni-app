@@ -1,4 +1,4 @@
-# Gansiya mobile app
+# Uni Era mobile app
 
 The student app (Expo, Android and iOS) and the Supabase backend. The admin dashboard lives in a separate repo, `uni-app-admin-web`, and connects to the same Supabase project.
 

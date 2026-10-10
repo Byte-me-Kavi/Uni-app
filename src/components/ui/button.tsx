@@ -1,6 +1,8 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { colors, fonts, radius, space } from '@/theme/tokens';
+import { duration, EASE_OUT } from '@/theme/motion';
+import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = {
   label: string;
@@ -10,45 +12,63 @@ type Props = {
   disabled?: boolean;
 };
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function Button({ label, onPress, variant = 'primary', loading = false, disabled = false }: Props) {
+  const theme = useTheme();
+  const styles = useStyles();
   const inactive = disabled || loading;
   const primary = variant === 'primary';
+  const pressed = useSharedValue(0);
+
+  // A 3% press-in under the thumb confirms the tap before anything else happens.
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - pressed.value * 0.03 }],
+  }));
+
+  // Text on red is always Ink (brand rule), in both themes.
+  const labelColor = primary ? brand.ink : theme.text;
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
+      onPressIn={() => {
+        if (!inactive) pressed.value = withTiming(1, { duration: duration.press, easing: EASE_OUT });
+      }}
+      onPressOut={() => {
+        pressed.value = withTiming(0, { duration: duration.release, easing: EASE_OUT });
+      }}
       disabled={inactive}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: inactive, busy: loading }}
       hitSlop={4}
-      style={({ pressed }) => [
-        styles.base,
-        primary ? styles.primary : styles.quiet,
-        pressed && !inactive && styles.pressed,
-        inactive && styles.inactive,
-      ]}>
+      style={[styles.base, primary ? styles.primary : styles.quiet, disabled && styles.disabled, pressStyle]}>
+      {/* The label keeps its space while loading so the button never changes size. */}
+      <Text style={[styles.label, { color: labelColor }, loading && styles.hidden]} numberOfLines={1}>
+        {label}
+      </Text>
       {loading ? (
-        <ActivityIndicator color={primary ? colors.ink : colors.white} />
-      ) : (
-        <Text style={[styles.label, { color: primary ? colors.ink : colors.white }]}>{label}</Text>
-      )}
-    </Pressable>
+        <View style={styles.spinner} pointerEvents="none">
+          <ActivityIndicator color={labelColor} />
+        </View>
+      ) : null}
+    </AnimatedPressable>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createThemedStyles((t) => ({
   base: {
-    minHeight: 52,
+    minHeight: 56,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space.xl,
   },
-  // Text on red is always Ink (brand rule).
-  primary: { backgroundColor: colors.red },
-  quiet: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.inkBorder },
-  pressed: { opacity: 0.85 },
-  inactive: { opacity: 0.5 },
-  label: { fontFamily: fonts.bodyBold, fontSize: 16 },
-});
+  primary: { backgroundColor: brand.red },
+  quiet: { backgroundColor: 'transparent', borderWidth: 1, borderColor: t.border },
+  disabled: { opacity: 0.45 },
+  label: { fontFamily: fonts.bodyBold, fontSize: 17 },
+  hidden: { opacity: 0 },
+  spinner: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
+}));

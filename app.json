@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "Gansiya",
-    "slug": "gansiya",
+    "name": "Uni Era",
+    "slug": "uni-era",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "gansiya",
+    "scheme": "uniera",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
-      "bundleIdentifier": "lk.gansiya.app"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "lk.uniera.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "lk.gansiya.app"
+      "package": "lk.uniera.app"
     },
     "web": {
       "output": "static",
@@ -30,9 +30,13 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#141414",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 140,
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "image": "./assets/images/splash-icon-dark.png",
+            "backgroundColor": "#000000"
+          }
         }
       ],
       "expo-secure-store",
@@ -40,10 +44,11 @@
         "expo-font",
         {
           "fonts": [
-            "./assets/fonts/Unbounded-ExtraBold.ttf",
-            "./assets/fonts/Figtree-Regular.ttf",
-            "./assets/fonts/Figtree-SemiBold.ttf",
-            "./assets/fonts/Figtree-Bold.ttf"
+            "./assets/fonts/Figtree-Black.ttf",
+            "./assets/fonts/Nunito-Regular.ttf",
+            "./assets/fonts/Nunito-SemiBold.ttf",
+            "./assets/fonts/Nunito-Bold.ttf",
+            "./assets/fonts/Nunito-ExtraBold.ttf"
           ]
         }
       ]
@@ -51,6 +56,7 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "backgroundColor": "#FFFFFF"
   }
 }

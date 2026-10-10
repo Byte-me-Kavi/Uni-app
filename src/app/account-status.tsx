@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { AppState, StyleSheet, Text, View } from 'react-native';
+import { AppState, Text } from 'react-native';
 
+import { AuthChrome } from '@/components/auth/auth-chrome';
 import { AuthScreen } from '@/components/auth/auth-screen';
+import { Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
-import { colors, fonts, radius, space } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 type Account = {
   full_name: string;
@@ -15,6 +17,7 @@ type Account = {
 };
 
 export default function AccountStatus() {
+  const styles = useStyles();
   const session = useSession();
   const status = session.status === 'signed_in' ? session.claims.accountStatus : 'pending';
   const [account, setAccount] = useState<Account | null>(null);
@@ -53,7 +56,7 @@ export default function AccountStatus() {
   const copy = {
     pending: {
       title: firstName ? `Thanks, ${firstName}` : 'Thanks for signing up',
-      body: `A moderator at ${institution} checks every new account so Gansiya stays students-only. This usually takes less than a day.`,
+      body: `A moderator at ${institution} checks every new account so Uni Era stays students-only. This usually takes less than a day.`,
     },
     rejected: {
       title: 'We could not approve this account',
@@ -63,37 +66,43 @@ export default function AccountStatus() {
       title: 'This account is suspended',
       body: 'A moderator suspended this account for breaking the community guidelines.',
     },
-    active: { title: 'You are in', body: 'Opening Gansiya...' },
+    active: { title: 'You are in', body: 'Opening Uni Era...' },
   }[status];
 
   return (
-    <AuthScreen
-      title={copy.title}
-      subtitle={copy.body}
-      footer={<Button label="Sign out" variant="quiet" onPress={() => supabase.auth.signOut()} />}>
-      {reason && status !== 'pending' ? (
-        <View style={styles.reason}>
-          <Text style={styles.reasonLabel}>Reason</Text>
-          <Text style={styles.reasonText}>{reason}</Text>
-        </View>
-      ) : null}
-      {status === 'pending' ? (
-        <>
-          <FormMessage message={message} tone="info" />
-          <Button label="Check again" onPress={checkAgain} loading={checking} />
-        </>
-      ) : (
-        <Text style={styles.help}>
-          If you think this is a mistake, contact the Gansiya team from your university email.
-        </Text>
-      )}
-    </AuthScreen>
+    <AuthChrome waiting={status === 'pending'}>
+      <AuthScreen
+        title={copy.title}
+        subtitle={copy.body}
+        footer={<Button label="Sign out" variant="quiet" onPress={() => supabase.auth.signOut()} />}>
+        {reason && status !== 'pending' ? (
+          <Reveal order={2} style={styles.reason}>
+            <Text style={styles.reasonLabel}>Reason</Text>
+            <Text style={styles.reasonText}>{reason}</Text>
+          </Reveal>
+        ) : null}
+        {status === 'pending' ? (
+          <>
+            <FormMessage message={message} tone="info" />
+            <Reveal order={2}>
+              <Button label="Check again" onPress={checkAgain} loading={checking} />
+            </Reveal>
+          </>
+        ) : (
+          <Reveal order={3}>
+            <Text style={styles.help}>
+              If you think this is a mistake, contact the Uni Era team from your university email.
+            </Text>
+          </Reveal>
+        )}
+      </AuthScreen>
+    </AuthChrome>
   );
 }
 
-const styles = StyleSheet.create({
-  reason: { backgroundColor: colors.inkRaised, borderRadius: radius.md, padding: space.lg, gap: space.xs },
-  reasonLabel: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.onInkMuted },
-  reasonText: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: colors.white },
-  help: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: colors.onInkMuted },
-});
+const useStyles = createThemedStyles((t) => ({
+  reason: { backgroundColor: t.surface, borderRadius: radius.md, padding: space.lg, gap: space.xs },
+  reasonLabel: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted },
+  reasonText: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: t.text },
+  help: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted },
+}));
