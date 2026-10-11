@@ -18,6 +18,28 @@ export function writeCache(key: string, value: unknown) {
   Storage.setItemAsync(key, JSON.stringify(value)).catch(() => {});
 }
 
+/** Every key starting with `prefix`, read in the background (for warming an in-memory copy at
+ * startup instead of reading one key at a time while a screen draws). Expired entries can be
+ * dropped with `forget`. */
+export async function readCacheByPrefix<T>(prefix: string): Promise<[string, T][]> {
+  const keys = (await Storage.getAllKeysAsync()).filter((k) => k.startsWith(prefix));
+  const out: [string, T][] = [];
+  for (const k of keys) {
+    const raw = await Storage.getItemAsync(k).catch(() => null);
+    if (!raw) continue;
+    try {
+      out.push([k, JSON.parse(raw) as T]);
+    } catch {
+      // unreadable: skip
+    }
+  }
+  return out;
+}
+
+export function forgetCache(key: string) {
+  Storage.removeItemAsync(key).catch(() => {});
+}
+
 /** On sign-out: nothing of this account stays on the phone. */
 export function clearCache() {
   Storage.clearAsync().catch(() => {});

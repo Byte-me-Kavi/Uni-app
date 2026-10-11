@@ -32,6 +32,10 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_sticker_upload: {
+        Args: { p_animated: boolean; p_hash: string; p_size: number }
+        Returns: Json
+      }
       block_user: { Args: { p_user_id: string }; Returns: undefined }
       blocked_users: {
         Args: never
@@ -41,6 +45,22 @@ export type Database = {
           full_name: string
           institution: string
           user_id: string
+        }[]
+      }
+      chat_files: {
+        Args: {
+          p_before?: string
+          p_conversation_id: string
+          p_kind: string
+          p_limit?: number
+        }
+        Returns: {
+          attachment: Json
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          sender_name: string
         }[]
       }
       chat_members: {
@@ -71,15 +91,44 @@ export type Database = {
           created_at: string
           deleted: boolean
           edited_at: string
+          forwarded: boolean
           id: string
           kind: string
+          link: Json
+          mentions: string[]
+          reply: Json
           reply_to_id: string
           sender_avatar: string
           sender_id: string
           sender_name: string
         }[]
       }
+      commit_sticker: {
+        Args: {
+          p_animated: boolean
+          p_hash: string
+          p_size: number
+          p_user_id: string
+        }
+        Returns: string
+      }
+      delete_message: {
+        Args: {
+          p_conversation_id: string
+          p_for_everyone: boolean
+          p_message_id: string
+        }
+        Returns: undefined
+      }
       drop_push_tokens: { Args: { p_tokens: string[] }; Returns: undefined }
+      edit_message: {
+        Args: {
+          p_body: string
+          p_conversation_id: string
+          p_message_id: string
+        }
+        Returns: string
+      }
       join_batch: {
         Args: {
           p_intake_year?: number
@@ -88,10 +137,15 @@ export type Database = {
         }
         Returns: Json
       }
+      mark_delivered: {
+        Args: { p_conversation_id: string; p_up_to: string }
+        Returns: undefined
+      }
       mark_read: {
         Args: { p_conversation_id: string; p_up_to: string }
         Returns: string
       }
+      media_access: { Args: { p_paths: string[] }; Returns: string[] }
       message_previews: { Args: never; Returns: boolean }
       my_account: { Args: never; Returns: Json }
       my_chats: {
@@ -107,15 +161,28 @@ export type Database = {
           member_count: number
           muted: boolean
           my_last_read_at: string
+          my_role: string
           other_avatar_path: string
+          other_delivered_at: string
           other_last_read_at: string
           other_user_id: string
+          pinned: Json
           request: string
           title: string
           unread: number
         }[]
       }
       my_home: { Args: never; Returns: Json }
+      my_stickers: {
+        Args: never
+        Returns: {
+          animated: boolean
+          favourite: boolean
+          mine: boolean
+          sticker: string
+          used_at: string
+        }[]
+      }
       pending_accounts: {
         Args: {
           p_after_registered_at?: string
@@ -134,6 +201,10 @@ export type Database = {
         }[]
       }
       person: { Args: { p_user_id: string }; Returns: Json }
+      pin_message: {
+        Args: { p_conversation_id: string; p_message_id: string }
+        Returns: Json
+      }
       poll_results: {
         Args: { p_conversation_id: string; p_message_ids: string[] }
         Returns: {
@@ -143,9 +214,47 @@ export type Database = {
           voters: number
         }[]
       }
+      poll_voters: {
+        Args: { p_conversation_id: string; p_message_id: string }
+        Returns: {
+          avatar_path: string
+          full_name: string
+          option: number
+          user_id: string
+          voted_at: string
+        }[]
+      }
+      presence: { Args: { p_user_id: string }; Returns: Json }
+      privacy_extras: { Args: never; Returns: Json }
       push_batch: {
         Args: { p_created_at: string; p_message_id: string }
         Returns: Json
+      }
+      react: {
+        Args: {
+          p_conversation_id: string
+          p_emoji: string
+          p_message_id: string
+        }
+        Returns: undefined
+      }
+      reaction_details: {
+        Args: { p_conversation_id: string; p_message_id: string }
+        Returns: {
+          avatar_path: string
+          emoji: string
+          full_name: string
+          user_id: string
+        }[]
+      }
+      reactions: {
+        Args: { p_conversation_id: string; p_message_ids: string[] }
+        Returns: {
+          count: number
+          emoji: string
+          message_id: string
+          mine: boolean
+        }[]
       }
       register_push_token: {
         Args: { p_platform: string; p_token: string }
@@ -158,6 +267,10 @@ export type Database = {
       review_account: {
         Args: { p_decision: string; p_reason?: string; p_user_id: string }
         Returns: string
+      }
+      save_sticker: {
+        Args: { p_favourite?: boolean; p_mine?: boolean; p_sticker: string }
+        Returns: undefined
       }
       search_people: {
         Args: { p_query: string }
@@ -186,8 +299,11 @@ export type Database = {
           p_attachment?: Json
           p_body?: string
           p_conversation_id: string
+          p_forward_from?: string
           p_id: string
           p_kind?: string
+          p_link?: Json
+          p_mentions?: string[]
           p_reply_to_id?: string
         }
         Returns: Json
@@ -200,6 +316,30 @@ export type Database = {
       }
       set_my_avatar: { Args: { p_path: string }; Returns: string }
       set_my_name: { Args: { p_full_name: string }; Returns: string }
+      set_presence: { Args: { p_active: boolean }; Returns: undefined }
+      set_show_last_seen: { Args: { p_on: boolean }; Returns: boolean }
+      star_message: {
+        Args: { p_conversation_id: string; p_message_id: string; p_on: boolean }
+        Returns: undefined
+      }
+      starred_messages: {
+        Args: { p_before?: string; p_limit?: number }
+        Returns: {
+          attachment: Json
+          body: string
+          chat_kind: string
+          chat_title: string
+          conversation_id: string
+          created_at: string
+          id: string
+          kind: string
+          link: Json
+          sender_avatar: string
+          sender_id: string
+          sender_name: string
+          starred_at: string
+        }[]
+      }
       start_direct: { Args: { p_user_id: string }; Returns: Json }
       unblock_user: { Args: { p_user_id: string }; Returns: undefined }
       unregister_push_token: { Args: { p_token: string }; Returns: undefined }

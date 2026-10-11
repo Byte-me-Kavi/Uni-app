@@ -5,6 +5,7 @@ import { Linking, Platform, Pressable, Text, View } from 'react-native';
 import { Avatar } from '@/components/ui/avatar';
 import { savePhoneContact } from '@/lib/chat/attachments';
 import { startDirect } from '@/lib/chat/engine';
+import { openChat } from '@/lib/chat/open-chat';
 import type { ContactAttachment } from '@/lib/chat/types';
 import { createThemedStyles, fonts, space } from '@/theme/tokens';
 
@@ -22,7 +23,7 @@ export function ContactMessage({ contact, mine }: { contact: ContactAttachment; 
       const result = await startDirect({ user_id: contact.user_id, full_name: contact.name, avatar_path: contact.avatar_path });
       setBusy(false);
       const conversationId = 'conversationId' in result ? result.conversationId : undefined;
-      if (conversationId) router.push({ pathname: '/chat/[id]', params: { id: conversationId } });
+      if (conversationId) openChat(conversationId);
       else openCard(); // their card explains why (for example, who can message them)
     }
     return (

@@ -1,8 +1,9 @@
 import { useRef } from 'react';
-import { Modal, Platform, Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import Animated, { Easing, FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SheetModal } from '@/components/ui/sheet-layer';
 import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 export type SheetAction = {
@@ -38,16 +39,13 @@ export function ActionSheet({ visible, title, message, actions, onClose }: Props
   }
 
   return (
-    <Modal
+    <SheetModal
       visible={visible}
-      transparent
-      animationType="none"
       onRequestClose={onClose}
       onDismiss={() => {
         pending.current?.();
         pending.current = null;
-      }}
-      statusBarTranslucent>
+      }}>
       <Animated.View entering={animate ? FadeIn.duration(180) : undefined} style={styles.backdrop}>
         <Pressable style={styles.fill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
@@ -79,7 +77,7 @@ export function ActionSheet({ visible, title, message, actions, onClose }: Props
           <Text style={[styles.actionText, styles.cancel]}>Cancel</Text>
         </Pressable>
       </Animated.View>
-    </Modal>
+    </SheetModal>
   );
 }
 

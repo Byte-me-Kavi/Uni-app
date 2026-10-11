@@ -2,9 +2,9 @@ import { Image } from 'expo-image';
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { useSignedUrl } from '@/lib/chat/media-urls';
 import { useChatState } from '@/lib/chat/store';
 import type { ImageAttachment, Message } from '@/lib/chat/types';
-import { mediaUrl } from '@/lib/media';
 import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 const WIDTH = 248;
@@ -26,7 +26,7 @@ export function ImageMessage({
   const styles = useStyles();
   const progress = useChatState((s) => s.uploads[message.id]);
   const [useRemote, setUseRemote] = useState(!image.local_uri);
-  const remote = mediaUrl(image.path);
+  const remote = useSignedUrl(useRemote ? image.path : null);
   const uri = useRemote ? remote : image.local_uri;
 
   const ratio = Math.min(Math.max(image.width / Math.max(image.height, 1), 0.62), 1.9);
@@ -41,7 +41,8 @@ export function ImageMessage({
       accessibilityLabel={message.body ? `Photo: ${message.body}` : 'Photo'}
       style={[styles.frame, { width: WIDTH, height }]}>
       <Image
-        source={uri ? { uri } : null}
+        // The path is the cache key: a renewed link never downloads the photo again.
+        source={uri ? { uri, cacheKey: useRemote ? image.path : undefined } : null}
         placeholder={image.thumb ? { uri: image.thumb } : null}
         placeholderContentFit="cover"
         contentFit="cover"
@@ -49,7 +50,7 @@ export function ImageMessage({
         cachePolicy="memory-disk"
         recyclingKey={message.id}
         // The phone's copy can be cleared by the system; fall back to the stored photo.
-        onError={() => !useRemote && remote && setUseRemote(true)}
+        onError={() => !useRemote && image.path && setUseRemote(true)}
         style={styles.image}
       />
       {sending ? (

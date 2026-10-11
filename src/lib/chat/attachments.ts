@@ -81,6 +81,22 @@ export async function pickPhoto(source: 'library' | 'camera'): Promise<Picked<Im
   return { ok: await preparePhoto(picked.assets[0].uri, picked.assets[0].width, picked.assets[0].height) };
 }
 
+/** Up to 10 photos from the gallery at once, each sent as its own message (as in WhatsApp). */
+export async function pickPhotos(): Promise<Picked<ImageAttachment[]>> {
+  if (!hasNative('ExponentFileSystem')) return { error: UPDATE_APP };
+  const picked = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    quality: 1,
+    allowsMultipleSelection: true,
+    selectionLimit: 10,
+    orderedSelection: true,
+  });
+  if (picked.canceled || picked.assets.length === 0) return null;
+  const photos: ImageAttachment[] = [];
+  for (const asset of picked.assets.slice(0, 10)) photos.push(await preparePhoto(asset.uri, asset.width, asset.height));
+  return { ok: photos };
+}
+
 // Shrinks to 1600 px on the long side as JPEG (re-encoding also drops EXIF data such as location),
 // and makes a 24 px preview that travels inside the message, so the other phone shows a blurred
 // version instantly while the photo downloads.
@@ -168,7 +184,7 @@ export type UploadResult = { path: string } | { error: string; permanent: boolea
 // (it expired on a slow connection), it signs once more.
 export async function uploadAttachment(
   conversationId: string,
-  kind: 'image' | 'file',
+  kind: 'image' | 'file' | 'voice',
   file: { local_uri: string; mime: string; size: number },
   onProgress: (share: number) => void,
 ): Promise<UploadResult> {

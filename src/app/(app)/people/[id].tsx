@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { startDirect } from '@/lib/chat/engine';
+import { openChat } from '@/lib/chat/open-chat';
 import { supabase } from '@/lib/supabase';
 import { clearSearchCache } from '@/lib/use-people-search';
 import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
@@ -99,7 +100,7 @@ function PersonCard({ person, onChange }: { person: Person; onChange: () => void
     const result = await startDirect(person);
     setOpening(false);
     if ('error' in result) setError(result.error ?? 'Could not open the chat. Try again.');
-    else router.push({ pathname: '/chat/[id]', params: { id: result.conversationId } });
+    else openChat(result.conversationId);
   }
 
   async function block() {

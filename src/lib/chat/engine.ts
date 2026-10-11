@@ -12,9 +12,12 @@ import type {
   ImageAttachment,
   Message,
   MessageKind,
+  LinkPreview,
   MessagePayload,
   PollPayload,
   PollResult,
+  Reaction,
+  ReplySnapshot,
 } from '@/lib/chat/types';
 import { uuidv7 } from '@/lib/chat/uuid';
 import { supabase } from '@/lib/supabase';
@@ -36,6 +39,9 @@ const BACKGROUND_DISCONNECT_MS = 30_000;
 const TYPING_SEND_EVERY_MS = 4000;
 const TYPING_SHOW_MS = 5000;
 const READ_EVERY_MS = 2000;
+const DELIVERED_EVERY_MS = 2000;
+const PRESENCE_EVERY_MS = 3 * 60 * 1000; // "online" lasts 4 minutes after the last beat
+const KEEP_OPENED = 6; // chats whose newest page stays in memory after you leave them
 
 let db: LocalDb | null = null;
 let me: string | null = null;
@@ -50,6 +56,13 @@ let generation = 0; // async work from a previous account is ignored
 const lastTypingSent: Record<string, number> = {};
 const readTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 const readUpTo: Record<string, string> = {};
+const deliveredTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+const deliveredUpTo: Record<string, string> = {};
+const reactionTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+let presenceTimer: ReturnType<typeof setInterval> | null = null;
+// Chats recently opened or about to be (newest last). Their newest page stays in memory, kept
+// current by live messages, so going back into one draws it complete in the first frame.
+let warm: string[] = [];
 
 const tsOf = (iso: string) => Date.parse(iso);
 const activity = (c: Chat) => c.last_message_at ?? c.created_at;
@@ -66,6 +79,11 @@ type Row = {
   deleted: boolean;
   kind: MessageKind | null;
   attachment: Attachment | null;
+  reply?: ReplySnapshot | null;
+  forwarded?: boolean;
+  mentions?: string[] | null;
+  link?: LinkPreview | null;
+  edited_at?: string | null;
 };
 
 const fromRow = (conversationId: string, r: Row): Message => ({
@@ -83,6 +101,11 @@ const fromRow = (conversationId: string, r: Row): Message => ({
   deleted: r.deleted,
   kind: r.kind ?? 'text',
   attachment: r.attachment ?? null,
+  reply: r.reply ?? null,
+  forwarded: !!r.forwarded,
+  mentions: r.mentions ?? null,
+  link: r.link ?? null,
+  edited_at: r.edited_at ?? null,
 });
 
 const fromPayload = (p: MessagePayload): Message => ({
@@ -100,25 +123,50 @@ const fromPayload = (p: MessagePayload): Message => ({
   deleted: false,
   kind: p.message_kind ?? 'text',
   attachment: p.attachment ?? null,
+  reply: p.reply ?? null,
+  forwarded: !!p.forwarded,
+  mentions: p.mentions ?? null,
+  link: p.link ?? null,
 });
 
 // ---------------------------------------------------------------------------------------------
 // State helpers
 // ---------------------------------------------------------------------------------------------
 
+// A message that comes back unchanged (a catch-up page, the phone's copy on reopening) keeps its
+// old object, so its bubble is not drawn again; when nothing changed at all, nothing re-renders.
+const same = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b);
+
 function putMessages(conversationId: string, incoming: Message[], replace = false) {
   setChatState((s) => {
     const current = s.messages[conversationId];
     if (!current && !replace) return {};
-    const byId = new Map((replace ? [] : current ?? []).map((m) => [m.id, m]));
-    for (const m of incoming) byId.set(m.id, m);
+    const old = new Map((current ?? []).map((m) => [m.id, m]));
+    const byId = new Map(replace ? [] : old);
+    let changed = !current;
+    for (const m of incoming) {
+      const before = old.get(m.id);
+      if (before && same(before, m)) byId.set(m.id, before);
+      else {
+        byId.set(m.id, m);
+        changed = true;
+      }
+    }
+    if (replace && !changed) changed = [...old.keys()].some((id) => !byId.has(id));
+    if (!changed) return {};
     const next = [...byId.values()].sort((a, b) => b.ts - a.ts || (a.id < b.id ? 1 : -1));
     return { messages: { ...s.messages, [conversationId]: next } };
   });
 }
 
 function updateChat(conversationId: string, update: (c: Chat) => Chat) {
-  setChatState((s) => ({ chats: sortChats(s.chats.map((c) => (c.conversation_id === conversationId ? update(c) : c))) }));
+  setChatState((s) => {
+    const before = s.chats.find((c) => c.conversation_id === conversationId);
+    if (!before) return {};
+    const after = update(before);
+    if (same(before, after)) return {};
+    return { chats: sortChats(s.chats.map((c) => (c === before ? after : c))) };
+  });
 }
 
 const isPermanent = (code: string | undefined) =>
@@ -164,15 +212,33 @@ async function start(userId: string) {
   connectInbox();
   refreshChats();
   flushOutbox();
+  beat(true);
+  loadStarred();
+}
+
+// "Last seen" and "online": a beat when the app opens, every 3 minutes while it is open, and one
+// saying "gone" when it closes. Two or three small writes per session, nothing live.
+function beat(active: boolean) {
+  if (presenceTimer) clearInterval(presenceTimer);
+  presenceTimer = active ? setInterval(() => supabase.rpc('set_presence', { p_active: true }), PRESENCE_EVERY_MS) : null;
+  supabase.rpc('set_presence', { p_active: active }).then(() => undefined, () => undefined);
+}
+
+/** Resolves once the engine has started (for actions that arrive while the app is starting). */
+export function whenChatReady() {
+  return lifecycle.then(() => !!db);
 }
 
 async function stop() {
   appStateSub?.remove();
   appStateSub = null;
+  if (presenceTimer) clearInterval(presenceTimer);
+  presenceTimer = null;
   if (backgroundTimer) clearTimeout(backgroundTimer);
   if (retryTimer) clearTimeout(retryTimer);
   disconnectLive();
   open = null;
+  warm = [];
   const closing = db;
   db = null;
   me = null;
@@ -184,6 +250,7 @@ function onAppState(next: AppStateStatus) {
   if (next === 'active') {
     if (backgroundTimer) clearTimeout(backgroundTimer);
     backgroundTimer = null;
+    beat(true);
     if (!inbox) {
       connectInbox();
       if (open) subscribeOpen(open.id);
@@ -191,6 +258,7 @@ function onAppState(next: AppStateStatus) {
       catchUp();
     }
   } else if (!backgroundTimer) {
+    beat(false);
     // Push notifications take over in the background; holding the socket would only use a
     // connection (and battery) nobody is looking at.
     backgroundTimer = setTimeout(() => {
@@ -218,6 +286,11 @@ async function connectInboxUnsafe() {
     .on('broadcast', { event: 'message' }, ({ payload }) => receive(payload as MessagePayload))
     .on('broadcast', { event: 'read' }, ({ payload }) => receiveRead(payload as ReadPayload))
     .on('broadcast', { event: 'poll' }, ({ payload }) => receivePoll(payload as PollPayload))
+    .on('broadcast', { event: 'reaction' }, ({ payload }) => receiveReaction(payload as ChangePayload))
+    .on('broadcast', { event: 'delete' }, ({ payload }) => receiveDelete(payload as ChangePayload))
+    .on('broadcast', { event: 'edit' }, ({ payload }) => receiveEdit(payload as EditPayload))
+    .on('broadcast', { event: 'pin' }, ({ payload }) => receivePin(payload as PinPayload))
+    .on('broadcast', { event: 'delivered' }, ({ payload }) => receiveDelivered(payload as DeliveredPayload))
     .subscribe((status) => {
       if (run !== generation) return;
       if (status === 'SUBSCRIBED') {
@@ -245,6 +318,10 @@ async function refreshChatsUnsafe() {
   if (error || run !== generation || !db) return;
   const chats = sortChats(
     (data as Chat[]).map((c) => {
+      // Direct messages waiting for you reached this phone: grey ✓✓ for the sender.
+      if (c.kind === 'direct' && c.unread > 0 && c.last_message_at && c.last_sender_id !== me) {
+        markDelivered(c.conversation_id, c.last_message_at);
+      }
       if (open?.id !== c.conversation_id) return c;
       // The chat on screen is read; tell the server if it does not know yet.
       if (c.unread > 0 && c.last_message_at) markRead(c.conversation_id, c.last_message_at);
@@ -252,11 +329,19 @@ async function refreshChatsUnsafe() {
     }),
   );
   // Keep a placeholder for a direct chat opened but not yet messaged.
-  const placeholder = getChatState().chats.find(
+  const before = getChatState().chats;
+  const placeholder = before.find(
     (c) => c.conversation_id === open?.id && !chats.some((x) => x.conversation_id === c.conversation_id),
   );
-  setChatState({ chats: placeholder ? sortChats([...chats, placeholder]) : chats, chatsLoaded: true });
-  await db.saveChats(chats);
+  // Unchanged chats keep their old objects, so only the rows that changed are drawn again.
+  const old = new Map(before.map((c) => [c.conversation_id, c]));
+  const next = (placeholder ? sortChats([...chats, placeholder]) : chats).map((c) => {
+    const prev = old.get(c.conversation_id);
+    return prev && same(prev, c) ? prev : c;
+  });
+  const unchanged = next.length === before.length && next.every((c, i) => c === before[i]);
+  setChatState(unchanged ? { chatsLoaded: true } : { chats: next, chatsLoaded: true });
+  if (!unchanged) await db.saveChats(chats);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -265,8 +350,13 @@ async function refreshChatsUnsafe() {
 
 async function receiveUnsafe(p: MessagePayload) {
   if (!db) return;
-  const message = fromPayload(p);
-  const known = getChatState().messages[p.conversation_id]?.some((m) => m.id === p.id && m.status === 'sent');
+  const existing = getChatState().messages[p.conversation_id]?.find((m) => m.id === p.id);
+  const ownCopy = (existing?.attachment as ImageAttachment | null)?.local_uri;
+  const incoming = fromPayload(p);
+  // Your own photo or document echoed back: keep the phone's copy so it never downloads again.
+  const message =
+    ownCopy && incoming.attachment ? { ...incoming, attachment: { ...incoming.attachment, local_uri: ownCopy } as Attachment } : incoming;
+  const known = existing?.status === 'sent';
   await db.saveMessages([message]);
   putMessages(p.conversation_id, [message]);
 
@@ -294,6 +384,7 @@ async function receiveUnsafe(p: MessagePayload) {
   if (p.sender_id !== me) {
     setChatState((s) => ({ typingUntil: { ...s.typingUntil, [p.conversation_id]: 0 } }));
     if (onScreen) markRead(p.conversation_id, p.created_at);
+    else if (chat.kind === 'direct') markDelivered(p.conversation_id, p.created_at);
   }
 }
 
@@ -322,18 +413,58 @@ function receiveTyping(conversationId: string, payload: { user_id?: string }) {
 // One chat
 // ---------------------------------------------------------------------------------------------
 
-async function openConversationUnsafe(conversationId: string) {
+/** Loads a chat's newest page from the phone into memory ahead of opening it (on touch down),
+ *  so the chat screen's first frame already has its messages. */
+async function prefetchConversationUnsafe(conversationId: string) {
+  const local = db;
+  if (!local) return;
+  if (getChatState().messages[conversationId]) {
+    touchWarm(conversationId);
+    return;
+  }
+  const rows = await local.loadMessages(conversationId, undefined, PAGE);
+  if (db !== local || getChatState().messages[conversationId]) return;
+  putMessages(conversationId, rows, true);
+  setChatState((s) => ({ hasOlder: { ...s.hasOlder, [conversationId]: true } }));
+  touchWarm(conversationId);
+}
+
+// Remembers a chat as recently used, and lets the oldest beyond KEEP_OPENED leave memory.
+function touchWarm(conversationId: string) {
+  warm = [...warm.filter((id) => id !== conversationId), conversationId];
+  const drop = warm.slice(0, Math.max(0, warm.length - KEEP_OPENED)).filter((id) => id !== open?.id);
+  if (!drop.length) return;
+  warm = warm.filter((id) => !drop.includes(id));
+  setChatState((s) => {
+    const messages = { ...s.messages };
+    for (const id of drop) delete messages[id];
+    return { messages };
+  });
+}
+
+/**
+ * Opens a chat. What the phone has is shown at once; the server catch-up, live channel and read
+ * receipt wait for `settled` (the screen's slide-in finishing), so new rows never land while the
+ * screen is still moving.
+ */
+async function openConversationUnsafe(conversationId: string, settled?: Promise<unknown>) {
   if (!db) return;
   if (open?.id !== conversationId) closeConversation();
   open = { id: conversationId, channel: null };
-  updateChat(conversationId, (c) => ({ ...c, unread: 0 }));
+  touchWarm(conversationId);
 
-  // The phone's copy first: on screen in milliseconds, offline too.
-  const local = await db.loadMessages(conversationId, undefined, PAGE);
+  // The phone's copy first: on screen in milliseconds, offline too. Already in memory when the
+  // chat was opened recently or touched on the list.
+  if (!getChatState().messages[conversationId]) {
+    const local = await db.loadMessages(conversationId, undefined, PAGE);
+    if (open?.id !== conversationId) return;
+    putMessages(conversationId, local, true);
+    setChatState((s) => ({ hasOlder: { ...s.hasOlder, [conversationId]: true } }));
+  }
+
+  if (settled) await settled;
   if (open?.id !== conversationId) return;
-  putMessages(conversationId, local, true);
-  setChatState((s) => ({ hasOlder: { ...s.hasOlder, [conversationId]: true } }));
-
+  updateChat(conversationId, (c) => ({ ...c, unread: 0 }));
   if (inbox) subscribeOpen(conversationId);
   await fetchNewer(conversationId);
 
@@ -343,6 +474,7 @@ async function openConversationUnsafe(conversationId: string) {
   const newest = getChatState().messages[conversationId]?.find((m) => m.status === 'sent');
   if (open?.id === conversationId && newest) markRead(conversationId, newest.created_at);
   loadPolls(conversationId);
+  loadReactions(conversationId);
 }
 
 // Results for the polls loaded in this chat (one request for all of them).
@@ -357,8 +489,15 @@ async function loadPollsUnsafe(conversationId: string) {
   const rows = data as { message_id: string; counts: number[]; voters: number; mine: number[] }[];
   setChatState((s) => {
     const polls = { ...s.polls };
-    for (const r of rows) polls[r.message_id] = { counts: r.counts, voters: r.voters, mine: r.mine };
-    return { polls };
+    let changed = false;
+    for (const r of rows) {
+      const next = { counts: r.counts, voters: r.voters, mine: r.mine };
+      if (!same(polls[r.message_id], next)) {
+        polls[r.message_id] = next;
+        changed = true;
+      }
+    }
+    return changed ? { polls } : {};
   });
 }
 
@@ -393,6 +532,10 @@ function subscribeOpen(conversationId: string) {
     .on('broadcast', { event: 'message' }, ({ payload }) => receive(payload as MessagePayload))
     .on('broadcast', { event: 'typing' }, ({ payload }) => receiveTyping(conversationId, payload as { user_id?: string }))
     .on('broadcast', { event: 'poll' }, ({ payload }) => receivePoll(payload as PollPayload))
+    .on('broadcast', { event: 'reaction' }, ({ payload }) => receiveReaction(payload as ChangePayload))
+    .on('broadcast', { event: 'delete' }, ({ payload }) => receiveDelete(payload as ChangePayload))
+    .on('broadcast', { event: 'edit' }, ({ payload }) => receiveEdit(payload as EditPayload))
+    .on('broadcast', { event: 'pin' }, ({ payload }) => receivePin(payload as PinPayload))
     .subscribe((status) => {
       if (status === 'SUBSCRIBED' && open?.id === conversationId) fetchNewer(conversationId);
     });
@@ -410,10 +553,11 @@ export function closeConversation() {
   open = null;
   const chat = getChatState().chats.find((c) => c.conversation_id === id);
   if (chat && chat.kind !== 'direct') db?.prune(id, GROUP_KEEP).catch(() => {});
+  // Keep the newest page in memory for a quick return; older pages load again when scrolled to.
   setChatState((s) => {
-    const messages = { ...s.messages };
-    delete messages[id];
-    return { messages };
+    const loaded = s.messages[id];
+    if (!loaded || loaded.length <= PAGE) return {};
+    return { messages: { ...s.messages, [id]: loaded.slice(0, PAGE) }, hasOlder: { ...s.hasOlder, [id]: true } };
   });
 }
 
@@ -477,6 +621,7 @@ async function loadOlderUnsafe(conversationId: string) {
   await local.saveMessages(rows);
   putMessages(conversationId, rows);
   setChatState((s) => ({ hasOlder: { ...s.hasOlder, [conversationId]: rows.length === PAGE } }));
+  loadReactions(conversationId, rows.map((r) => r.id));
 }
 
 // Read position, at most once every 2 seconds per chat, and only when it moves forward (so
@@ -507,7 +652,9 @@ function markRead(conversationId: string, upTo: string) {
 // Sending
 // ---------------------------------------------------------------------------------------------
 
-async function sendMessageUnsafe(conversationId: string, body: string) {
+type SendOptions = { replyTo?: Message | null; mentions?: string[]; link?: LinkPreview | null };
+
+async function sendMessageUnsafe(conversationId: string, body: string, options: SendOptions = {}) {
   const text = body.trim();
   if (!text || !me || !db) return;
   const now = Date.now();
@@ -518,7 +665,6 @@ async function sendMessageUnsafe(conversationId: string, body: string) {
     sender_name: null,
     sender_avatar: null,
     body: text,
-    reply_to_id: null,
     created_at: new Date(now).toISOString(),
     ts: now,
     status: 'pending',
@@ -526,23 +672,47 @@ async function sendMessageUnsafe(conversationId: string, body: string) {
     deleted: false,
     kind: 'text',
     attachment: null,
+    reply_to_id: options.replyTo?.id ?? null,
+    reply: options.replyTo ? snapshot(options.replyTo) : null,
+    mentions: options.mentions?.length ? options.mentions : null,
+    link: options.link ?? null,
   };
   await queue(message);
 }
 
+// What a reply shows of the message it answers (the server makes the same).
+function snapshot(m: Message): ReplySnapshot {
+  return {
+    id: m.id,
+    sender_id: m.sender_id,
+    sender_name: m.sender_id === me ? null : m.sender_name,
+    kind: m.kind,
+    text: m.kind === 'text' ? (m.body ?? '').slice(0, 200) : previewText(m.kind, m.body, m.attachment),
+    thumb: m.kind === 'image' ? ((m.attachment as ImageAttachment | null)?.thumb ?? null) : null,
+    sticker: m.kind === 'sticker' ? (m.attachment as ReplySnapshot['sticker']) : null,
+  };
+}
+
 /** Sends a photo, document, sticker, poll or contact. Photos and documents upload first, from the
  * outbox, so they survive a lost connection or a closed app like text does. */
-async function sendRichUnsafe(conversationId: string, kind: Exclude<MessageKind, 'text'>, attachment: Attachment, caption = '') {
+async function sendRichUnsafe(
+  conversationId: string,
+  kind: Exclude<MessageKind, 'text'>,
+  attachment: Attachment,
+  caption = '',
+  options: SendOptions = {},
+) {
   if (!me || !db) return;
   const now = Date.now();
   await queue({
+    reply_to_id: options.replyTo?.id ?? null,
+    reply: options.replyTo ? snapshot(options.replyTo) : null,
     id: uuidv7(),
     conversation_id: conversationId,
     sender_id: me,
     sender_name: null,
     sender_avatar: null,
     body: caption.trim(),
-    reply_to_id: null,
     created_at: new Date(now).toISOString(),
     ts: now,
     status: 'pending',
@@ -576,7 +746,7 @@ function forServer(attachment: Attachment | null) {
 // Uploads a photo or document that has not reached R2 yet. Returns the message ready to send,
 // 'wait' when the network failed (the outbox tries again) or 'failed' when it was refused.
 async function uploadFirst(local: LocalDb, message: Message): Promise<Message | 'wait' | 'failed'> {
-  if (message.kind !== 'image' && message.kind !== 'file') return message;
+  if ((message.kind !== 'image' && message.kind !== 'file' && message.kind !== 'voice') || message.forward_from) return message;
   const file = message.attachment as ImageAttachment & Partial<FileAttachment>;
   if (file.path || !file.local_uri) return message;
   const setProgress = (share: number) =>
@@ -631,6 +801,10 @@ async function flushOutboxUnsafe() {
         p_body: message.body ?? '',
         p_kind: message.kind,
         p_attachment: forServer(message.attachment) as never,
+        p_reply_to_id: message.reply_to_id ?? undefined,
+        p_forward_from: message.forward_from ?? undefined,
+        p_mentions: message.mentions ?? undefined,
+        p_link: (message.link ?? undefined) as never,
       });
       if (db !== local) return;
       if (error) {
@@ -643,12 +817,25 @@ async function flushOutboxUnsafe() {
         scheduleRetry();
         return;
       }
-      const { created_at: created, attachment } = data as { created_at: string; attachment?: Attachment | null };
+      const { created_at: created, attachment, reply } = data as {
+        created_at: string;
+        attachment?: Attachment | null;
+        reply?: ReplySnapshot | null;
+      };
       // The server's attachment (checked and completed), plus the phone's own copy of the file.
       const merged = attachment
         ? ({ ...attachment, local_uri: (message.attachment as ImageAttachment | null)?.local_uri } as Attachment)
         : message.attachment;
-      const sent: Message = { ...message, attachment: merged, status: 'sent', created_at: created, ts: tsOf(created), error: null };
+      const sent: Message = {
+        ...message,
+        attachment: merged,
+        reply: reply === undefined ? message.reply : reply,
+        forward_from: null,
+        status: 'sent',
+        created_at: created,
+        ts: tsOf(created),
+        error: null,
+      };
       setChatState((s) => {
         const uploads = { ...s.uploads };
         delete uploads[message.id];
@@ -756,6 +943,242 @@ export async function respondRequest(conversationId: string, accept: boolean) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Delivered, reactions, edits, deletes, pins, stars, forwards
+// ---------------------------------------------------------------------------------------------
+
+// Direct chats: tells the sender their messages reached this phone (grey ✓✓), at most every 2 s.
+function markDelivered(conversationId: string, upTo: string) {
+  if (!deliveredUpTo[conversationId] || micros(deliveredUpTo[conversationId]) < micros(upTo)) deliveredUpTo[conversationId] = upTo;
+  if (deliveredTimers[conversationId]) return;
+  deliveredTimers[conversationId] = setTimeout(() => {
+    delete deliveredTimers[conversationId];
+    const until = deliveredUpTo[conversationId];
+    delete deliveredUpTo[conversationId];
+    if (until) supabase.rpc('mark_delivered', { p_conversation_id: conversationId, p_up_to: until }).then(() => undefined, () => undefined);
+  }, DELIVERED_EVERY_MS);
+}
+
+type ChangePayload = { conversation_id: string; message_id: string; user_id?: string; emoji?: string | null };
+type EditPayload = { conversation_id: string; message_id: string; body: string; edited_at: string };
+type PinPayload = { conversation_id: string; pinned: ReplySnapshot | null };
+type DeliveredPayload = { conversation_id: string; user_id: string; delivered_at: string };
+
+function receiveDelivered(p: DeliveredPayload) {
+  if (p.user_id === me) return;
+  updateChat(p.conversation_id, (c) => ({
+    ...c,
+    other_delivered_at: micros(p.delivered_at) > micros(c.other_delivered_at) ? p.delivered_at : c.other_delivered_at,
+  }));
+}
+
+function receivePin(p: PinPayload) {
+  updateChat(p.conversation_id, (c) => ({ ...c, pinned: p.pinned }));
+}
+
+// Someone reacted: fetch that message's totals once things settle (a burst of reactions on a
+// popular message becomes one request).
+function receiveReaction(p: ChangePayload) {
+  if (p.user_id === me) return; // yours are already on screen
+  if (!getChatState().messages[p.conversation_id]?.some((m) => m.id === p.message_id)) return;
+  if (reactionTimers[p.message_id]) return;
+  reactionTimers[p.message_id] = setTimeout(() => {
+    delete reactionTimers[p.message_id];
+    loadReactions(p.conversation_id, [p.message_id]);
+  }, 400);
+}
+
+async function changeMessage(conversationId: string, messageId: string, change: (m: Message) => Message) {
+  const current = getChatState().messages[conversationId]?.find((m) => m.id === messageId);
+  if (!current) return;
+  const next = change(current);
+  putMessages(conversationId, [next]);
+  await db?.saveMessages([next]);
+}
+
+function receiveDelete(p: ChangePayload) {
+  changeMessage(p.conversation_id, p.message_id, (m) => ({ ...m, deleted: true, body: null, attachment: null, link: null, reply: null }));
+  setChatState((s) => {
+    const reactions = { ...s.reactions };
+    delete reactions[p.message_id];
+    return { reactions };
+  });
+  updateChat(p.conversation_id, (c) =>
+    c.pinned?.id === p.message_id ? { ...c, pinned: null } : c,
+  );
+  refreshChats(); // the list's preview may now say the message was deleted
+}
+
+function receiveEdit(p: EditPayload) {
+  changeMessage(p.conversation_id, p.message_id, (m) => ({ ...m, body: p.body, edited_at: p.edited_at, link: m.kind === 'text' ? null : m.link }));
+}
+
+async function loadReactionsUnsafe(conversationId: string, only?: string[]) {
+  const ids = only ?? (getChatState().messages[conversationId] ?? []).filter((m) => m.status === 'sent' && !m.deleted).slice(0, 200).map((m) => m.id);
+  if (ids.length === 0) return;
+  const { data, error } = await supabase.rpc('reactions', { p_conversation_id: conversationId, p_message_ids: ids });
+  if (error) return;
+  const grouped: Record<string, Reaction[]> = {};
+  for (const id of ids) grouped[id] = [];
+  for (const r of data as { message_id: string; emoji: string; count: number; mine: boolean }[]) {
+    grouped[r.message_id].push({ emoji: r.emoji, count: r.count, mine: r.mine });
+  }
+  // Unchanged reactions keep their old lists, so only bubbles whose reactions changed redraw; when
+  // nothing changed (the usual case on opening a chat), nothing redraws at all.
+  setChatState((s) => {
+    const reactions = { ...s.reactions };
+    let changed = false;
+    for (const [id, list] of Object.entries(grouped)) {
+      if (list.length) {
+        if (!same(reactions[id], list)) {
+          reactions[id] = list;
+          changed = true;
+        }
+      } else if (reactions[id]) {
+        delete reactions[id];
+        changed = true;
+      }
+    }
+    return changed ? { reactions } : {};
+  });
+}
+
+/** Reacts with an emoji; the same emoji again (or null) takes the reaction back. */
+export async function react(conversationId: string, messageId: string, emoji: string | null) {
+  const before = getChatState().reactions[messageId] ?? [];
+  const mineBefore = before.find((r) => r.mine)?.emoji ?? null;
+  const next = emoji && emoji !== mineBefore ? emoji : null;
+  // At once on screen: remove your old one, add the new one.
+  let list = before
+    .map((r) => (r.mine ? { ...r, count: r.count - 1, mine: false } : r))
+    .filter((r) => r.count > 0);
+  if (next) {
+    const same = list.find((r) => r.emoji === next);
+    list = same ? list.map((r) => (r.emoji === next ? { ...r, count: r.count + 1, mine: true } : r)) : [...list, { emoji: next, count: 1, mine: true }];
+  }
+  setChatState((s) => ({ reactions: { ...s.reactions, [messageId]: list } }));
+  const { error } = await supabase.rpc('react', { p_conversation_id: conversationId, p_message_id: messageId, p_emoji: next as string });
+  if (error) {
+    setChatState((s) => ({ reactions: { ...s.reactions, [messageId]: before } }));
+    return error.message;
+  }
+  return null;
+}
+
+/** Hides messages on all your devices. Ones that never reached the server just go. */
+export async function deleteForMe(conversationId: string, messages: Message[]) {
+  const sent = messages.filter((m) => m.status === 'sent');
+  for (const m of sent) {
+    const { error } = await supabase.rpc('delete_message', { p_conversation_id: conversationId, p_message_id: m.id, p_for_everyone: false });
+    if (error) return error.message;
+  }
+  const ids = messages.map((m) => m.id);
+  setChatState((s) =>
+    s.messages[conversationId]
+      ? { messages: { ...s.messages, [conversationId]: s.messages[conversationId].filter((m) => !ids.includes(m.id)) } }
+      : {},
+  );
+  await db?.deleteMessages(ids);
+  return null;
+}
+
+export async function deleteForEveryone(conversationId: string, message: Message) {
+  const { error } = await supabase.rpc('delete_message', { p_conversation_id: conversationId, p_message_id: message.id, p_for_everyone: true });
+  if (error) return error.message;
+  receiveDelete({ conversation_id: conversationId, message_id: message.id });
+  return null;
+}
+
+export async function editMessage(conversationId: string, message: Message, body: string) {
+  const { data, error } = await supabase.rpc('edit_message', { p_conversation_id: conversationId, p_message_id: message.id, p_body: body });
+  if (error) return error.message;
+  receiveEdit({ conversation_id: conversationId, message_id: message.id, body: body.trim(), edited_at: data as string });
+  if (getChatState().chats.find((c) => c.conversation_id === conversationId)?.last_message_at === message.created_at) refreshChats();
+  return null;
+}
+
+async function loadStarredUnsafe() {
+  const { data, error } = await supabase.rpc('starred_messages', { p_limit: 100 });
+  if (error) return;
+  const starred: Record<string, true> = {};
+  for (const m of data as { id: string }[]) starred[m.id] = true;
+  setChatState({ starred });
+}
+
+export async function starMessage(conversationId: string, message: Message, on: boolean) {
+  setChatState((s) => {
+    const starred = { ...s.starred };
+    if (on) starred[message.id] = true;
+    else delete starred[message.id];
+    return { starred };
+  });
+  const { error } = await supabase.rpc('star_message', { p_conversation_id: conversationId, p_message_id: message.id, p_on: on });
+  if (error) {
+    loadStarred();
+    return error.message;
+  }
+  return null;
+}
+
+export async function pinMessage(conversationId: string, message: Message | null) {
+  const { data, error } = await supabase.rpc('pin_message', { p_conversation_id: conversationId, p_message_id: (message?.id ?? null) as string });
+  if (error) return error.message;
+  updateChat(conversationId, (c) => ({ ...c, pinned: (data as ReplySnapshot | null) ?? null }));
+  return null;
+}
+
+/** Forwards messages to up to 5 chats. Each copy goes through the outbox like any message; the
+ * server copies the original, so photos and documents are not uploaded again. */
+export async function forwardMessages(messages: Message[], conversationIds: string[]) {
+  if (!me || !db) return;
+  const ordered = [...messages].filter((m) => m.status === 'sent' && !m.deleted).sort((a, b) => a.ts - b.ts);
+  for (const target of conversationIds.slice(0, 5)) {
+    for (const m of ordered) {
+      const now = Date.now();
+      await queue({
+        ...m,
+        id: uuidv7(),
+        conversation_id: target,
+        sender_id: me,
+        sender_name: null,
+        sender_avatar: null,
+        reply_to_id: null,
+        reply: null,
+        mentions: null,
+        forwarded: true,
+        forward_from: m.id,
+        created_at: new Date(now).toISOString(),
+        ts: now,
+        status: 'pending',
+        error: null,
+        edited_at: null,
+      });
+    }
+  }
+}
+
+/** Messages in this chat containing the words (from the phone's copy). */
+export async function searchMessages(conversationId: string, query: string) {
+  return (await db?.search(conversationId, query)) ?? [];
+}
+
+/** Loads older messages until this one is on screen (for replies, pins, search and stars).
+ * True when found. */
+export async function loadUntil(conversationId: string, messageId: string) {
+  for (let page = 0; page < 20; page++) {
+    if (getChatState().messages[conversationId]?.some((m) => m.id === messageId)) return true;
+    if (getChatState().hasOlder[conversationId] === false) return false;
+    await loadOlder(conversationId);
+  }
+  return !!getChatState().messages[conversationId]?.some((m) => m.id === messageId);
+}
+
+/** Someone you have a direct chat with: online, or when last seen (null if hidden). */
+export async function fetchPresence(userId: string) {
+  const { data } = await supabase.rpc('presence', { p_user_id: userId });
+  return (data as { online: boolean; last_seen_at: string } | null) ?? null;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Everything that runs in the background (live events, timers, screens that do not wait) goes
 // through these wrappers: if the database was closed by a sign-out or the network failed half way,
 // the failure is logged and the next sync picks up, instead of surfacing as an uncaught error.
@@ -772,10 +1195,13 @@ function safely<A extends unknown[]>(label: string, run: (...args: A) => Promise
 
 export const refreshChats = safely('refresh chats', refreshChatsUnsafe);
 export const openConversation = safely('open chat', openConversationUnsafe);
+export const prefetchConversation = safely('prefetch chat', prefetchConversationUnsafe);
 export const loadOlder = safely('load older messages', loadOlderUnsafe);
 export const sendMessage = safely('send', sendMessageUnsafe);
 export const sendRich = safely('send', sendRichUnsafe);
 const loadPolls = safely('load polls', loadPollsUnsafe);
+const loadReactions = safely('load reactions', loadReactionsUnsafe);
+const loadStarred = safely('load starred', loadStarredUnsafe);
 export const retryMessage = safely('retry', retryMessageUnsafe);
 const receive = safely('receive', receiveUnsafe);
 const fetchNewer = safely('catch up', fetchNewerUnsafe);

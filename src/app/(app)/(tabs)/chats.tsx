@@ -7,7 +7,8 @@ import { ChatRow } from '@/components/chat/chat-row';
 import { NotifyCard } from '@/components/chat/notify-card';
 import { Button } from '@/components/ui/button';
 import { PressableScale } from '@/components/ui/pressable-scale';
-import { refreshChats } from '@/lib/chat/engine';
+import { prefetchConversation, refreshChats } from '@/lib/chat/engine';
+import { openChat } from '@/lib/chat/open-chat';
 import { useChatState } from '@/lib/chat/store';
 import type { Chat } from '@/lib/chat/types';
 import { useHomeData } from '@/providers/home-provider';
@@ -26,9 +27,11 @@ export default function Chats() {
   const [section, setSection] = useState<'chats' | 'requests'>('chats');
   const [refreshing, setRefreshing] = useState(false);
 
+  // Refreshed when the tab shows, just after any slide back from a chat has finished.
   useFocusEffect(
     useCallback(() => {
-      refreshChats();
+      const timer = setTimeout(refreshChats, 400);
+      return () => clearTimeout(timer);
     }, []),
   );
 
@@ -42,7 +45,11 @@ export default function Chats() {
     setRefreshing(false);
   }
 
-  const open = (chat: Chat) => router.push({ pathname: '/chat/[id]', params: { id: chat.conversation_id } });
+  const open = useCallback((chat: Chat) => openChat(chat.conversation_id), []);
+  // Touch down starts loading the chat's messages from the phone, so they are in memory by the
+  // time the screen draws. (Building the whole chat screen in the background on touch was tried
+  // and removed: on a slower phone it cost more than it saved, and it ran on every scroll too.)
+  const warm = useCallback((chat: Chat) => prefetchConversation(chat.conversation_id), []);
 
   return (
     <View style={styles.screen}>
@@ -71,7 +78,7 @@ export default function Chats() {
       <FlatList
         data={visible}
         keyExtractor={(c) => c.conversation_id}
-        renderItem={({ item }) => <ChatRow chat={item} me={me} onPress={() => open(item)} />}
+        renderItem={({ item }) => <ChatRow chat={item} me={me} onOpen={open} onWarm={warm} />}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={brand.red} colors={[brand.red]} />

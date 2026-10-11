@@ -42,3 +42,14 @@ export function dayLabel(ts: number) {
 }
 
 export const sameDay = (a: number, b: number) => startOfDay(new Date(a)) === startOfDay(new Date(b));
+
+// A direct chat's header: "online", or when they were last seen, as in WhatsApp.
+export function lastSeen(presence: { online: boolean; last_seen_at: string } | null) {
+  if (!presence) return null;
+  if (presence.online) return 'online';
+  const d = new Date(presence.last_seen_at);
+  const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / DAY);
+  if (days <= 0) return `last seen today at ${clockTime(presence.last_seen_at)}`;
+  if (days === 1) return `last seen yesterday at ${clockTime(presence.last_seen_at)}`;
+  return `last seen ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}

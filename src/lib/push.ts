@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsModule from 'expo-notifications';
 import { Linking, Platform } from 'react-native';
 
 import { currentConversationId } from '@/lib/chat/engine';
@@ -18,6 +18,11 @@ const inExpoGo = Constants.executionEnvironment === 'storeClient';
 const supported = Platform.OS !== 'web' && !inExpoGo && Device.isDevice;
 const projectId: string | undefined = Constants.expoConfig?.extra?.eas?.projectId;
 
+// Loaded only where it works: in Expo Go on Android, importing expo-notifications throws, which
+// took the whole signed-in app down with it. Everything below checks `supported` first.
+const Notifications: typeof NotificationsModule = supported ? require('expo-notifications') : (null as never);
+export { Notifications };
+
 let token: string | null = null;
 
 if (supported) {
@@ -32,7 +37,22 @@ if (supported) {
   });
 }
 
+// Buttons on message notifications: reply without opening the app, or mark the chat read. The
+// server sends message notifications with categoryId "message".
+async function ensureCategories() {
+  await Notifications.setNotificationCategoryAsync('message', [
+    {
+      identifier: 'reply',
+      buttonTitle: 'Reply',
+      textInput: { submitButtonTitle: 'Send', placeholder: 'Message' },
+      options: { opensAppToForeground: false },
+    },
+    { identifier: 'read', buttonTitle: 'Mark as read', options: { opensAppToForeground: false } },
+  ]);
+}
+
 async function ensureChannel() {
+  await ensureCategories().catch(() => {});
   if (Platform.OS !== 'android') return;
   // The server sends with channelId "messages". Students can change its sound or turn it off in
   // the phone's settings, separately from future channels such as events.
@@ -102,7 +122,7 @@ export async function dismissChatNotifications(conversationId: string) {
 }
 
 /** The chat a tapped notification is about. */
-export function conversationOf(response: Notifications.NotificationResponse | null): string | null {
+export function conversationOf(response: NotificationsModule.NotificationResponse | null): string | null {
   const id = response?.notification.request.content.data?.conversation_id;
   return typeof id === 'string' ? id : null;
 }

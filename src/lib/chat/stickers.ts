@@ -1,3 +1,5 @@
+import { mediaUrl } from '@/lib/media';
+
 // The built-in sticker pack: Microsoft Fluent Emoji 3D (MIT licence, assets/stickers/fluent/
 // LICENSE.txt), 256 px WebP, about 190 KB for the whole pack. Bundled with the app, so stickers
 // show instantly and offline, and a sticker message carries only its name.
@@ -48,4 +50,14 @@ export const STICKER_IDS = Object.keys(STICKERS) as StickerId[];
 
 export function sticker(pack: string, id: string) {
   return pack === STICKER_PACK ? (STICKERS as Record<string, { label: string; source: number }>)[id] ?? null : null;
+}
+
+/** What to draw for any sticker: a built-in one from the app, an imported one from the media URL
+ * (public, stored once per unique sticker under its SHA-256). */
+export function stickerSource(attachment: { pack: string; id: string }): number | { uri: string } | null {
+  if (attachment.pack === 'user') {
+    const url = mediaUrl(`stickers/${attachment.id}.webp`);
+    return url ? { uri: url } : null;
+  }
+  return sticker(attachment.pack, attachment.id)?.source ?? null;
 }

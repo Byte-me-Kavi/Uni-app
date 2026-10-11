@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import { BellIcon } from 'phosphor-react-native/src/icons/Bell';
 import { BellSlashIcon } from 'phosphor-react-native/src/icons/BellSlash';
+import { FolderIcon } from 'phosphor-react-native/src/icons/Folder';
 
 import { ChatIcon, subtitleFor } from '@/components/chat/chat-row';
 import { SettingsGroup, SettingsRow } from '@/components/settings/settings-group';
@@ -103,6 +104,16 @@ export default function GroupDetails() {
         />
       </SettingsGroup>
       {muteError ? <Text style={styles.error}>{muteError}</Text> : null}
+
+      <SettingsGroup title="Shared in this group">
+        <SettingsRow
+          first
+          Icon={FolderIcon}
+          label="Photos, documents and voice notes"
+          value="Lecture notes, past papers and more"
+          onPress={() => router.push({ pathname: '/chat-files/[id]', params: { id } })}
+        />
+      </SettingsGroup>
 
       <Text style={styles.sectionTitle} accessibilityRole="header">
         Members

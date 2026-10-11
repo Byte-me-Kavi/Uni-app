@@ -18,6 +18,27 @@ export function writeCache(key: string, value: unknown) {
   }
 }
 
+export async function readCacheByPrefix<T>(prefix: string): Promise<[string, T][]> {
+  try {
+    const storage = globalThis.localStorage;
+    if (!storage) return [];
+    return Object.keys(storage)
+      .filter((k) => k.startsWith(`uniera:${prefix}`))
+      .map((k) => [k.slice('uniera:'.length), JSON.parse(storage.getItem(k) ?? 'null') as T] as [string, T])
+      .filter(([, v]) => v !== null);
+  } catch {
+    return [];
+  }
+}
+
+export function forgetCache(key: string) {
+  try {
+    globalThis.localStorage?.removeItem(`uniera:${key}`);
+  } catch {
+    // nothing to remove
+  }
+}
+
 export function clearCache() {
   try {
     const storage = globalThis.localStorage;

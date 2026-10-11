@@ -24,7 +24,9 @@ export function ModalScreen({ visible, title, onClose, action, children }: Props
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      {/* On Android this window stops above the navigation bar (so the keyboard can still resize
+          it), so only iOS needs room at the bottom for the home indicator. */}
+      <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: Platform.OS === 'ios' ? insets.bottom : 0 }]}>
         <View style={styles.bar}>
           <PressableScale onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={12} style={styles.close}>
             <XIcon size={22} weight="bold" color={theme.text} />

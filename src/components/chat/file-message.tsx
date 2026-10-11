@@ -9,10 +9,10 @@ import { FileXlsIcon } from 'phosphor-react-native/src/icons/FileXls';
 import { FileZipIcon } from 'phosphor-react-native/src/icons/FileZip';
 
 import { documentLabel, formatBytes } from '@/lib/chat/attachments';
+import { signedUrl } from '@/lib/chat/media-urls';
 import { useChatState } from '@/lib/chat/store';
 import { openFile } from '@/lib/chat/transfer';
 import type { FileAttachment, Message } from '@/lib/chat/types';
-import { mediaUrl } from '@/lib/media';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 const ICONS = {
@@ -34,14 +34,15 @@ export function FileMessage({ message, file }: { message: Message; file: FileAtt
   const [failed, setFailed] = useState(false);
   const label = documentLabel(file.mime);
   const Icon = ICONS[label as keyof typeof ICONS] ?? FileIcon;
-  const url = mediaUrl(file.path);
   const sending = message.status === 'pending';
 
   async function open() {
-    if (!url || !file.path) return;
+    if (!file.path) return;
     setFailed(false);
     setOpening(true);
     try {
+      const url = (await signedUrl(file.path)) ?? '';
+      if (!url && !file.local_uri) throw new Error('no link');
       await openFile({ url, path: file.path, name: file.name, mime: file.mime, localUri: file.local_uri });
     } catch {
       setFailed(true);
@@ -61,7 +62,7 @@ export function FileMessage({ message, file }: { message: Message; file: FileAtt
   return (
     <Pressable
       onPress={open}
-      disabled={sending || !url || opening}
+      disabled={sending || !file.path || opening}
       accessibilityRole="button"
       accessibilityLabel={`${label} document, ${file.name}, ${formatBytes(file.size)}. ${sending ? detail : 'Open'}`}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>

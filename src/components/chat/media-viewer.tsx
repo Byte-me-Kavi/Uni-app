@@ -7,9 +7,9 @@ import { XIcon } from 'phosphor-react-native/src/icons/X';
 
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { clockTime } from '@/lib/chat/format';
+import { signedUrl, useSignedUrl } from '@/lib/chat/media-urls';
 import { shareFile } from '@/lib/chat/transfer';
 import type { ImageAttachment, Message } from '@/lib/chat/types';
-import { mediaUrl } from '@/lib/media';
 import { brand, fonts, space } from '@/theme/tokens';
 
 // A photo full screen on black, with who sent it and when, and a share button (which is also how
@@ -18,18 +18,21 @@ export function MediaViewer({ message, onClose }: { message: Message | null; onC
   const insets = useSafeAreaInsets();
   const [sharing, setSharing] = useState(false);
   const image = message?.attachment as ImageAttachment | undefined;
-  const remote = mediaUrl(image?.path);
+  const remote = useSignedUrl(image?.local_uri ? null : image?.path);
   const uri = image?.local_uri ?? remote;
 
   async function share() {
-    if (!image?.path || !remote) return;
+    if (!image?.path) return;
     setSharing(true);
-    await shareFile({ url: remote, path: image.path, name: 'photo.jpg', mime: 'image/jpeg', localUri: image.local_uri }).catch(() => {});
+    const url = image.local_uri ? '' : await signedUrl(image.path);
+    if (url !== null) {
+      await shareFile({ url, path: image.path, name: 'photo.jpg', mime: 'image/jpeg', localUri: image.local_uri }).catch(() => {});
+    }
     setSharing(false);
   }
 
   return (
-    <Modal visible={!!message} animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={!!message} animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.bar}>
           <PressableScale onPress={onClose} accessibilityRole="button" accessibilityLabel="Close photo" hitSlop={12} style={styles.button}>
@@ -53,7 +56,7 @@ export function MediaViewer({ message, onClose }: { message: Message | null; onC
         </View>
         {uri ? (
           <Image
-            source={{ uri }}
+            source={{ uri, cacheKey: image?.local_uri ? undefined : image?.path }}
             placeholder={image?.thumb ? { uri: image.thumb } : null}
             style={styles.image}
             contentFit="contain"

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Text, View } from 'react-native';
 import { BellSlashIcon } from 'phosphor-react-native/src/icons/BellSlash';
 import { GraduationCapIcon } from 'phosphor-react-native/src/icons/GraduationCap';
@@ -31,9 +32,16 @@ export function subtitleFor(chat: Chat) {
   return null;
 }
 
-type Props = { chat: Chat; me: string | null; onPress: () => void };
+type Props = {
+  chat: Chat;
+  me: string | null;
+  onOpen: (chat: Chat) => void;
+  /** Touch down: get the chat ready before the tap completes. */
+  onWarm?: (chat: Chat) => void;
+};
 
-export function ChatRow({ chat, me, onPress }: Props) {
+// Memoised: a new message in one chat redraws that row only.
+export const ChatRow = memo(function ChatRow({ chat, me, onOpen, onWarm }: Props) {
   const theme = useTheme();
   const styles = useStyles();
   const unread = chat.unread > 0 && !chat.request;
@@ -51,7 +59,8 @@ export function ChatRow({ chat, me, onPress }: Props) {
 
   return (
     <PressableScale
-      onPress={onPress}
+      onPress={() => onOpen(chat)}
+      onPressIn={onWarm ? () => onWarm(chat) : undefined}
       scale={0.985}
       accessibilityRole="button"
       accessibilityLabel={`${chat.title}. ${preview}${unread ? `. ${chat.unread} unread` : ''}`}
@@ -81,7 +90,7 @@ export function ChatRow({ chat, me, onPress }: Props) {
       </View>
     </PressableScale>
   );
-}
+});
 
 const useStyles = createThemedStyles((t) => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm + 2, paddingHorizontal: space.sm, borderRadius: radius.md },

@@ -5,8 +5,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
-import { Platform, useColorScheme } from 'react-native';
+import { Platform, StyleSheet, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { SheetHost } from '@/components/ui/sheet-layer';
 import { SessionProvider, useSession } from '@/providers/session-provider';
 import { brand, useTheme } from '@/theme/tokens';
 
@@ -34,10 +36,15 @@ export default function RootLayout() {
   // narrower width after the real font arrives, which clips the last letters on native.
   if (!fontsLoaded && !fontError) return null;
 
+  // Gestures (swipe to reply in chats) need this at the root.
   return (
-    <SessionProvider>
-      <RootNavigator />
-    </SessionProvider>
+    <GestureHandlerRootView style={StyleSheet.absoluteFill}>
+      <SessionProvider>
+        <RootNavigator />
+        {/* Sheets and menus, drawn over every screen (see sheet-layer.tsx). */}
+        <SheetHost />
+      </SessionProvider>
+    </GestureHandlerRootView>
   );
 }
 

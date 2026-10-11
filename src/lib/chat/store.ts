@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import type { Chat, Message, PollResult } from '@/lib/chat/types';
+import type { Chat, Message, PollResult, Reaction } from '@/lib/chat/types';
 
 // What the chat screens draw from. Kept in memory and filled from the phone's database first,
 // then from the server. Screens subscribe to the slice they need, so a new message in one chat
@@ -21,6 +21,10 @@ export type ChatState = {
   uploads: Record<string, number>;
   /** Poll results by message id, for polls on screen. */
   polls: Record<string, PollResult>;
+  /** Reactions by message id, for messages on screen. */
+  reactions: Record<string, Reaction[]>;
+  /** Messages you starred (ids). */
+  starred: Record<string, true>;
 };
 
 const initial: ChatState = {
@@ -33,6 +37,8 @@ const initial: ChatState = {
   connection: 'connecting',
   uploads: {},
   polls: {},
+  reactions: {},
+  starred: {},
 };
 
 let state = initial;
@@ -44,6 +50,7 @@ export function getChatState() {
 
 export function setChatState(update: Partial<ChatState> | ((s: ChatState) => Partial<ChatState>)) {
   const patch = typeof update === 'function' ? update(state) : update;
+  if (Object.keys(patch).length === 0) return; // nothing changed: nobody re-renders
   state = { ...state, ...patch };
   listeners.forEach((listener) => listener());
 }

@@ -44,9 +44,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Uni Era uses your photos so you can choose a profile picture.",
-          "cameraPermission": "Uni Era uses the camera so you can take a profile picture.",
-          "microphonePermission": false
+          "photosPermission": "Uni Era uses your photos so you can send them in chats, make stickers and choose a profile picture.",
+          "cameraPermission": "Uni Era uses the camera so you can send photos in chats and take a profile picture.",
+          "microphonePermission": "Uni Era uses the microphone only while you hold the button to record a voice message."
         }
       ],
       [
@@ -75,6 +75,12 @@
         "expo-contacts",
         {
           "contactsPermission": "Uni Era opens your contacts only when you choose one to share in a chat."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Uni Era uses the microphone only while you hold the button to record a voice message."
         }
       ]
     ],

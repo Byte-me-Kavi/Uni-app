@@ -1,0 +1,10 @@
+# Build scripts dependencies may run during install. pnpm blocks unlisted ones, and on EAS
+# an unlisted one fails the build (ERR_PNPM_IGNORED_BUILDS).
+# unrs-resolver comes with eslint and only needs its script as a fallback when its prebuilt
+# binary is missing, so it stays off.
+allowBuilds:
+  unrs-resolver: false
+
+# Same rule for older pnpm (10.x), which reads this key instead.
+ignoredBuiltDependencies:
+  - unrs-resolver

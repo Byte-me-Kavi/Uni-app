@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { BellIcon } from 'phosphor-react-native/src/icons/Bell';
+import { EyeIcon } from 'phosphor-react-native/src/icons/Eye';
+import { StarIcon } from 'phosphor-react-native/src/icons/Star';
 import { CameraIcon } from 'phosphor-react-native/src/icons/Camera';
 import { ChatCircleDotsIcon } from 'phosphor-react-native/src/icons/ChatCircleDots';
 import { EnvelopeSimpleIcon } from 'phosphor-react-native/src/icons/EnvelopeSimple';
@@ -143,6 +145,12 @@ export default function Profile() {
             onPress={() => router.push('/settings/message')}
           />
           <SettingsRow
+            Icon={EyeIcon}
+            label="Last seen and online"
+            value="Mutual, as in WhatsApp"
+            onPress={() => router.push('/settings/last-seen')}
+          />
+          <SettingsRow
             Icon={ProhibitIcon}
             label="Blocked students"
             value={account ? (account.blocked_count === 0 ? 'None' : `${account.blocked_count}`) : undefined}
@@ -150,9 +158,15 @@ export default function Profile() {
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Notifications">
+        <SettingsGroup title="Chats">
           <SettingsRow
             first
+            Icon={StarIcon}
+            label="Starred messages"
+            value="Messages you kept from any chat"
+            onPress={() => router.push('/starred')}
+          />
+          <SettingsRow
             Icon={BellIcon}
             label="Notifications"
             value="New messages, and what the lock screen shows"

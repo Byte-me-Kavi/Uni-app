@@ -393,6 +393,10 @@ verify_jwt = false
 [functions.media]
 verify_jwt = false
 
+# Checks the student's token itself.
+[functions.link-preview]
+verify_jwt = false
+
 # Called by the database with a shared secret (see the function), not by students.
 [functions.push]
 verify_jwt = false

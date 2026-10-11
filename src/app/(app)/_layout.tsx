@@ -20,6 +20,9 @@ export default function AppLayout() {
               headerShown: false,
               animation: 'slide_from_right',
               contentStyle: { backgroundColor: theme.background },
+              // A covered screen (the tabs under an open chat) stops re-rendering until it shows
+              // again, so live messages only redraw what you are looking at.
+              freezeOnBlur: true,
             }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="profile" />
@@ -30,8 +33,12 @@ export default function AppLayout() {
             <Stack.Screen name="settings/message" />
             <Stack.Screen name="settings/blocked" />
             <Stack.Screen name="settings/notifications" />
-            <Stack.Screen name="chat/[id]" />
+            {/* One screen per chat: opening a chat that is already open goes back to it. */}
+            <Stack.Screen name="chat/[id]" getId={({ params }) => (params as { id?: string } | undefined)?.id} />
             <Stack.Screen name="group/[id]" />
+            <Stack.Screen name="chat-files/[id]" />
+            <Stack.Screen name="starred" />
+            <Stack.Screen name="settings/last-seen" />
           </Stack>
         </PushProvider>
       </ChatProvider>

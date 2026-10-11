@@ -33,6 +33,16 @@ export async function openLocalDb(_userId: string): Promise<LocalDb> {
     async clearConversation(conversationId) {
       for (const m of byConversation(conversationId)) if (m.status === 'sent') messages.delete(m.id);
     },
+    async deleteMessages(ids) {
+      for (const id of ids) messages.delete(id);
+    },
+    async search(conversationId, query, limit = 50) {
+      const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      if (words.length === 0) return [];
+      return byConversation(conversationId)
+        .filter((m) => !m.deleted && words.every((w) => (m.body ?? '').toLowerCase().includes(w)))
+        .slice(0, limit);
+    },
     async prune(conversationId, keep) {
       byConversation(conversationId).slice(keep).forEach((m) => m.status === 'sent' && messages.delete(m.id));
     },

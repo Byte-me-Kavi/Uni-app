@@ -17,13 +17,24 @@ export type LocalDb = {
   latestConfirmed(conversationId: string): Promise<string | null>;
   pendingMessages(): Promise<Message[]>;
   clearConversation(conversationId: string): Promise<void>;
+  /** Removes messages from the phone (deleted for me). */
+  deleteMessages(ids: string[]): Promise<void>;
+  /** Messages in one chat whose text contains the words, newest first. */
+  search(conversationId: string, query: string, limit?: number): Promise<Message[]>;
   /** Keeps the newest messages of a group; direct chats are kept whole. */
   prune(conversationId: string, keep: number): Promise<void>;
   close(): Promise<void>;
 };
 
-type MessageRow = Omit<Message, 'deleted' | 'attachment'> & { deleted: number; attachment: string | null };
-type ChatRow = Omit<Chat, 'muted'> & { muted: number };
+type MessageRow = Omit<Message, 'deleted' | 'attachment' | 'reply' | 'forwarded' | 'mentions' | 'link'> & {
+  deleted: number;
+  attachment: string | null;
+  reply: string | null;
+  forwarded: number | null;
+  mentions: string | null;
+  link: string | null;
+};
+type ChatRow = Omit<Chat, 'muted' | 'other_delivered_at' | 'pinned' | 'my_role'> & { muted: number; extra: string | null };
 
 const SCHEMA = `
 PRAGMA journal_mode = WAL;
@@ -46,11 +57,16 @@ CREATE INDEX IF NOT EXISTS messages_conversation_ts ON messages (conversation_id
 CREATE INDEX IF NOT EXISTS messages_pending ON messages (status) WHERE status = 'pending';
 `;
 
+const parse = <T,>(text: string | null): T | null => (text ? (JSON.parse(text) as T) : null);
 const toMessage = (row: MessageRow): Message => ({
   ...row,
   kind: row.kind ?? 'text',
   deleted: row.deleted === 1,
-  attachment: row.attachment ? (JSON.parse(row.attachment) as Message['attachment']) : null,
+  attachment: parse(row.attachment),
+  reply: parse(row.reply),
+  forwarded: row.forwarded === 1,
+  mentions: parse(row.mentions),
+  link: parse(row.link),
 });
 
 // Changes to the phone's tables, applied once each, in order (PRAGMA user_version counts them).
@@ -58,8 +74,16 @@ const UPGRADES = [
   // 1: photos, documents, stickers, polls and contacts
   `ALTER TABLE messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'text';
    ALTER TABLE messages ADD COLUMN attachment TEXT;`,
+  // 2: replies, forwards, mentions, link previews, edits; forwards waiting in the outbox
+  `ALTER TABLE messages ADD COLUMN reply TEXT;
+   ALTER TABLE messages ADD COLUMN forwarded INTEGER NOT NULL DEFAULT 0;
+   ALTER TABLE messages ADD COLUMN mentions TEXT;
+   ALTER TABLE messages ADD COLUMN link TEXT;
+   ALTER TABLE messages ADD COLUMN edited_at TEXT;
+   ALTER TABLE messages ADD COLUMN forward_from TEXT;
+   ALTER TABLE chats ADD COLUMN extra TEXT;`,
 ];
-const toChat = (row: ChatRow): Chat => ({ ...row, muted: row.muted === 1 });
+const toChat = ({ extra, ...row }: ChatRow): Chat => ({ ...row, muted: row.muted === 1, ...(extra ? JSON.parse(extra) : {}) });
 
 export async function openLocalDb(userId: string): Promise<LocalDb> {
   const db = await SQLite.openDatabaseAsync(`chats-${userId}.db`);
@@ -105,9 +129,12 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
         transaction(async () => {
           await db.runAsync('DELETE FROM chats');
           const insert = await db.prepareAsync(
-            `INSERT INTO chats VALUES ($conversation_id, $kind, $title, $other_user_id, $other_avatar_path, $last_message_at,
+            `INSERT INTO chats (conversation_id, kind, title, other_user_id, other_avatar_path, last_message_at,
+              last_message_preview, last_sender_id, last_sender_name, unread, muted, request, member_count,
+              my_last_read_at, other_last_read_at, created_at, extra)
+             VALUES ($conversation_id, $kind, $title, $other_user_id, $other_avatar_path, $last_message_at,
               $last_message_preview, $last_sender_id, $last_sender_name, $unread, $muted, $request, $member_count,
-              $my_last_read_at, $other_last_read_at, $created_at)`,
+              $my_last_read_at, $other_last_read_at, $created_at, $extra)`,
           );
           try {
             for (const c of chats) {
@@ -118,6 +145,7 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
                 $last_sender_name: c.last_sender_name, $unread: c.unread, $muted: c.muted ? 1 : 0, $request: c.request,
                 $member_count: c.member_count, $my_last_read_at: c.my_last_read_at, $other_last_read_at: c.other_last_read_at,
                 $created_at: c.created_at,
+                $extra: JSON.stringify({ other_delivered_at: c.other_delivered_at ?? null, pinned: c.pinned ?? null, my_role: c.my_role ?? null }),
               });
             }
           } finally {
@@ -144,14 +172,18 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
             transaction(async () => {
               const upsert = await db.prepareAsync(
                 `INSERT INTO messages (id, conversation_id, sender_id, sender_name, sender_avatar, body, reply_to_id,
-                   created_at, ts, status, error, deleted, kind, attachment)
+                   created_at, ts, status, error, deleted, kind, attachment, reply, forwarded, mentions, link, edited_at,
+                   forward_from)
                  VALUES ($id, $conversation_id, $sender_id, $sender_name, $sender_avatar, $body, $reply_to_id,
-                   $created_at, $ts, $status, $error, $deleted, $kind, $attachment)
+                   $created_at, $ts, $status, $error, $deleted, $kind, $attachment, $reply, $forwarded, $mentions, $link,
+                   $edited_at, $forward_from)
                  ON CONFLICT(id) DO UPDATE SET sender_name = coalesce(excluded.sender_name, sender_name),
                    sender_avatar = coalesce(excluded.sender_avatar, sender_avatar),
                    body = excluded.body, created_at = excluded.created_at, ts = excluded.ts, status = excluded.status,
                    error = excluded.error, deleted = excluded.deleted, kind = excluded.kind,
-                   attachment = excluded.attachment`,
+                   attachment = excluded.attachment, reply = excluded.reply, forwarded = excluded.forwarded,
+                   mentions = excluded.mentions, link = excluded.link, edited_at = excluded.edited_at,
+                   forward_from = excluded.forward_from`,
               );
               try {
                 for (const m of messages) {
@@ -160,6 +192,9 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
                     $sender_avatar: m.sender_avatar, $body: m.body, $reply_to_id: m.reply_to_id, $created_at: m.created_at,
                     $ts: m.ts, $status: m.status, $error: m.error, $deleted: m.deleted ? 1 : 0,
                     $kind: m.kind, $attachment: m.attachment ? JSON.stringify(m.attachment) : null,
+                    $reply: m.reply ? JSON.stringify(m.reply) : null, $forwarded: m.forwarded ? 1 : 0,
+                    $mentions: m.mentions ? JSON.stringify(m.mentions) : null, $link: m.link ? JSON.stringify(m.link) : null,
+                    $edited_at: m.edited_at ?? null, $forward_from: m.forward_from ?? null,
                   });
                 }
               } finally {
@@ -184,6 +219,27 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
     clearConversation: (conversationId) =>
       serial(async () => {
         await db.runAsync("DELETE FROM messages WHERE conversation_id = ? AND status = 'sent'", conversationId);
+      }),
+
+    deleteMessages: (ids) =>
+      ids.length === 0
+        ? Promise.resolve()
+        : serial(async () => {
+            await db.runAsync(`DELETE FROM messages WHERE id IN (${ids.map(() => '?').join(',')})`, ...ids);
+          }),
+
+    // Every word must appear (in any order), case-insensitive. A scan of one chat's messages on the
+    // phone: a few milliseconds even for thousands, and it works offline.
+    search: (conversationId, query, limit = 50) =>
+      serial(async () => {
+        const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5);
+        if (words.length === 0) return [];
+        const where = words.map(() => "lower(body) LIKE ? ESCAPE '!'").join(' AND ');
+        const params = words.map((w) => `%${w.replace(/[!%_]/g, (c) => `!${c}`)}%`);
+        const rows = await db.getAllAsync<MessageRow>(
+          `SELECT * FROM messages WHERE conversation_id = ? AND deleted = 0 AND ${where} ORDER BY ts DESC LIMIT ?`,
+          conversationId, ...params, limit);
+        return rows.map(toMessage);
       }),
 
     prune: (conversationId, keep) =>
