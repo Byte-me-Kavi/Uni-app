@@ -33,6 +33,12 @@ export type Palette = {
   /** Sheets and dialogs: lifted off the page (white in light mode, a lighter grey in dark). */
   elevated: string;
   elevatedPressed: string;
+  /** Chat bubbles. Yours carry a tint of red (red means you); text in both is the normal text
+   * colour, so long messages read as easily as anything else in the app. */
+  bubbleMine: string;
+  bubbleTheirs: string;
+  /** ✓✓ once read: a red deep enough to see at 15 px on your bubble. */
+  tickRead: string;
   statusBar: 'light' | 'dark';
 };
 
@@ -56,6 +62,9 @@ export const palettes: Record<'light' | 'dark', Palette> = {
     scrim: 'rgba(20, 20, 20, 0.55)',
     elevated: brand.white,
     elevatedPressed: brand.smoke,
+    bubbleMine: brand.redTint, // ink 15:1, muted 6.2:1
+    bubbleTheirs: brand.smoke,
+    tickRead: '#C2311E', // 4.9:1 on the tint
     statusBar: 'dark',
   },
   dark: {
@@ -77,6 +86,9 @@ export const palettes: Record<'light' | 'dark', Palette> = {
     scrim: 'rgba(0, 0, 0, 0.78)',
     elevated: '#1F1F1F',
     elevatedPressed: '#2A2A2A',
+    bubbleMine: '#3A1D18', // white 14:1, muted 6:1
+    bubbleTheirs: '#1C1C1C',
+    tickRead: brand.red, // 4.8:1 on the tint
     statusBar: 'light',
   },
 };

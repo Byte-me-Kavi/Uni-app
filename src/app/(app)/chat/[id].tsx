@@ -1,12 +1,20 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
+import { KeyboardIcon } from 'phosphor-react-native/src/icons/Keyboard';
 import { PaperPlaneRightIcon } from 'phosphor-react-native/src/icons/PaperPlaneRight';
+import { PlusIcon } from 'phosphor-react-native/src/icons/Plus';
+import { StickerIcon } from 'phosphor-react-native/src/icons/Sticker';
 
+import { AttachPreview, type Pending } from '@/components/chat/attach-preview';
 import { ChatIcon, subtitleFor } from '@/components/chat/chat-row';
+import { MediaViewer } from '@/components/chat/media-viewer';
 import { MessageBubble } from '@/components/chat/message-bubble';
-import { ActionSheet } from '@/components/ui/action-sheet';
+import { PollComposer } from '@/components/chat/poll-composer';
+import { StickerTray } from '@/components/chat/sticker-tray';
+import { StudentPicker } from '@/components/chat/student-picker';
+import { ActionSheet, type SheetAction } from '@/components/ui/action-sheet';
 import { Button } from '@/components/ui/button';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
@@ -19,7 +27,10 @@ import {
   respondRequest,
   retryMessage,
   sendMessage,
+  sendRich,
 } from '@/lib/chat/engine';
+import { canPickPhoneContact, pickDocument, pickPhoneContact, pickPhoto } from '@/lib/chat/attachments';
+import { STICKER_PACK } from '@/lib/chat/stickers';
 import { dayLabel, micros, sameDay } from '@/lib/chat/format';
 import { useChat, useChatState, useMessages } from '@/lib/chat/store';
 import { dismissChatNotifications } from '@/lib/push';
@@ -44,6 +55,13 @@ export default function ChatScreen() {
   const [typing, setTyping] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [pollOpen, setPollOpen] = useState(false);
+  const [studentOpen, setStudentOpen] = useState(false);
+  const [stickersOpen, setStickersOpen] = useState(false);
+  const [viewing, setViewing] = useState<Message | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     openConversation(id);
@@ -96,6 +114,7 @@ export default function ChatScreen() {
           group={group}
           read={!group && otherRead > 0 && otherRead >= micros(item.message.created_at)}
           onRetry={retryMessage}
+          onOpenImage={setViewing}
         />
       ),
     [me, group, otherRead, styles.day],
@@ -105,6 +124,50 @@ export default function ChatScreen() {
     if (!draft.trim()) return;
     sendMessage(id, draft);
     setDraft('');
+  }
+
+  // Picking runs after the sheet has closed; a cancelled picker changes nothing.
+  async function pick(run: () => Promise<{ ok: Pending['attachment'] } | { error: string } | null>, kind: Pending['kind']) {
+    setActionError(null);
+    try {
+      const picked = await run();
+      if (!picked) return;
+      if ('error' in picked) setActionError(picked.error);
+      else setPending({ kind, attachment: picked.ok } as Pending);
+    } catch {
+      setActionError(kind === 'image' ? 'Could not open that photo. Try another one.' : 'Could not open that file. Try another one.');
+    }
+  }
+
+  async function sharePhoneContact() {
+    setActionError(null);
+    try {
+      const picked = await pickPhoneContact();
+      if (!picked) return;
+      if ('error' in picked) setActionError(picked.error);
+      else sendRich(id, 'contact', picked.ok);
+    } catch {
+      setActionError('Could not open your contacts.');
+    }
+  }
+
+  const attachActions: SheetAction[] = [
+    { label: 'Photo from gallery', onPress: () => pick(() => pickPhoto('library'), 'image') },
+    ...(Platform.OS !== 'web' ? [{ label: 'Take a photo', onPress: () => pick(() => pickPhoto('camera'), 'image') }] : []),
+    { label: 'Document (PDF, Word, slides…)', onPress: () => pick(pickDocument, 'file') },
+    { label: 'Poll', onPress: () => setPollOpen(true) },
+    { label: 'Share a student', onPress: () => setStudentOpen(true) },
+    ...(canPickPhoneContact ? [{ label: 'Phone contact', onPress: sharePhoneContact }] : []),
+  ];
+
+  function toggleStickers() {
+    if (stickersOpen) {
+      setStickersOpen(false);
+      inputRef.current?.focus();
+    } else {
+      Keyboard.dismiss();
+      setStickersOpen(true);
+    }
   }
 
   async function answer(accept: boolean) {
@@ -216,33 +279,99 @@ export default function ChatScreen() {
         ) : chat?.request === 'outgoing' && sentOne ? (
           <Text style={styles.waiting}>Request sent. You can send more once {firstName} accepts.</Text>
         ) : (
-          <View style={styles.composer}>
-            <TextInput
-              value={draft}
-              onChangeText={(text) => {
-                setDraft(text);
-                if (text) notifyTyping(id);
-              }}
-              placeholder="Message"
-              placeholderTextColor={theme.textMuted}
-              multiline
-              maxLength={4000}
-              style={styles.input}
-              selectionColor={brand.red}
-              cursorColor={brand.red}
-              accessibilityLabel="Message"
-            />
-            <PressableScale
-              onPress={send}
-              disabled={!draft.trim()}
-              accessibilityRole="button"
-              accessibilityLabel="Send"
-              style={[styles.send, !draft.trim() && styles.sendIdle]}>
-              <PaperPlaneRightIcon size={20} weight="fill" color={draft.trim() ? brand.ink : theme.textMuted} />
-            </PressableScale>
+          <View>
+            <View style={styles.composer}>
+              <PressableScale
+                onPress={() => setAttachOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Attach a photo, document, poll or contact"
+                style={styles.attach}>
+                <PlusIcon size={22} weight="bold" color={theme.text} />
+              </PressableScale>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  ref={inputRef}
+                  onFocus={() => setStickersOpen(false)}
+                  value={draft}
+                  onChangeText={(text) => {
+                    setDraft(text);
+                    if (text) notifyTyping(id);
+                  }}
+                  placeholder="Message"
+                  placeholderTextColor={theme.textMuted}
+                  multiline
+                  maxLength={4000}
+                  style={styles.input}
+                  selectionColor={brand.red}
+                  cursorColor={brand.red}
+                  accessibilityLabel="Message"
+                />
+                <PressableScale
+                  onPress={toggleStickers}
+                  accessibilityRole="button"
+                  accessibilityLabel={stickersOpen ? 'Show keyboard' : 'Stickers'}
+                  hitSlop={6}
+                  style={styles.stickerButton}>
+                  {stickersOpen ? (
+                    <KeyboardIcon size={22} color={theme.textMuted} weight="bold" />
+                  ) : (
+                    <StickerIcon size={22} color={theme.textMuted} weight="bold" />
+                  )}
+                </PressableScale>
+              </View>
+              <PressableScale
+                onPress={send}
+                disabled={!draft.trim()}
+                accessibilityRole="button"
+                accessibilityLabel="Send"
+                style={[styles.send, !draft.trim() && styles.sendIdle]}>
+                <PaperPlaneRightIcon size={20} weight="fill" color={draft.trim() ? brand.ink : theme.textMuted} />
+              </PressableScale>
+            </View>
+            {stickersOpen ? (
+              <StickerTray
+                onPick={(sticker) => {
+                  setActionError(null);
+                  sendRich(id, 'sticker', { pack: STICKER_PACK, id: sticker });
+                }}
+              />
+            ) : null}
           </View>
         )}
       </KeyboardAvoidingView>
+
+      <ActionSheet visible={attachOpen} title="Send" actions={attachActions} onClose={() => setAttachOpen(false)} />
+      <AttachPreview
+        pending={pending}
+        onClose={() => setPending(null)}
+        onSend={(caption) => {
+          if (pending) sendRich(id, pending.kind, pending.attachment, caption);
+          setPending(null);
+        }}
+      />
+      <PollComposer
+        visible={pollOpen}
+        onClose={() => setPollOpen(false)}
+        onSend={(poll) => {
+          setPollOpen(false);
+          sendRich(id, 'poll', poll);
+        }}
+      />
+      <StudentPicker
+        visible={studentOpen}
+        onClose={() => setStudentOpen(false)}
+        onPick={(person) => {
+          setStudentOpen(false);
+          sendRich(id, 'contact', {
+            type: 'student',
+            user_id: person.user_id,
+            name: person.full_name,
+            avatar_path: person.avatar_path,
+            institution: person.institution,
+          });
+        }}
+      />
+      <MediaViewer message={viewing} onClose={() => setViewing(null)} />
 
       <ActionSheet
         visible={confirmBlock}
@@ -300,26 +429,28 @@ const useStyles = createThemedStyles((t) => ({
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: space.sm,
+    gap: space.xs + 2,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     borderTopWidth: 1,
     borderTopColor: t.border,
     backgroundColor: t.background,
   },
+  attach: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
+  inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', borderRadius: 22, backgroundColor: t.surface },
   input: {
     flex: 1,
     minHeight: 44,
     maxHeight: 140,
-    paddingHorizontal: space.lg,
+    paddingLeft: space.lg,
+    paddingRight: space.xs,
     paddingTop: 11,
     paddingBottom: 11,
-    borderRadius: 22,
-    backgroundColor: t.surface,
     fontFamily: fonts.body,
     fontSize: 16,
     color: t.text,
   },
+  stickerButton: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
   send: { width: 44, height: 44, borderRadius: 22, backgroundColor: brand.red, alignItems: 'center', justifyContent: 'center' },
   sendIdle: { backgroundColor: t.surface },
   requestBar: { padding: space.lg, gap: space.md, borderTopWidth: 1, borderTopColor: t.border },

@@ -69,6 +69,13 @@
           "color": "#FF5C47",
           "defaultChannel": "messages"
         }
+      ],
+      "expo-sharing",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Uni Era opens your contacts only when you choose one to share in a chat."
+        }
       ]
     ],
     "experiments": {

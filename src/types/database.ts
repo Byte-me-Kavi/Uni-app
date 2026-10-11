@@ -23,6 +23,15 @@ export type Database = {
       app_config: { Args: never; Returns: Json }
       batch_suggestion: { Args: never; Returns: Json }
       begin_avatar_upload: { Args: never; Returns: string }
+      begin_chat_upload: {
+        Args: {
+          p_conversation_id: string
+          p_kind: string
+          p_mime: string
+          p_size: number
+        }
+        Returns: Json
+      }
       block_user: { Args: { p_user_id: string }; Returns: undefined }
       blocked_users: {
         Args: never
@@ -57,11 +66,13 @@ export type Database = {
           p_limit?: number
         }
         Returns: {
+          attachment: Json
           body: string
           created_at: string
           deleted: boolean
           edited_at: string
           id: string
+          kind: string
           reply_to_id: string
           sender_avatar: string
           sender_id: string
@@ -123,6 +134,15 @@ export type Database = {
         }[]
       }
       person: { Args: { p_user_id: string }; Returns: Json }
+      poll_results: {
+        Args: { p_conversation_id: string; p_message_ids: string[] }
+        Returns: {
+          counts: Json
+          message_id: string
+          mine: number[]
+          voters: number
+        }[]
+      }
       push_batch: {
         Args: { p_created_at: string; p_message_id: string }
         Returns: Json
@@ -163,9 +183,11 @@ export type Database = {
       }
       send_message: {
         Args: {
-          p_body: string
+          p_attachment?: Json
+          p_body?: string
           p_conversation_id: string
           p_id: string
+          p_kind?: string
           p_reply_to_id?: string
         }
         Returns: Json
@@ -184,6 +206,14 @@ export type Database = {
       update_bio: { Args: { p_bio: string }; Returns: string }
       update_privacy: {
         Args: { p_findable_by?: string; p_who_can_message?: string }
+        Returns: Json
+      }
+      vote_poll: {
+        Args: {
+          p_conversation_id: string
+          p_message_id: string
+          p_options: number[]
+        }
         Returns: Json
       }
     }

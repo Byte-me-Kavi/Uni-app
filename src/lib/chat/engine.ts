@@ -1,10 +1,21 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AppState, type AppStateStatus, type NativeEventSubscription } from 'react-native';
 
+import { previewText, uploadAttachment } from '@/lib/chat/attachments';
 import { micros } from '@/lib/chat/format';
 import { openLocalDb, type LocalDb } from '@/lib/chat/local-db';
 import { getChatState, resetChatState, setChatState } from '@/lib/chat/store';
-import type { Chat, Message, MessagePayload } from '@/lib/chat/types';
+import type {
+  Attachment,
+  Chat,
+  FileAttachment,
+  ImageAttachment,
+  Message,
+  MessageKind,
+  MessagePayload,
+  PollPayload,
+  PollResult,
+} from '@/lib/chat/types';
 import { uuidv7 } from '@/lib/chat/uuid';
 import { supabase } from '@/lib/supabase';
 
@@ -53,6 +64,8 @@ type Row = {
   reply_to_id: string | null;
   created_at: string;
   deleted: boolean;
+  kind: MessageKind | null;
+  attachment: Attachment | null;
 };
 
 const fromRow = (conversationId: string, r: Row): Message => ({
@@ -68,6 +81,8 @@ const fromRow = (conversationId: string, r: Row): Message => ({
   status: 'sent',
   error: null,
   deleted: r.deleted,
+  kind: r.kind ?? 'text',
+  attachment: r.attachment ?? null,
 });
 
 const fromPayload = (p: MessagePayload): Message => ({
@@ -83,6 +98,8 @@ const fromPayload = (p: MessagePayload): Message => ({
   status: 'sent',
   error: null,
   deleted: false,
+  kind: p.message_kind ?? 'text',
+  attachment: p.attachment ?? null,
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -200,6 +217,7 @@ async function connectInboxUnsafe() {
     .channel(`user:${me}`, { config: { private: true } })
     .on('broadcast', { event: 'message' }, ({ payload }) => receive(payload as MessagePayload))
     .on('broadcast', { event: 'read' }, ({ payload }) => receiveRead(payload as ReadPayload))
+    .on('broadcast', { event: 'poll' }, ({ payload }) => receivePoll(payload as PollPayload))
     .subscribe((status) => {
       if (run !== generation) return;
       if (status === 'SUBSCRIBED') {
@@ -261,7 +279,7 @@ async function receiveUnsafe(p: MessagePayload) {
   updateChat(p.conversation_id, (c) => ({
     ...c,
     last_message_at: p.created_at,
-    last_message_preview: p.body.slice(0, 140),
+    last_message_preview: previewText(message.kind, message.body, message.attachment),
     last_sender_id: p.sender_id,
     last_sender_name: p.sender_name,
     unread: p.sender_id === me || onScreen || known ? c.unread : c.unread + 1,
@@ -285,6 +303,13 @@ function receiveRead(p: ReadPayload) {
   updateChat(p.conversation_id, (c) => ({
     ...c,
     other_last_read_at: !c.other_last_read_at || c.other_last_read_at < p.last_read_at ? p.last_read_at : c.other_last_read_at,
+  }));
+}
+
+// Someone voted. Your own choices stay as they are; only the totals change.
+function receivePoll(p: PollPayload) {
+  setChatState((s) => ({
+    polls: { ...s.polls, [p.message_id]: { counts: p.counts, voters: p.voters, mine: s.polls[p.message_id]?.mine ?? [] } },
   }));
 }
 
@@ -317,6 +342,44 @@ async function openConversationUnsafe(conversationId: string) {
   // counting them as unread and the sender would never see ✓✓.
   const newest = getChatState().messages[conversationId]?.find((m) => m.status === 'sent');
   if (open?.id === conversationId && newest) markRead(conversationId, newest.created_at);
+  loadPolls(conversationId);
+}
+
+// Results for the polls loaded in this chat (one request for all of them).
+async function loadPollsUnsafe(conversationId: string) {
+  const ids = (getChatState().messages[conversationId] ?? [])
+    .filter((m) => m.kind === 'poll' && m.status === 'sent' && !m.deleted)
+    .slice(0, 100)
+    .map((m) => m.id);
+  if (ids.length === 0) return;
+  const { data, error } = await supabase.rpc('poll_results', { p_conversation_id: conversationId, p_message_ids: ids });
+  if (error) return;
+  const rows = data as { message_id: string; counts: number[]; voters: number; mine: number[] }[];
+  setChatState((s) => {
+    const polls = { ...s.polls };
+    for (const r of rows) polls[r.message_id] = { counts: r.counts, voters: r.voters, mine: r.mine };
+    return { polls };
+  });
+}
+
+/** Votes on a poll (an empty list takes the vote back). Shows the change at once. */
+export async function votePoll(conversationId: string, messageId: string, options: number[], optionCount: number) {
+  const before: PollResult = getChatState().polls[messageId] ?? { counts: Array(optionCount).fill(0), voters: 0, mine: [] };
+  const counts = before.counts.map((n, i) => n - (before.mine.includes(i) ? 1 : 0) + (options.includes(i) ? 1 : 0));
+  const voters = before.voters - (before.mine.length ? 1 : 0) + (options.length ? 1 : 0);
+  setChatState((s) => ({ polls: { ...s.polls, [messageId]: { counts, voters, mine: options } } }));
+  const { data, error } = await supabase.rpc('vote_poll', {
+    p_conversation_id: conversationId,
+    p_message_id: messageId,
+    p_options: options,
+  });
+  if (error) {
+    setChatState((s) => ({ polls: { ...s.polls, [messageId]: before } }));
+    return error.message;
+  }
+  const result = data as PollResult;
+  setChatState((s) => ({ polls: { ...s.polls, [messageId]: result } }));
+  return null;
 }
 
 function subscribeOpen(conversationId: string) {
@@ -329,6 +392,7 @@ function subscribeOpen(conversationId: string) {
     .channel(`chat:${conversationId}`, { config: { private: true } })
     .on('broadcast', { event: 'message' }, ({ payload }) => receive(payload as MessagePayload))
     .on('broadcast', { event: 'typing' }, ({ payload }) => receiveTyping(conversationId, payload as { user_id?: string }))
+    .on('broadcast', { event: 'poll' }, ({ payload }) => receivePoll(payload as PollPayload))
     .subscribe((status) => {
       if (status === 'SUBSCRIBED' && open?.id === conversationId) fetchNewer(conversationId);
     });
@@ -460,16 +524,82 @@ async function sendMessageUnsafe(conversationId: string, body: string) {
     status: 'pending',
     error: null,
     deleted: false,
+    kind: 'text',
+    attachment: null,
   };
+  await queue(message);
+}
+
+/** Sends a photo, document, sticker, poll or contact. Photos and documents upload first, from the
+ * outbox, so they survive a lost connection or a closed app like text does. */
+async function sendRichUnsafe(conversationId: string, kind: Exclude<MessageKind, 'text'>, attachment: Attachment, caption = '') {
+  if (!me || !db) return;
+  const now = Date.now();
+  await queue({
+    id: uuidv7(),
+    conversation_id: conversationId,
+    sender_id: me,
+    sender_name: null,
+    sender_avatar: null,
+    body: caption.trim(),
+    reply_to_id: null,
+    created_at: new Date(now).toISOString(),
+    ts: now,
+    status: 'pending',
+    error: null,
+    deleted: false,
+    kind,
+    attachment,
+  });
+}
+
+async function queue(message: Message) {
+  if (!db) return;
   await db.saveMessages([message]);
-  putMessages(conversationId, [message]);
-  updateChat(conversationId, (c) => ({
+  putMessages(message.conversation_id, [message]);
+  updateChat(message.conversation_id, (c) => ({
     ...c,
     last_message_at: message.created_at,
-    last_message_preview: text.slice(0, 140),
+    last_message_preview: previewText(message.kind, message.body, message.attachment),
     last_sender_id: me,
   }));
   flushOutbox();
+}
+
+// What the server keeps of an attachment: never the phone's own file address.
+function forServer(attachment: Attachment | null) {
+  if (!attachment) return null;
+  const { local_uri: _local, ...rest } = attachment as ImageAttachment & FileAttachment;
+  return rest;
+}
+
+// Uploads a photo or document that has not reached R2 yet. Returns the message ready to send,
+// 'wait' when the network failed (the outbox tries again) or 'failed' when it was refused.
+async function uploadFirst(local: LocalDb, message: Message): Promise<Message | 'wait' | 'failed'> {
+  if (message.kind !== 'image' && message.kind !== 'file') return message;
+  const file = message.attachment as ImageAttachment & Partial<FileAttachment>;
+  if (file.path || !file.local_uri) return message;
+  const setProgress = (share: number) =>
+    setChatState((s) => ({ uploads: { ...s.uploads, [message.id]: Math.min(1, Math.max(0, share)) } }));
+  setProgress(0);
+  const result = await uploadAttachment(
+    message.conversation_id,
+    message.kind,
+    { local_uri: file.local_uri, mime: message.kind === 'image' ? 'image/jpeg' : (file.mime ?? ''), size: file.size },
+    setProgress,
+  );
+  if ('error' in result) {
+    if (!result.permanent) return 'wait';
+    const failed = { ...message, status: 'failed' as const, error: result.error };
+    await local.saveMessages([failed]);
+    putMessages(message.conversation_id, [failed]);
+    return 'failed';
+  }
+  // Recorded at once, so a retry after a crash does not upload the file again.
+  const uploaded: Message = { ...message, attachment: { ...file, path: result.path } as Attachment };
+  await local.saveMessages([uploaded]);
+  putMessages(message.conversation_id, [uploaded]);
+  return uploaded;
 }
 
 async function retryMessageUnsafe(message: Message) {
@@ -487,11 +617,20 @@ async function flushOutboxUnsafe() {
   if (flushing || !local) return;
   flushing = true;
   try {
-    for (const message of await local.pendingMessages()) {
+    for (const waiting of await local.pendingMessages()) {
+      const message = await uploadFirst(local, waiting);
+      if (db !== local) return;
+      if (message === 'failed') continue;
+      if (message === 'wait') {
+        scheduleRetry();
+        return;
+      }
       const { data, error } = await supabase.rpc('send_message', {
         p_conversation_id: message.conversation_id,
         p_id: message.id,
         p_body: message.body ?? '',
+        p_kind: message.kind,
+        p_attachment: forServer(message.attachment) as never,
       });
       if (db !== local) return;
       if (error) {
@@ -504,8 +643,17 @@ async function flushOutboxUnsafe() {
         scheduleRetry();
         return;
       }
-      const created = (data as { created_at: string }).created_at;
-      const sent: Message = { ...message, status: 'sent', created_at: created, ts: tsOf(created), error: null };
+      const { created_at: created, attachment } = data as { created_at: string; attachment?: Attachment | null };
+      // The server's attachment (checked and completed), plus the phone's own copy of the file.
+      const merged = attachment
+        ? ({ ...attachment, local_uri: (message.attachment as ImageAttachment | null)?.local_uri } as Attachment)
+        : message.attachment;
+      const sent: Message = { ...message, attachment: merged, status: 'sent', created_at: created, ts: tsOf(created), error: null };
+      setChatState((s) => {
+        const uploads = { ...s.uploads };
+        delete uploads[message.id];
+        return { uploads };
+      });
       // The server has it: show ✓ now, then record it on the phone.
       putMessages(message.conversation_id, [sent]);
       // Sending reads the chat up to your message (the server records the same).
@@ -514,7 +662,9 @@ async function flushOutboxUnsafe() {
         unread: 0,
         my_last_read_at: micros(created) > micros(c.my_last_read_at) ? created : c.my_last_read_at,
         last_message_at:
-          c.last_sender_id === me && c.last_message_preview === (message.body ?? '').slice(0, 140) ? created : c.last_message_at,
+          c.last_sender_id === me && c.last_message_preview === previewText(message.kind, message.body, message.attachment)
+          ? created
+          : c.last_message_at,
       }));
       await local.saveMessages([sent]);
     }
@@ -624,6 +774,8 @@ export const refreshChats = safely('refresh chats', refreshChatsUnsafe);
 export const openConversation = safely('open chat', openConversationUnsafe);
 export const loadOlder = safely('load older messages', loadOlderUnsafe);
 export const sendMessage = safely('send', sendMessageUnsafe);
+export const sendRich = safely('send', sendRichUnsafe);
+const loadPolls = safely('load polls', loadPollsUnsafe);
 export const retryMessage = safely('retry', retryMessageUnsafe);
 const receive = safely('receive', receiveUnsafe);
 const fetchNewer = safely('catch up', fetchNewerUnsafe);

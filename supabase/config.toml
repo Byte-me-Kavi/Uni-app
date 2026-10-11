@@ -390,6 +390,9 @@ deno_version = 2
 [functions.avatar]
 verify_jwt = false
 
+[functions.media]
+verify_jwt = false
+
 # Called by the database with a shared secret (see the function), not by students.
 [functions.push]
 verify_jwt = false

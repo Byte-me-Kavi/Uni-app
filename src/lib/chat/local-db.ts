@@ -22,7 +22,7 @@ export type LocalDb = {
   close(): Promise<void>;
 };
 
-type MessageRow = Omit<Message, 'deleted'> & { deleted: number };
+type MessageRow = Omit<Message, 'deleted' | 'attachment'> & { deleted: number; attachment: string | null };
 type ChatRow = Omit<Chat, 'muted'> & { muted: number };
 
 const SCHEMA = `
@@ -46,7 +46,19 @@ CREATE INDEX IF NOT EXISTS messages_conversation_ts ON messages (conversation_id
 CREATE INDEX IF NOT EXISTS messages_pending ON messages (status) WHERE status = 'pending';
 `;
 
-const toMessage = (row: MessageRow): Message => ({ ...row, deleted: row.deleted === 1 });
+const toMessage = (row: MessageRow): Message => ({
+  ...row,
+  kind: row.kind ?? 'text',
+  deleted: row.deleted === 1,
+  attachment: row.attachment ? (JSON.parse(row.attachment) as Message['attachment']) : null,
+});
+
+// Changes to the phone's tables, applied once each, in order (PRAGMA user_version counts them).
+const UPGRADES = [
+  // 1: photos, documents, stickers, polls and contacts
+  `ALTER TABLE messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'text';
+   ALTER TABLE messages ADD COLUMN attachment TEXT;`,
+];
 const toChat = (row: ChatRow): Chat => ({ ...row, muted: row.muted === 1 });
 
 export async function openLocalDb(userId: string): Promise<LocalDb> {
@@ -55,6 +67,10 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
   // (Fast Refresh in development can leave the previous connection open for a moment).
   await db.execAsync('PRAGMA busy_timeout = 5000;');
   await db.execAsync(SCHEMA);
+  const version = (await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version'))?.user_version ?? 0;
+  for (let i = version; i < UPGRADES.length; i++) {
+    await db.execAsync(`BEGIN; ${UPGRADES[i]} PRAGMA user_version = ${i + 1}; COMMIT;`);
+  }
 
   // One connection, one operation at a time. Live messages, the outbox and screens all write at
   // once (your own message is saved by the outbox while its echo arrives over Realtime), and
@@ -127,12 +143,15 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
         : serial(() =>
             transaction(async () => {
               const upsert = await db.prepareAsync(
-                `INSERT INTO messages VALUES ($id, $conversation_id, $sender_id, $sender_name, $sender_avatar, $body, $reply_to_id,
-                  $created_at, $ts, $status, $error, $deleted)
+                `INSERT INTO messages (id, conversation_id, sender_id, sender_name, sender_avatar, body, reply_to_id,
+                   created_at, ts, status, error, deleted, kind, attachment)
+                 VALUES ($id, $conversation_id, $sender_id, $sender_name, $sender_avatar, $body, $reply_to_id,
+                   $created_at, $ts, $status, $error, $deleted, $kind, $attachment)
                  ON CONFLICT(id) DO UPDATE SET sender_name = coalesce(excluded.sender_name, sender_name),
                    sender_avatar = coalesce(excluded.sender_avatar, sender_avatar),
                    body = excluded.body, created_at = excluded.created_at, ts = excluded.ts, status = excluded.status,
-                   error = excluded.error, deleted = excluded.deleted`,
+                   error = excluded.error, deleted = excluded.deleted, kind = excluded.kind,
+                   attachment = excluded.attachment`,
               );
               try {
                 for (const m of messages) {
@@ -140,6 +159,7 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
                     $id: m.id, $conversation_id: m.conversation_id, $sender_id: m.sender_id, $sender_name: m.sender_name,
                     $sender_avatar: m.sender_avatar, $body: m.body, $reply_to_id: m.reply_to_id, $created_at: m.created_at,
                     $ts: m.ts, $status: m.status, $error: m.error, $deleted: m.deleted ? 1 : 0,
+                    $kind: m.kind, $attachment: m.attachment ? JSON.stringify(m.attachment) : null,
                   });
                 }
               } finally {

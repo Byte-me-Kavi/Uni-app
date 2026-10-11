@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import type { Chat, Message } from '@/lib/chat/types';
+import type { Chat, Message, PollResult } from '@/lib/chat/types';
 
 // What the chat screens draw from. Kept in memory and filled from the phone's database first,
 // then from the server. Screens subscribe to the slice they need, so a new message in one chat
@@ -17,6 +17,10 @@ export type ChatState = {
   typingUntil: Record<string, number>;
   /** The live connection: connecting, live, or offline (messages then wait in the outbox). */
   connection: 'connecting' | 'live' | 'offline';
+  /** Upload progress (0 to 1) of photos and documents being sent, by message id. */
+  uploads: Record<string, number>;
+  /** Poll results by message id, for polls on screen. */
+  polls: Record<string, PollResult>;
 };
 
 const initial: ChatState = {
@@ -27,6 +31,8 @@ const initial: ChatState = {
   hasOlder: {},
   typingUntil: {},
   connection: 'connecting',
+  uploads: {},
+  polls: {},
 };
 
 let state = initial;
