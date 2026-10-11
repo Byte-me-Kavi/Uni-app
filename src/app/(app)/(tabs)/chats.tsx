@@ -4,6 +4,7 @@ import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { UsersThreeIcon } from 'phosphor-react-native/src/icons/UsersThree';
 
 import { ChatRow } from '@/components/chat/chat-row';
+import { NotifyCard } from '@/components/chat/notify-card';
 import { Button } from '@/components/ui/button';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { refreshChats } from '@/lib/chat/engine';
@@ -76,7 +77,9 @@ export default function Chats() {
           <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={brand.red} colors={[brand.red]} />
         }
         ListHeaderComponent={
-          !hasBatch && section === 'chats' ? (
+          section === 'chats' && hasBatch ? (
+            <NotifyCard />
+          ) : !hasBatch && section === 'chats' ? (
             <View style={styles.joinCard}>
               <View style={styles.joinIcon}>
                 <UsersThreeIcon size={24} weight="bold" color={brand.ink} />

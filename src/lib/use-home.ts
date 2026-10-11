@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { readCache, writeCache } from '@/lib/cache';
 import { supabase } from '@/lib/supabase';
+import { useSession } from '@/providers/session-provider';
 
 export type MyHome = {
   full_name: string;
@@ -21,9 +23,15 @@ type State =
   | { status: 'error' }
   | { status: 'ready'; home: MyHome };
 
-// Loads everything the home screen needs in one request (api.my_home).
+// Loads everything the home screen needs in one request (api.my_home). The last copy on the phone
+// shows at once, so the app opens straight onto a filled home screen and refreshes behind it.
 export function useHome() {
-  const [state, setState] = useState<State>({ status: 'loading' });
+  const session = useSession();
+  const cacheKey = session.status === 'signed_in' ? `${session.session.user.id}:home` : null;
+  const [state, setState] = useState<State>(() => {
+    const cached = cacheKey ? readCache<MyHome>(cacheKey) : null;
+    return cached ? { status: 'ready', home: cached } : { status: 'loading' };
+  });
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -33,8 +41,9 @@ export function useHome() {
       return false;
     }
     setState({ status: 'ready', home: data as MyHome });
+    if (cacheKey) writeCache(cacheKey, data);
     return true;
-  }, []);
+  }, [cacheKey]);
 
   useEffect(() => {
     load();

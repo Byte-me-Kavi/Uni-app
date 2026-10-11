@@ -44,6 +44,7 @@ Programme names are built by students, not entered by admins. Spellings are merg
 - **Direct messages.** From any student's card. "Who can message me" applies. Students at your university go straight to Chats; students from other universities land in Requests and can send one message until you accept (or ignore, or block). Opening a request never sends a read receipt.
 - **Delivery.** A message is saved, then broadcast from the database (Supabase Realtime Broadcast), so nothing unsaved or blocked is ever delivered. Measured from Sri Lanka to the Singapore project: saved in about 80 ms, on the other phone in about 60 ms.
 - **On the phone.** Chats and messages are kept in SQLite (like WhatsApp), so chats open instantly and offline. Messages wait in an outbox until sent; retries never duplicate (ids are made on the phone).
+- **Notifications.** Push notifications when the app is closed (Expo push service, FCM on Android, APNs on iPhone). Direct messages notify every time; groups once, then again after reading or 15 minutes. Muted chats, blocked students and your own messages never notify. The open chat stays quiet. Lock-screen text can be hidden. Asked for on the Chats tab, not at launch.
 - **Keeping Realtime usage low (free tier).** Direct messages arrive on each student's own channel; a group is followed live only while it is open; typing is in direct chats only; the connection closes 30 seconds after the app goes to the background.
 - **Next.** Push notifications (need a development build), photos in chats, replies and reactions, report a message, course groups.
 
@@ -73,7 +74,7 @@ Safety rules, built in from the first version:
 | Batches | Email suggestion, typed programmes with matching, intake year, one-batch rule, batch group chat created on join and named with the university ("UCSC · BSc in Computer Science · 2023"; chat screens open soon) |
 | Home | Greeting, brand card, set-up steps, staff approval count, empty feed |
 | Profile and settings | Profile photo (choose or take, cropped and shrunk on the phone, stored in Cloudflare R2 through a signing Edge Function), about-you line, who can find me, who can message me, block and unblock, blocked list |
-| Chats | Batch and national programme groups, direct messages, requests, live delivery, phone storage with outbox, typing (direct), read receipts (direct), unread badges |
+| Chats | Batch and national programme groups, direct messages, requests, live delivery, phone storage with outbox, typing (direct), read receipts (direct), unread badges, app icon badge, group details with members and mute, push notifications (Android; iPhone needs the Apple Developer Program) |
 | Search | Name search across universities in the top bar, student cards, "who can find you" setting, typo correction, rate limit |
 | Brand | Uni Era mark, lockup, app icons, light and dark themes |
-| Security | Row-level security on every table, database tests (accounts, batches, search, profiles, names and chats), audit log |
+| Security | Row-level security on every table, database tests (accounts, batches, search, profiles, names, chats, push, read receipts and members), audit log |

@@ -34,3 +34,6 @@ supabase/.temp
 .metro-health-check*
 npm-debug.*
 *.tsbuildinfo
+
+# Firebase service account keys (secret; upload with `eas credentials`, never commit)
+*firebase-adminsdk*.json

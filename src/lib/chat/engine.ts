@@ -1,6 +1,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AppState, type AppStateStatus, type NativeEventSubscription } from 'react-native';
 
+import { micros } from '@/lib/chat/format';
 import { openLocalDb, type LocalDb } from '@/lib/chat/local-db';
 import { getChatState, resetChatState, setChatState } from '@/lib/chat/store';
 import type { Chat, Message, MessagePayload } from '@/lib/chat/types';
@@ -225,7 +226,12 @@ async function refreshChatsUnsafe() {
   const { data, error } = await supabase.rpc('my_chats');
   if (error || run !== generation || !db) return;
   const chats = sortChats(
-    (data as Chat[]).map((c) => (open?.id === c.conversation_id ? { ...c, unread: 0 } : c)),
+    (data as Chat[]).map((c) => {
+      if (open?.id !== c.conversation_id) return c;
+      // The chat on screen is read; tell the server if it does not know yet.
+      if (c.unread > 0 && c.last_message_at) markRead(c.conversation_id, c.last_message_at);
+      return { ...c, unread: 0 };
+    }),
   );
   // Keep a placeholder for a direct chat opened but not yet messaged.
   const placeholder = getChatState().chats.find(
@@ -259,6 +265,13 @@ async function receiveUnsafe(p: MessagePayload) {
     last_sender_id: p.sender_id,
     last_sender_name: p.sender_name,
     unread: p.sender_id === me || onScreen || known ? c.unread : c.unread + 1,
+    // Writing means they have seen everything before it, so your earlier messages get ✓✓
+    // without a separate read receipt (the server records the same).
+    other_last_read_at:
+      c.kind === 'direct' && p.sender_id !== me && micros(p.created_at) > micros(c.other_last_read_at)
+        ? p.created_at
+        : c.other_last_read_at,
+    my_last_read_at: p.sender_id === me && micros(p.created_at) > micros(c.my_last_read_at) ? p.created_at : c.my_last_read_at,
   }));
   if (p.sender_id !== me) {
     setChatState((s) => ({ typingUntil: { ...s.typingUntil, [p.conversation_id]: 0 } }));
@@ -298,6 +311,12 @@ async function openConversationUnsafe(conversationId: string) {
 
   if (inbox) subscribeOpen(conversationId);
   await fetchNewer(conversationId);
+
+  // Messages that reached the phone while you were elsewhere (live, or in an earlier visit) are
+  // read now. fetchNewer only marks what it downloads, so without this the server would keep
+  // counting them as unread and the sender would never see ✓✓.
+  const newest = getChatState().messages[conversationId]?.find((m) => m.status === 'sent');
+  if (open?.id === conversationId && newest) markRead(conversationId, newest.created_at);
 }
 
 function subscribeOpen(conversationId: string) {
@@ -313,6 +332,11 @@ function subscribeOpen(conversationId: string) {
     .subscribe((status) => {
       if (status === 'SUBSCRIBED' && open?.id === conversationId) fetchNewer(conversationId);
     });
+}
+
+/** The chat on screen, if any: notifications for it are not shown (the messages are already there). */
+export function currentConversationId() {
+  return open?.id ?? null;
 }
 
 export function closeConversation() {
@@ -391,18 +415,27 @@ async function loadOlderUnsafe(conversationId: string) {
   setChatState((s) => ({ hasOlder: { ...s.hasOlder, [conversationId]: rows.length === PAGE } }));
 }
 
-// Read position, at most once every 2 seconds per chat.
+// Read position, at most once every 2 seconds per chat, and only when it moves forward (so
+// opening a chat you have already read sends nothing).
 function markRead(conversationId: string, upTo: string) {
   updateChat(conversationId, (c) => ({ ...c, unread: 0 }));
+  const chat = getChatState().chats.find((c) => c.conversation_id === conversationId);
   // Looking at a message request must not tell the sender it was seen (no read receipt).
-  if (getChatState().chats.find((c) => c.conversation_id === conversationId)?.request === 'incoming') return;
-  if (!readUpTo[conversationId] || readUpTo[conversationId] < upTo) readUpTo[conversationId] = upTo;
+  if (chat?.request === 'incoming') return;
+  if (chat && micros(chat.my_last_read_at) >= micros(upTo)) return;
+  if (!readUpTo[conversationId] || micros(readUpTo[conversationId]) < micros(upTo)) readUpTo[conversationId] = upTo;
   if (readTimers[conversationId]) return;
   readTimers[conversationId] = setTimeout(() => {
     delete readTimers[conversationId];
     const until = readUpTo[conversationId];
     delete readUpTo[conversationId];
-    if (until) supabase.rpc('mark_read', { p_conversation_id: conversationId, p_up_to: until });
+    if (!until) return;
+    supabase.rpc('mark_read', { p_conversation_id: conversationId, p_up_to: until }).then(({ data, error }) => {
+      if (error) return; // the next open or refresh tries again
+      updateChat(conversationId, (c) => ({ ...c, my_last_read_at: (data as string | null) ?? until }));
+      const local = db;
+      if (local) local.saveChats(getChatState().chats).catch(() => {});
+    });
   }, READ_EVERY_MS);
 }
 
@@ -475,11 +508,14 @@ async function flushOutboxUnsafe() {
       const sent: Message = { ...message, status: 'sent', created_at: created, ts: tsOf(created), error: null };
       // The server has it: show ✓ now, then record it on the phone.
       putMessages(message.conversation_id, [sent]);
-      updateChat(message.conversation_id, (c) =>
-        c.last_sender_id === me && c.last_message_preview === (message.body ?? '').slice(0, 140)
-          ? { ...c, last_message_at: created }
-          : c,
-      );
+      // Sending reads the chat up to your message (the server records the same).
+      updateChat(message.conversation_id, (c) => ({
+        ...c,
+        unread: 0,
+        my_last_read_at: micros(created) > micros(c.my_last_read_at) ? created : c.my_last_read_at,
+        last_message_at:
+          c.last_sender_id === me && c.last_message_preview === (message.body ?? '').slice(0, 140) ? created : c.last_message_at,
+      }));
       await local.saveMessages([sent]);
     }
     retryDelay = 2000;
@@ -544,6 +580,19 @@ export async function startDirect(person: { user_id: string; full_name: string; 
     setChatState((s) => ({ chats: sortChats([...s.chats, placeholder]) }));
   }
   return { conversationId: conversation_id };
+}
+
+/** Mutes a chat's notifications for some hours, or until unmuted (hours null); on false, unmutes. */
+export async function setMuted(conversationId: string, on: boolean, hours: number | null = null) {
+  const { error } = await supabase.rpc('set_muted', {
+    p_conversation_id: conversationId,
+    p_on: on,
+    ...(hours ? { p_hours: hours } : {}),
+  });
+  if (error) return error.message;
+  updateChat(conversationId, (c) => ({ ...c, muted: on }));
+  db?.saveChats(getChatState().chats).catch(() => {});
+  return null;
 }
 
 export async function respondRequest(conversationId: string, accept: boolean) {

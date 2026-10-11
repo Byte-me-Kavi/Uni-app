@@ -1,7 +1,9 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { readCache, writeCache } from '@/lib/cache';
 import { supabase } from '@/lib/supabase';
+import { useSession } from '@/providers/session-provider';
 
 export type Findable = 'everyone' | 'my_institution' | 'nobody';
 export type WhoCanMessage = 'everyone' | 'my_institution' | 'my_cohort' | 'nobody';
@@ -22,9 +24,12 @@ export type Account = {
 };
 
 // The signed-in student's own profile and settings (api.my_account). Reloads whenever the screen
-// comes back into view, so changes made on a settings screen show on return.
+// comes back into view, so changes made on a settings screen show on return. Starts from the copy
+// on the phone, so the profile and settings screens open filled in.
 export function useAccount() {
-  const [account, setAccount] = useState<Account | null>(null);
+  const session = useSession();
+  const cacheKey = session.status === 'signed_in' ? `${session.session.user.id}:account` : null;
+  const [account, setAccount] = useState<Account | null>(() => (cacheKey ? readCache<Account>(cacheKey) : null));
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
@@ -35,7 +40,8 @@ export function useAccount() {
     }
     setFailed(false);
     setAccount(data as Account);
-  }, []);
+    if (cacheKey) writeCache(cacheKey, data);
+  }, [cacheKey]);
 
   useFocusEffect(
     useCallback(() => {

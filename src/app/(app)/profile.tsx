@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { BellIcon } from 'phosphor-react-native/src/icons/Bell';
 import { CameraIcon } from 'phosphor-react-native/src/icons/Camera';
 import { ChatCircleDotsIcon } from 'phosphor-react-native/src/icons/ChatCircleDots';
 import { EnvelopeSimpleIcon } from 'phosphor-react-native/src/icons/EnvelopeSimple';
@@ -21,6 +22,8 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { changePhoto, removePhoto } from '@/lib/avatar-upload';
+import { clearCache } from '@/lib/cache';
+import { setAppBadge, unregisterPush } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 import { FINDABLE, labelFor, useAccount, WHO_CAN_MESSAGE } from '@/lib/use-account';
 import { useHomeData } from '@/providers/home-provider';
@@ -59,6 +62,10 @@ export default function Profile() {
 
   async function signOut() {
     setSigningOut(true);
+    // This phone stops getting the account's notifications first (that needs the session).
+    await unregisterPush().catch(() => undefined);
+    setAppBadge(0);
+    clearCache();
     // Signs out this device only; other devices stay signed in.
     await supabase.auth.signOut({ scope: 'local' });
   }
@@ -140,6 +147,16 @@ export default function Profile() {
             label="Blocked students"
             value={account ? (account.blocked_count === 0 ? 'None' : `${account.blocked_count}`) : undefined}
             onPress={() => router.push('/settings/blocked')}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="Notifications">
+          <SettingsRow
+            first
+            Icon={BellIcon}
+            label="Notifications"
+            value="New messages, and what the lock screen shows"
+            onPress={() => router.push('/settings/notifications')}
           />
         </SettingsGroup>
 

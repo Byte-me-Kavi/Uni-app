@@ -1,5 +1,13 @@
 // Times as people read them in a chat app.
 
+/** Microseconds since 1970 from a database timestamp. Read positions are compared exactly: they
+ * are message times, which share a millisecond often enough that Date.parse would blur them. */
+export function micros(iso: string | null | undefined) {
+  if (!iso) return 0;
+  const fraction = /\.(\d+)/.exec(iso)?.[1] ?? '';
+  return Date.parse(iso.replace(/\.\d+/, '')) * 1000 + Number(fraction.padEnd(6, '0').slice(0, 6));
+}
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 const DAY = 86_400_000;

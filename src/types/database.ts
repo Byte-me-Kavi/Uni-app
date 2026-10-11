@@ -34,6 +34,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      chat_members: {
+        Args: {
+          p_after_id?: string
+          p_after_name?: string
+          p_conversation_id: string
+          p_limit?: number
+        }
+        Returns: {
+          avatar_path: string
+          full_name: string
+          institution: string
+          is_admin: boolean
+          user_id: string
+        }[]
+      }
       chat_messages: {
         Args: {
           p_after?: string
@@ -53,6 +68,7 @@ export type Database = {
           sender_name: string
         }[]
       }
+      drop_push_tokens: { Args: { p_tokens: string[] }; Returns: undefined }
       join_batch: {
         Args: {
           p_intake_year?: number
@@ -65,6 +81,7 @@ export type Database = {
         Args: { p_conversation_id: string; p_up_to: string }
         Returns: string
       }
+      message_previews: { Args: never; Returns: boolean }
       my_account: { Args: never; Returns: Json }
       my_chats: {
         Args: never
@@ -106,6 +123,14 @@ export type Database = {
         }[]
       }
       person: { Args: { p_user_id: string }; Returns: Json }
+      push_batch: {
+        Args: { p_created_at: string; p_message_id: string }
+        Returns: Json
+      }
+      register_push_token: {
+        Args: { p_platform: string; p_token: string }
+        Returns: undefined
+      }
       respond_request: {
         Args: { p_accept: boolean; p_conversation_id: string }
         Returns: string
@@ -146,10 +171,16 @@ export type Database = {
         Returns: Json
       }
       set_findable_by: { Args: { p_findable_by: string }; Returns: string }
+      set_message_previews: { Args: { p_on: boolean }; Returns: boolean }
+      set_muted: {
+        Args: { p_conversation_id: string; p_hours?: number; p_on: boolean }
+        Returns: string
+      }
       set_my_avatar: { Args: { p_path: string }; Returns: string }
       set_my_name: { Args: { p_full_name: string }; Returns: string }
       start_direct: { Args: { p_user_id: string }; Returns: Json }
       unblock_user: { Args: { p_user_id: string }; Returns: undefined }
+      unregister_push_token: { Args: { p_token: string }; Returns: undefined }
       update_bio: { Args: { p_bio: string }; Returns: string }
       update_privacy: {
         Args: { p_findable_by?: string; p_who_can_message?: string }

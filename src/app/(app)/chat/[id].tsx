@@ -20,8 +20,9 @@ import {
   retryMessage,
   sendMessage,
 } from '@/lib/chat/engine';
-import { dayLabel, sameDay } from '@/lib/chat/format';
+import { dayLabel, micros, sameDay } from '@/lib/chat/format';
 import { useChat, useChatState, useMessages } from '@/lib/chat/store';
+import { dismissChatNotifications } from '@/lib/push';
 import type { Message } from '@/lib/chat/types';
 import { supabase } from '@/lib/supabase';
 import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
@@ -46,6 +47,7 @@ export default function ChatScreen() {
 
   useEffect(() => {
     openConversation(id);
+    dismissChatNotifications(id).catch(() => {});
     return () => closeConversation();
   }, [id]);
 
@@ -80,7 +82,7 @@ export default function ChatScreen() {
     return out;
   }, [messages]);
 
-  const otherRead = chat?.other_last_read_at ?? null;
+  const otherRead = micros(chat?.other_last_read_at);
   const renderItem = useCallback(
     ({ item }: { item: Item }) =>
       item.type === 'day' ? (
@@ -92,7 +94,7 @@ export default function ChatScreen() {
           showName={item.showName}
           showAvatar={item.showAvatar}
           group={group}
-          read={!group && !!otherRead && otherRead >= item.message.created_at}
+          read={!group && otherRead > 0 && otherRead >= micros(item.message.created_at)}
           onRetry={retryMessage}
         />
       ),
@@ -142,10 +144,13 @@ export default function ChatScreen() {
         </PressableScale>
         <Pressable
           style={styles.who}
-          disabled={!chat?.other_user_id}
-          onPress={() => chat?.other_user_id && router.push({ pathname: '/people/[id]', params: { id: chat.other_user_id } })}
-          accessibilityRole={chat?.other_user_id ? 'button' : undefined}
-          accessibilityLabel={chat?.title ?? 'Chat'}>
+          disabled={!chat}
+          onPress={() => {
+            if (chat?.other_user_id) router.push({ pathname: '/people/[id]', params: { id: chat.other_user_id } });
+            else if (chat) router.push({ pathname: '/group/[id]', params: { id: chat.conversation_id } });
+          }}
+          accessibilityRole={chat ? 'button' : undefined}
+          accessibilityLabel={chat ? `${chat.title}. ${group ? 'Group details' : 'Profile'}` : 'Chat'}>
           {chat ? <ChatIcon chat={chat} size={40} /> : <View style={styles.iconPlaceholder} />}
           <View style={styles.whoText}>
             <Text style={styles.title} numberOfLines={1}>

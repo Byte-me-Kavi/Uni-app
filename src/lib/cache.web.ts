@@ -1,0 +1,31 @@
+// The web app keeps the same small cache in localStorage (see cache.ts). It can be unavailable
+// (private windows, blocked site data), so every access is guarded and the app works without it.
+
+export function readCache<T>(key: string): T | null {
+  try {
+    const raw = globalThis.localStorage?.getItem(`uniera:${key}`);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeCache(key: string, value: unknown) {
+  try {
+    globalThis.localStorage?.setItem(`uniera:${key}`, JSON.stringify(value));
+  } catch {
+    // full or blocked: the next visit loads from the server
+  }
+}
+
+export function clearCache() {
+  try {
+    const storage = globalThis.localStorage;
+    if (!storage) return;
+    Object.keys(storage)
+      .filter((k) => k.startsWith('uniera:'))
+      .forEach((k) => storage.removeItem(k));
+  } catch {
+    // nothing to clear
+  }
+}
