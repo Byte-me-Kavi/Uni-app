@@ -1,14 +1,15 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import { OptionList } from '@/components/settings/option-list';
 import { BackHeader } from '@/components/ui/back-header';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { enablePush, openPhoneSettings, pushStatus, type PushStatus } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
-import { createThemedStyles, fonts, space } from '@/theme/tokens';
+import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 const PREVIEWS = [
   { value: 'on', label: 'Show message text', detail: '“Kavindu: are you coming to the lab?”' },
@@ -23,9 +24,23 @@ const STATUS_COPY: Record<PushStatus, string> = {
   unsupported: 'This version of the app cannot get notifications. Install Uni Era from the store or a development build.',
 };
 
-// Whether this phone gets notifications, and whether they show the message text.
+type Quiet = { quiet_enabled: boolean; quiet_start: number; quiet_end: number };
+
+// Minutes after midnight, as "11:00 pm".
+const clock = (minutes: number) => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+};
+const TIMES = Array.from({ length: 48 }, (_, i) => i * 30);
+
+// Whether this phone gets notifications, whether they show the message text, and quiet hours.
 export default function NotificationSettings() {
+  const theme = useTheme();
   const styles = useStyles();
+  const [quiet, setQuiet] = useState<Quiet | null>(null);
+  const [picking, setPicking] = useState<'start' | 'end' | null>(null);
+  const [quietError, setQuietError] = useState(false);
   const [status, setStatus] = useState<PushStatus | null>(null);
   const [previews, setPreviews] = useState<Previews | undefined>();
   const [busy, setBusy] = useState(false);
@@ -38,6 +53,7 @@ export default function NotificationSettings() {
       supabase.rpc('message_previews').then(({ data, error: loadError }) => {
         if (!loadError) setPreviews(data === false ? 'off' : 'on');
       });
+      supabase.rpc('notification_settings').then(({ data }) => data && setQuiet(data as Quiet));
     }, []),
   );
 
@@ -58,6 +74,22 @@ export default function NotificationSettings() {
       setPreviews(previous);
       setError(true);
     }
+  }
+
+  // Saved at once; put back if the server says no.
+  async function saveQuiet(next: Quiet) {
+    const previous = quiet;
+    setQuiet(next);
+    setQuietError(false);
+    const { data, error: saveError } = await supabase.rpc('set_quiet_hours', {
+      p_enabled: next.quiet_enabled,
+      p_start: next.quiet_start,
+      p_end: next.quiet_end,
+    });
+    if (saveError) {
+      setQuiet(previous);
+      setQuietError(true);
+    } else if (data) setQuiet(data as Quiet);
   }
 
   return (
@@ -87,7 +119,71 @@ export default function NotificationSettings() {
             <Text style={styles.note}>Applies to all your phones.</Text>
           )}
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.heading} accessibilityRole="header">
+            Quiet hours
+          </Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <View style={styles.rowText}>
+                <Text style={styles.rowLabel}>Silence notifications at night</Text>
+                <Text style={styles.note}>Messages still arrive; your phone stays quiet until the morning.</Text>
+              </View>
+              <Switch
+                value={!!quiet?.quiet_enabled}
+                disabled={!quiet}
+                onValueChange={(on) => {
+                  if (quiet) saveQuiet({ ...quiet, quiet_enabled: on });
+                }}
+                trackColor={{ true: theme.accentText, false: theme.border }}
+                thumbColor={brand.white}
+                accessibilityLabel="Quiet hours"
+              />
+            </View>
+            {quiet?.quiet_enabled ? (
+              <>
+                <Pressable onPress={() => setPicking('start')} accessibilityRole="button" style={[styles.row, styles.divider]}>
+                  <Text style={styles.rowLabel}>From</Text>
+                  <Text style={styles.rowValue}>{clock(quiet.quiet_start)}</Text>
+                </Pressable>
+                <Pressable onPress={() => setPicking('end')} accessibilityRole="button" style={[styles.row, styles.divider]}>
+                  <Text style={styles.rowLabel}>Until</Text>
+                  <Text style={styles.rowValue}>{clock(quiet.quiet_end)}</Text>
+                </Pressable>
+              </>
+            ) : null}
+          </View>
+          {quietError ? (
+            <Text style={styles.error} accessibilityLiveRegion="polite">
+              Could not save this. Check your connection and try again.
+            </Text>
+          ) : (
+            <Text style={styles.note}>Sri Lanka time. Applies to all your phones, mentions included.</Text>
+          )}
+        </View>
       </ScrollView>
+
+      <BottomSheet visible={!!picking} title={picking === 'start' ? 'Quiet from' : 'Quiet until'} onClose={() => setPicking(null)} height={0.6}>
+        <ScrollView contentContainerStyle={styles.times}>
+          {TIMES.map((minutes) => {
+            const chosen = quiet && (picking === 'start' ? quiet.quiet_start : quiet.quiet_end) === minutes;
+            return (
+              <Pressable
+                key={minutes}
+                onPress={() => {
+                  if (quiet) saveQuiet({ ...quiet, ...(picking === 'start' ? { quiet_start: minutes } : { quiet_end: minutes }) });
+                  setPicking(null);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: !!chosen }}
+                style={({ pressed }) => [styles.time, chosen && styles.timeChosen, pressed && styles.pressed]}>
+                <Text style={[styles.timeText, chosen && styles.timeTextChosen]}>{clock(minutes)}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </BottomSheet>
     </Screen>
   );
 }
@@ -100,4 +196,16 @@ const useStyles = createThemedStyles((t) => ({
   lead: { fontFamily: fonts.body, fontSize: 16, lineHeight: 23, color: t.text },
   note: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
   error: { fontFamily: fonts.bodyBold, fontSize: 14, lineHeight: 19, color: t.dangerText },
+  card: { backgroundColor: t.surface, borderRadius: radius.lg, paddingHorizontal: space.lg },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  divider: { borderTopWidth: 1, borderTopColor: t.border },
+  rowText: { flex: 1, gap: 2 },
+  rowLabel: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 16, color: t.text },
+  rowValue: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text },
+  times: { paddingHorizontal: space.lg, paddingBottom: space.lg },
+  time: { paddingVertical: space.md, paddingHorizontal: space.md, borderRadius: radius.md },
+  timeChosen: { backgroundColor: t.surface },
+  pressed: { opacity: 0.6 },
+  timeText: { fontFamily: fonts.body, fontSize: 16, color: t.text },
+  timeTextChosen: { fontFamily: fonts.bodyBold },
 }));

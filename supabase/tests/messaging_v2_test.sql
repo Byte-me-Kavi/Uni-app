@@ -6,7 +6,7 @@ begin;
 set local role postgres;
 create extension if not exists pgtap with schema extensions;
 set local search_path to extensions, public;
-select plan(46);
+select plan(48);
 
 -- ---------------------------------------------------------------- fixtures
 insert into identity.institutions (id, name, short_name, kind, status) overriding system value values
@@ -133,6 +133,10 @@ select set_config('role', 'postgres', true);
 select is((select body from messaging.messages where id = (select first from ids)), '', 'and clears its content');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000ff001');
 select is((select count(*)::int from api.starred_messages()), 0, 'deleted messages leave your starred list');
+select lives_ok($$ select api.delete_message((select dm from ids), (select first from ids), false) $$,
+  'a message deleted for everyone can still be deleted for me');
+select is((select count(*)::int from api.chat_messages((select dm from ids)) where id = (select first from ids)), 0,
+  'and its placeholder leaves your view');
 
 -- ---------------------------------------------------------------- delivered
 select pg_temp.act_as('00000000-0000-0000-0000-0000000ff002');
@@ -167,8 +171,9 @@ select is((select (link -> 'image') is not null from messaging.messages where id
   'without anything that is not a https image');
 
 -- ---------------------------------------------------------------- pin
-select throws_ok($$ select api.pin_message((select grp from ids), (select second from ids)) $$, '22023', null,
-  'a message from another chat cannot be pinned here');
+-- Members cannot pin in groups at all (reps and group admins can: see chat_tools_test).
+select throws_ok($$ select api.pin_message((select grp from ids), (select second from ids)) $$, '42501', null,
+  'members cannot pin in a group');
 select is(api.pin_message((select dm from ids), (select second from ids)) ->> 'text', 'Yes, 5pm', 'a message can be pinned');
 select is((select pinned ->> 'text' from api.my_chats() where conversation_id = (select dm from ids)), 'Yes, 5pm',
   'and the chat list knows');

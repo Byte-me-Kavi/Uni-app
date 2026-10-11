@@ -14,7 +14,7 @@ import type { Attachment, FileAttachment, ImageAttachment, Message, MessageKind,
 import { voiceAvailable } from '@/lib/chat/voice';
 import { Screen } from '@/components/ui/screen';
 import { supabase } from '@/lib/supabase';
-import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Tab = 'media' | 'docs' | 'voice';
 type Row = { id: string; kind: MessageKind; body: string | null; attachment: Attachment; sender_name: string | null; created_at: string };
@@ -47,6 +47,7 @@ const asMessage = (conversationId: string, r: Row): Message => ({
 // For a batch group this is where lecture notes and past papers collect, and the base for its
 // module resources.
 export default function ChatFiles() {
+  const theme = useTheme();
   const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const chat = useChat(id);
@@ -133,7 +134,7 @@ export default function ChatFiles() {
         }
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator color={brand.red} style={styles.loading} />
+            <ActivityIndicator color={theme.accentText} style={styles.loading} />
           ) : (
             <Text style={styles.empty}>
               {tab === 'media' ? 'No photos yet.' : tab === 'docs' ? 'No documents yet.' : 'No voice notes yet.'}

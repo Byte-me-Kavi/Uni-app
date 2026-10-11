@@ -38,7 +38,8 @@ export function MessageMenu({ visible, mine, canReact, actions, onReact, onMoreE
 
   return (
     <SheetModal
-      visible={visible}
+      // Never an empty menu: nothing to react to and nothing to do means nothing opens.
+      visible={visible && (canReact || actions.length > 0)}
       onRequestClose={onClose}
       onDismiss={() => {
         pending.current?.();

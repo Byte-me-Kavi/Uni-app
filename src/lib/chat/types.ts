@@ -21,7 +21,16 @@ export type Chat = {
   other_delivered_at?: string | null;
   /** The chat's pinned message, if any. */
   pinned?: ReplySnapshot | null;
+  /** In batch and programme groups 'admin' is a batch rep; in your own groups, a group admin. */
   my_role?: 'member' | 'admin' | null;
+  /** You pinned this chat to the top of your list (up to 3). */
+  list_pinned_at?: string | null;
+  /** You moved this chat out of the list, into Archived. */
+  archived?: boolean;
+  /** Groups: only reps or admins may send. */
+  announcement_only?: boolean;
+  /** Groups: seconds a member waits between messages (0 = off). Reps and admins are exempt. */
+  slow_mode_seconds?: number;
 };
 
 /** What a reply (or the pinned bar) shows of another message. */

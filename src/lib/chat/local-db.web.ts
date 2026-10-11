@@ -39,7 +39,8 @@ export async function openLocalDb(_userId: string): Promise<LocalDb> {
     async search(conversationId, query, limit = 50) {
       const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
       if (words.length === 0) return [];
-      return byConversation(conversationId)
+      const pool = conversationId ? byConversation(conversationId) : [...messages.values()].sort((a, b) => b.ts - a.ts);
+      return pool
         .filter((m) => !m.deleted && words.every((w) => (m.body ?? '').toLowerCase().includes(w)))
         .slice(0, limit);
     },

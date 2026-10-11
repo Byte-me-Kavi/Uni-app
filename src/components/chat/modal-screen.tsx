@@ -1,9 +1,12 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
+import Animated, { Easing, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 
 import { PressableScale } from '@/components/ui/pressable-scale';
+import { SheetModal } from '@/components/ui/sheet-layer';
+import { useKeyboardLift } from '@/lib/use-keyboard-lift';
 import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = {
@@ -18,15 +21,20 @@ type Props = {
 // A full screen that slides up over the chat for one task (write a poll, pick a student, check a
 // photo before sending): close on the left, the task's action on the right, like the phone's own
 // compose screens.
+//
+// Drawn in the app's sheet layer, not in a Modal: on Android a Modal is a separate window that
+// reports no keyboard events, so a caption box at the bottom stayed hidden behind the keyboard.
 export function ModalScreen({ visible, title, onClose, action, children }: Props) {
   const theme = useTheme();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const lift = useKeyboardLift(visible);
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      {/* On Android this window stops above the navigation bar (so the keyboard can still resize
-          it), so only iOS needs room at the bottom for the home indicator. */}
-      <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: Platform.OS === 'ios' ? insets.bottom : 0 }]}>
+    <SheetModal visible={visible} onRequestClose={onClose}>
+      <Animated.View
+        entering={Platform.OS !== 'web' ? SlideInDown.duration(260).easing(Easing.bezier(0.32, 0.72, 0, 1)) : undefined}
+        style={[styles.screen, { paddingTop: insets.top, paddingBottom: lift.overlap ? 0 : insets.bottom }]}
+        accessibilityViewIsModal>
         <View style={styles.bar}>
           <PressableScale onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={12} style={styles.close}>
             <XIcon size={22} weight="bold" color={theme.text} />
@@ -47,11 +55,13 @@ export function ModalScreen({ visible, title, onClose, action, children }: Props
             <View style={styles.close} />
           )}
         </View>
-        <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          {children}
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
+        <View ref={lift.ref} onLayout={lift.measure} style={[styles.body, Platform.OS === 'android' ? { paddingBottom: lift.overlap } : null]}>
+          <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            {children}
+          </KeyboardAvoidingView>
+        </View>
+      </Animated.View>
+    </SheetModal>
   );
 }
 
@@ -68,8 +78,8 @@ const useStyles = createThemedStyles((t) => ({
   },
   close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 17, color: t.text, textAlign: 'center' },
-  // Red marks the thing to do; what sits on red is Ink.
-  action: { minWidth: 64, height: 38, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: brand.red, alignItems: 'center', justifyContent: 'center' },
+  // The accent marks the thing to do; what sits on it is Ink.
+  action: { minWidth: 64, height: 38, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: brand.accent, alignItems: 'center', justifyContent: 'center' },
   actionDisabled: { backgroundColor: t.surface },
   actionText: { fontFamily: fonts.bodyBold, fontSize: 15, color: brand.ink },
   actionTextDisabled: { color: t.textMuted },

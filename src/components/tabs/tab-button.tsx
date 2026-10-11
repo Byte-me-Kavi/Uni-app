@@ -17,7 +17,7 @@ type Props = TabTriggerSlotProps & {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-// One tab in the bottom bar. The active tab is red (red means "you", here: where you are) with a
+// One tab in the bottom bar. The active tab is the accent (it means "you", here: where you are) with a
 // filled icon; the rest are quiet. A small press-in confirms the tap.
 export function TabButton({ label, Icon, badge = 0, isFocused, ref, ...props }: Props) {
   const theme = useTheme();
@@ -42,9 +42,9 @@ export function TabButton({ label, Icon, badge = 0, isFocused, ref, ...props }: 
       accessibilityState={{ selected: !!isFocused }}
       style={[styles.button, pressStyle]}>
       <View>
-        <Icon size={25} weight={isFocused ? 'fill' : 'regular'} color={isFocused ? brand.red : theme.textMuted} />
+        <Icon size={25} weight={isFocused ? 'fill' : 'regular'} color={isFocused ? theme.accentText : theme.textMuted} />
         {badge > 0 ? (
-          // Red with Ink text, like every unread count.
+          // The accent with Ink text, like every unread count.
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
           </View>
@@ -69,7 +69,7 @@ const useStyles = createThemedStyles((t) => ({
     height: 19,
     paddingHorizontal: 5,
     borderRadius: 10,
-    backgroundColor: brand.red,
+    backgroundColor: brand.accent,
     borderWidth: 2,
     borderColor: t.background,
     alignItems: 'center',

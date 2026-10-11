@@ -59,7 +59,7 @@ export default function TabsLayout() {
   return (
     <Screen edges={['top']} style={styles.screen}>
       <View style={styles.topBar}>
-        <UniEraMark size={30} color={theme.text} tasselColor={brand.red} />
+        <UniEraMark size={30} color={theme.text} tasselColor={brand.accent} />
         <SearchField
           ref={input}
           value={query}

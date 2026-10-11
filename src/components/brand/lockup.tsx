@@ -11,13 +11,13 @@ type Props = {
 };
 
 // Horizontal lockup from the logo system: the mark, then "uni era" in Figtree Black.
-// The tassel stays red on light and dark; only on a red background does it turn white.
+// The tassel is the accent on light and dark; only on an accent background does it turn white.
 export function Lockup({ size = 32, color }: Props) {
   const theme = useTheme();
   const ink = color ?? theme.text;
   return (
     <View style={styles.row} accessible accessibilityRole="header" accessibilityLabel="uni era">
-      <UniEraMark size={size} color={ink} tasselColor={brand.red} />
+      <UniEraMark size={size} color={ink} tasselColor={brand.accent} />
       <Text
         style={[
           styles.word,

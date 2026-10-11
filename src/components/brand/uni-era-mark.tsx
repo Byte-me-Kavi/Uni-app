@@ -16,7 +16,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { brand } from '@/theme/tokens';
 
 // The Uni Era mark: the u of uni wearing a graduation cap. Geometry measured from the brand board
-// (it matches the artwork to within 1% of pixels). The tassel is the one red thing; on a red
+// (it matches the artwork to within 1% of pixels). The tassel is the one coloured thing; on an accent
 // background it turns white. Master file: assets/brand/uni-era-mark.svg.
 const VIEW_BOX = '57 57 873 881';
 const ASPECT = 881 / 873;
@@ -35,14 +35,14 @@ type Props = {
   size: number;
   /** The u and the cap. */
   color: string;
-  /** The tassel. Brand red, or white on a red background. */
+  /** The tassel. The brand accent, or white on an accent background. */
   tasselColor?: string;
   /** assemble: the cap drops onto the u and the tassel swings (one brand moment per launch).
    *  waiting: the tassel sways slowly while something is pending. */
   motion?: 'assemble' | 'waiting';
 };
 
-export function UniEraMark({ size, color, tasselColor = brand.red, motion }: Props) {
+export function UniEraMark({ size, color, tasselColor = brand.accent, motion }: Props) {
   const height = size * ASPECT;
   const reduceMotion = useReducedMotion();
   // Web pages are pre-rendered, so the mark is shown already assembled there.

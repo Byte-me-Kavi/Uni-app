@@ -44,8 +44,8 @@ export function SearchField({ value, onChangeText, onFocus, ref }: Props) {
         autoComplete="off"
         spellCheck={false}
         maxLength={100}
-        selectionColor={brand.red}
-        cursorColor={brand.red}
+        selectionColor={brand.accent}
+        cursorColor={brand.accent}
         style={[styles.input, noFocusRing]}
       />
       {value ? (

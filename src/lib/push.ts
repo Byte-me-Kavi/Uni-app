@@ -60,7 +60,7 @@ async function ensureChannel() {
     name: 'Messages',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 200, 120, 200],
-    lightColor: brand.red,
+    lightColor: brand.accent,
     showBadge: true,
   });
 }

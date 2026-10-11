@@ -91,7 +91,7 @@ export default function Profile() {
                   <ActivityIndicator color={brand.white} />
                 </View>
               ) : null}
-              {/* Red marks the thing to do; what sits on red is Ink. */}
+              {/* The accent marks the thing to do; what sits on it is Ink. */}
               <View style={styles.cameraBadge}>
                 <CameraIcon size={17} weight="bold" color={brand.ink} />
               </View>
@@ -226,7 +226,7 @@ const useStyles = createThemedStyles((t) => ({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: brand.red,
+    backgroundColor: brand.accent,
     borderWidth: 3,
     borderColor: t.background,
     alignItems: 'center',

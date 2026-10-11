@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { memo, type ComponentType } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import { ArrowBendUpRightIcon } from 'phosphor-react-native/src/icons/ArrowBendUpRight';
 import { CheckIcon } from 'phosphor-react-native/src/icons/Check';
 import { ChecksIcon } from 'phosphor-react-native/src/icons/Checks';
@@ -18,6 +18,7 @@ import { ReplyQuote } from '@/components/chat/reply-quote';
 import { SwipeReply } from '@/components/chat/swipe-reply';
 import { Avatar } from '@/components/ui/avatar';
 import { emojiOnlyCount } from '@/lib/chat/emoji';
+import { firstLink, useLinkPreview } from '@/lib/chat/link-previews';
 import { clockTime } from '@/lib/chat/format';
 import { STICKERS, stickerSource } from '@/lib/chat/stickers';
 import type {
@@ -46,7 +47,7 @@ type Props = {
   showName: boolean;
   showAvatar: boolean;
   group: boolean;
-  /** Direct chats: the other student has the message (grey ✓✓) or has read it (red ✓✓). */
+  /** Direct chats: the other student has the message (grey ✓✓) or has read it (blue ✓✓). */
   delivered: boolean;
   read: boolean;
   reactions: Reaction[] | undefined;
@@ -54,6 +55,7 @@ type Props = {
   /** Briefly marked after jumping to it (from a reply, search, pin or star). */
   highlighted: boolean;
   onRetry: (message: Message) => void;
+  /** A photo (opens the viewer) or a sticker (opens its sheet). */
   onOpenImage: (message: Message) => void;
   onLongPress: (message: Message) => void;
   onReply: (message: Message) => void;
@@ -61,9 +63,9 @@ type Props = {
   onShowReactions: (message: Message) => void;
 };
 
-// One message. Yours sit right on a tint of red (red means you); theirs sit left on the surface
+// One message. Yours sit right on a tint of the accent (it means you); theirs sit left on the surface
 // tone. Both use the normal text colour at reading size, and the time and ticks are quiet grey,
-// turning red only for ✓✓ read, so the words are what you see first. Long-press for reactions and
+// turning blue only for ✓✓ read, so the words are what you see first. Long-press for reactions and
 // actions; swipe right to reply. Memoised: a change to one message re-renders only its bubble.
 export const MessageBubble = memo(function MessageBubble(props: Props) {
   const { message, mine, showName, showAvatar, group, onRetry, onLongPress, onReply, reactions, highlighted } = props;
@@ -113,6 +115,9 @@ export const MessageBubble = memo(function MessageBubble(props: Props) {
 function Content(props: Props) {
   const { message, mine, me, showName, group, onOpenImage, onJumpTo } = props;
   const styles = useStyles();
+  // A text with a link but no preview from the sender: fetch one (once per link, cached).
+  const fetched = useLinkPreview(message.kind === 'text' && !message.link && !message.deleted ? firstLink(message.body) : null);
+  const link = message.link ?? fetched;
   const theme = useTheme();
   const name =
     group && !mine && showName ? (
@@ -148,7 +153,21 @@ function Content(props: Props) {
       <View style={[styles.free, mine && styles.columnMine]} accessible accessibilityLabel={`Sticker${label ? `: ${label}` : ''}`}>
         {name}
         {reply ? <View style={[styles.freeReply, mine ? styles.mine : styles.theirs]}>{reply}</View> : null}
-        {source ? <Image source={source} style={styles.sticker} contentFit="contain" autoplay /> : <Text style={styles.body}>Sticker</Text>}
+        {source ? (
+          // Tap for the sticker's sheet (add to favourites), as in WhatsApp.
+          // Long press still opens the message menu (react, reply...): this inner touch target
+          // would otherwise take the long press away from the bubble.
+          <Pressable
+            onPress={() => onOpenImage(message)}
+            onLongPress={() => props.onLongPress(message)}
+            delayLongPress={280}
+            accessibilityRole="button"
+            accessibilityHint="Tap to add to favourites, long press for reactions">
+            <Image source={source} style={styles.sticker} contentFit="contain" autoplay />
+          </Pressable>
+        ) : (
+          <Text style={styles.body}>Sticker</Text>
+        )}
         <View style={styles.freeMeta}>{meta}</View>
       </View>
     );
@@ -208,11 +227,13 @@ function Content(props: Props) {
     ) : null;
 
   return (
-    <View style={[styles.bubble, mine ? styles.mine : styles.theirs, inner && styles.wide]}>
+    // A preview card makes the bubble a fixed width, so the card (and its picture) has a size to
+    // fill; left to size itself it could grow taller than the screen.
+    <View style={[styles.bubble, mine ? styles.mine : styles.theirs, (inner || (link && message.kind === 'text')) && styles.wide]}>
       {name}
       {forwarded}
       {reply}
-      {message.link && message.kind === 'text' ? <LinkCard link={message.link} /> : null}
+      {link && message.kind === 'text' ? <LinkCard link={link} /> : null}
       {inner}
       {message.body && (message.kind === 'text' || message.kind === 'file') ? (
         <View style={inner ? styles.captionGap : null}>
@@ -228,12 +249,20 @@ function Content(props: Props) {
 function Body({ message }: { message: Message }) {
   const styles = useStyles();
   const text = message.body ?? '';
-  const parts = text.split(/(https?:\/\/[^\s]+|@[A-Z][^\s@]*(?: [A-Z][^\s@]*)?)/g);
+  const parts = text.split(/(https?:\/\/[^\s]+|www\.[^\s]+\.[a-z]{2,}[^\s]*|@[A-Z][^\s@]*(?: [A-Z][^\s@]*)?)/g);
   return (
     <Text style={styles.body} selectable>
       {parts.map((part, i) =>
-        /^https?:\/\//.test(part) ? (
-          <Text key={i} style={styles.link}>
+        /^(https?:\/\/|www\.)/i.test(part) ? (
+          // Tap to open in the browser.
+          <Text
+            key={i}
+            style={styles.link}
+            onPress={() => {
+              const url = firstLink(part);
+              if (url) Linking.openURL(url).catch(() => {});
+            }}
+            accessibilityRole="link">
             {part}
           </Text>
         ) : part.startsWith('@') && message.mentions?.length ? (
@@ -249,7 +278,7 @@ function Body({ message }: { message: Message }) {
 }
 
 // Time and, on yours, the delivery state: a clock while sending, ✓ when the server has it, grey ✓✓
-// when it reached their phone, red ✓✓ once they have read it (direct chats).
+// when it reached their phone, blue ✓✓ once they have read it (direct chats).
 function Meta({ message, mine, read, delivered, starred }: Props) {
   const theme = useTheme();
   const styles = useStyles();

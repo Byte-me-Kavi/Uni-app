@@ -58,7 +58,7 @@ export function NotifyCard() {
 
 const useStyles = createThemedStyles((t) => ({
   card: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.lg, gap: space.sm, margin: space.sm, marginBottom: space.md },
-  icon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: brand.red, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: brand.accent, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
   body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted, marginBottom: space.xs },
   later: { alignSelf: 'center', paddingHorizontal: space.lg, paddingVertical: space.sm },

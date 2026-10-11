@@ -22,8 +22,8 @@ export function CheckRow({ label, checked, onChange }: Props) {
 
   const { textMuted } = theme;
   const boxStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], ['rgba(255,92,71,0)', brand.red]),
-    borderColor: interpolateColor(progress.value, [0, 1], [textMuted, brand.red]),
+    backgroundColor: interpolateColor(progress.value, [0, 1], ['rgba(56,189,248,0)', brand.accent]),
+    borderColor: interpolateColor(progress.value, [0, 1], [textMuted, brand.accent]),
   }));
 
   // The tick grows from 60%, never from nothing, so it reads as the box filling in.
@@ -58,7 +58,7 @@ const useStyles = createThemedStyles((t) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Ink on red in both themes.
+  // Ink on the accent in both themes.
   tick: { color: brand.ink, fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 18 },
   label: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: t.text },
 }));

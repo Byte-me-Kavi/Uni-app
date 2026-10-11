@@ -40,7 +40,7 @@ export function AuthChrome({ children, waiting = false }: Props) {
         <UniEraMark
           size={HERO}
           color={theme.heroMark}
-          tasselColor={brand.red}
+          tasselColor={brand.accent}
           motion={waiting ? 'waiting' : assemble ? 'assemble' : undefined}
         />
       </View>

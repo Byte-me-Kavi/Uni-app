@@ -34,8 +34,8 @@ export function StudentPicker({ visible, onClose, onPick }: { visible: boolean; 
           autoFocus
           autoCorrect={false}
           style={styles.input}
-          selectionColor={brand.red}
-          cursorColor={brand.red}
+          selectionColor={brand.accent}
+          cursorColor={brand.accent}
           accessibilityLabel="Search students by name"
         />
         {search.status === 'loading' ? <ActivityIndicator color={theme.textMuted} /> : null}

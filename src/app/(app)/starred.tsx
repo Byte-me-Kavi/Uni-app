@@ -10,7 +10,7 @@ import { listTime } from '@/lib/chat/format';
 import { openChat } from '@/lib/chat/open-chat';
 import type { Attachment, MessageKind } from '@/lib/chat/types';
 import { supabase } from '@/lib/supabase';
-import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Starred = {
   conversation_id: string;
@@ -26,6 +26,7 @@ type Starred = {
 
 // Messages you starred, from every chat, newest first. Tap one to see it in its chat.
 export default function StarredMessages() {
+  const theme = useTheme();
   const styles = useStyles();
   const [rows, setRows] = useState<Starred[] | null>(null);
 
@@ -39,7 +40,7 @@ export default function StarredMessages() {
     <Screen style={styles.screen}>
       <BackHeader title="Starred messages" />
       {rows === null ? (
-        <ActivityIndicator color={brand.red} style={styles.loading} />
+        <ActivityIndicator color={theme.accentText} style={styles.loading} />
       ) : (
         <FlatList
           data={rows}

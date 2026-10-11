@@ -34,10 +34,11 @@ export default function AppLayout() {
             <Stack.Screen name="settings/blocked" />
             <Stack.Screen name="settings/notifications" />
             {/* One screen per chat: opening a chat that is already open goes back to it. */}
-            <Stack.Screen name="chat/[id]" getId={({ params }) => (params as { id?: string } | undefined)?.id} />
+            <Stack.Screen name="chat/[id]" dangerouslySingular={(_name, params) => (params as { id?: string }).id} />
             <Stack.Screen name="group/[id]" />
             <Stack.Screen name="chat-files/[id]" />
             <Stack.Screen name="starred" />
+            <Stack.Screen name="new-group" />
             <Stack.Screen name="settings/last-seen" />
           </Stack>
         </PushProvider>

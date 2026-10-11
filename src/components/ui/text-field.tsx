@@ -41,7 +41,7 @@ export function TextField({ label, hint, error, secret = false, ref, style, ...i
   const boxStyle = useAnimatedStyle(() => {
     const focused = interpolateColor(focus.value, [0, 1], [border, focusColor]);
     return {
-      borderColor: interpolateColor(invalid.value, [0, 1], [focused, brand.red]),
+      borderColor: interpolateColor(invalid.value, [0, 1], [focused, brand.danger]),
       backgroundColor: interpolateColor(focus.value, [0, 1], [surface, surfaceFocused]),
     };
   });
@@ -59,8 +59,8 @@ export function TextField({ label, hint, error, secret = false, ref, style, ...i
           accessibilityHint={hint}
           secureTextEntry={hidden}
           placeholderTextColor={theme.textMuted}
-          selectionColor={brand.red}
-          cursorColor={brand.red}
+          selectionColor={brand.accent}
+          cursorColor={brand.accent}
           onFocus={(e) => {
             focus.value = withTiming(1, { duration: duration.state, easing: EASE_OUT });
             input.onFocus?.(e);

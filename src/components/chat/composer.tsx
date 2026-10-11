@@ -26,7 +26,7 @@ import { canPickPhoneContact, pickDocument, pickPhoneContact, pickPhoto, pickPho
 import { editMessage, notifyTyping, sendMessage, sendRich } from '@/lib/chat/engine';
 import { markUsed } from '@/lib/chat/sticker-library';
 import type { Chat, LinkPreview, Message, VoiceAttachment } from '@/lib/chat/types';
-import { formatDuration, voiceAvailable } from '@/lib/chat/voice';
+import { voiceAvailable } from '@/lib/chat/voice';
 import { supabase } from '@/lib/supabase';
 import { brand, createThemedStyles, fonts, space, useTheme } from '@/theme/tokens';
 
@@ -38,6 +38,11 @@ const VoiceRecorder: ComponentType<{
 }> | null = voiceAvailable() && Platform.OS !== 'web' ? require('@/components/chat/voice-recorder').VoiceRecorder : null;
 
 type Member = { user_id: string; full_name: string; avatar_path: string | null };
+
+// When you last sent in each chat, for slow mode.
+const lastSent = new Map<string, number>();
+const waitText = (seconds: number) =>
+  seconds >= 60 ? `${Math.ceil(seconds / 60)} ${Math.ceil(seconds / 60) === 1 ? 'minute' : 'minutes'}` : `${seconds} seconds`;
 const URL_PATTERN = /https?:\/\/[^\s]+/;
 
 type Props = {
@@ -69,12 +74,27 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
   const [pollOpen, setPollOpen] = useState(false);
   const [studentOpen, setStudentOpen] = useState(false);
   const [stickersOpen, setStickersOpen] = useState(false);
-  const [recording, setRecording] = useState<RecordingState | null>(null);
+  const [recording, setRecording] = useState(false);
   const [link, setLink] = useState<LinkPreview | null>(null);
   const [dismissedLink, setDismissedLink] = useState<string | null>(null);
   const [mentions, setMentions] = useState<Member[]>([]);
   const [suggestions, setSuggestions] = useState<Member[]>([]);
   const group = !!chat && chat.kind !== 'direct';
+  // Slow mode (groups, for members; reps and admins are exempt). The server enforces it; here the
+  // student is told how long to wait, instead of a message failing.
+  const slow = group && chat?.my_role !== 'admin' ? (chat?.slow_mode_seconds ?? 0) : 0;
+  function allowed() {
+    if (!slow) return true;
+    const left = Math.ceil(((lastSent.get(conversationId) ?? 0) + slow * 1000 - Date.now()) / 1000);
+    if (left > 0) {
+      onError(`Slow mode is on. You can send again in ${waitText(left)}.`);
+      return false;
+    }
+    lastSent.set(conversationId, Date.now());
+    return true;
+  }
+  const postText: typeof sendMessage = (...args) => (allowed() ? sendMessage(...args) : Promise.resolve());
+  const postRich: typeof sendRich = (...args) => (allowed() ? sendRich(...args) : Promise.resolve());
 
   // Editing: the box takes the message's text.
   useEffect(() => {
@@ -157,7 +177,7 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
       reset();
       return;
     }
-    sendMessage(conversationId, text, {
+    postText(conversationId, text, {
       replyTo,
       // Only people still named in the text.
       mentions: mentions.filter((m) => text.includes(`@${m.full_name}`)).map((m) => m.user_id),
@@ -181,7 +201,7 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
   }
 
   // Each choice has its own colour so it is found by sight, as in WhatsApp. Glyphs are white on
-  // the darker circles and Ink on red and amber (text and icons on red are always Ink).
+  // the darker circles and Ink on red, amber and the accent.
   const attachOptions: AttachOption[] = [
     {
       key: 'gallery',
@@ -197,7 +217,7 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
             key: 'camera',
             label: 'Camera',
             Icon: CameraIcon,
-            tint: brand.red,
+            tint: brand.danger, // a warm colour among the blues, as in WhatsApp
             glyph: brand.ink,
             onPress: () => pick(() => pickPhoto('camera'), (photo) => setPending({ kind: 'image', photos: [photo] }), 'Could not take a photo.'),
           },
@@ -222,7 +242,7 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
             tint: '#1B87A6',
             glyph: brand.white,
             onPress: () =>
-              pick(pickPhoneContact, (contact) => sendRich(conversationId, 'contact', contact, '', { replyTo }), 'Could not open your contacts.'),
+              pick(pickPhoneContact, (contact) => postRich(conversationId, 'contact', contact, '', { replyTo }), 'Could not open your contacts.'),
           },
         ]
       : []),
@@ -259,6 +279,11 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
 
   return (
     <View>
+      {slow ? (
+        <Text style={styles.slowNote} accessibilityLiveRegion="polite">
+          Slow mode: one message every {waitText(slow).replace(/^1 minute$/, 'minute')}
+        </Text>
+      ) : null}
       {suggestions.length ? (
         <FlatList
           data={suggestions}
@@ -306,19 +331,15 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
       ) : null}
 
       <View style={styles.composer}>
-        {recording?.recording ? (
-          <View style={styles.recording} accessibilityLiveRegion="polite">
-            <View style={[styles.dot, recording.cancelling && styles.dotCancel]} />
-            <Text style={styles.recordingTime}>{formatDuration(recording.seconds)}</Text>
-            <Text style={[styles.recordingHint, recording.cancelling && styles.recordingCancel]}>
-              {recording.cancelling ? 'Let go to cancel' : '‹ Slide to cancel'}
-            </Text>
-          </View>
-        ) : (
+        {/* While recording, the recorder's own bar fills the row. */}
+        {recording ? null : (
           <>
             {!editing ? (
               <PressableScale
                 onPress={() => {
+                  // The menu opens from the bottom: the keyboard goes first, or it would cover it.
+                  Keyboard.dismiss();
+                  setStickersOpen(false);
                   setAttachUsed(true);
                   setAttachOpen(true);
                 }}
@@ -343,8 +364,8 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
                 multiline
                 maxLength={4000}
                 style={styles.input}
-                selectionColor={brand.red}
-                cursorColor={brand.red}
+                selectionColor={brand.accent}
+                cursorColor={brand.accent}
                 accessibilityLabel="Message"
               />
               {!editing ? (
@@ -366,19 +387,10 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
         )}
         {showMic && VoiceRecorder ? (
           <VoiceRecorder
-            onState={(state) =>
-              // Ticks come 10 times a second; redraw only when the shown second or state changes.
-              setRecording((current) =>
-                !state.recording
-                  ? null
-                  : current && Math.floor(current.seconds) === Math.floor(state.seconds) && current.cancelling === state.cancelling
-                    ? current
-                    : state,
-              )
-            }
+            onState={(state) => setRecording(state.recording)}
             onError={(message) => onError(message)}
             onRecorded={(voice) => {
-              sendRich(conversationId, 'voice', voice, '', { replyTo });
+              postRich(conversationId, 'voice', voice, '', { replyTo });
               onCancelReply();
             }}
           />
@@ -403,7 +415,7 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
           onPick={(sticker) => {
             onError(null);
             markUsed(`${sticker.pack}:${sticker.id}`);
-            sendRich(conversationId, 'sticker', sticker, '', { replyTo });
+            postRich(conversationId, 'sticker', sticker, '', { replyTo });
             onCancelReply();
           }}
           onEmoji={insertEmoji}
@@ -419,9 +431,9 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
           onClose={() => setPending(null)}
           onSend={(caption) => {
             if (pending?.kind === 'image') {
-              pending.photos.forEach((photo, i) => sendRich(conversationId, 'image', photo, i === 0 ? caption : '', { replyTo: i === 0 ? replyTo : null }));
+              pending.photos.forEach((photo, i) => postRich(conversationId, 'image', photo, i === 0 ? caption : '', { replyTo: i === 0 ? replyTo : null }));
             } else if (pending) {
-              sendRich(conversationId, 'file', pending.attachment, caption, { replyTo });
+              postRich(conversationId, 'file', pending.attachment, caption, { replyTo });
             }
             onCancelReply();
             setPending(null);
@@ -434,7 +446,7 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
           onClose={() => setPollOpen(false)}
           onSend={(poll) => {
             setPollOpen(false);
-            sendRich(conversationId, 'poll', poll, '', { replyTo });
+            postRich(conversationId, 'poll', poll, '', { replyTo });
             onCancelReply();
           }}
         />
@@ -445,7 +457,7 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
           onClose={() => setStudentOpen(false)}
           onPick={(person) => {
             setStudentOpen(false);
-            sendRich(
+            postRich(
               conversationId,
               'contact',
               { type: 'student', user_id: person.user_id, name: person.full_name, avatar_path: person.avatar_path, institution: person.institution },
@@ -481,6 +493,7 @@ function dropLastCharacter(text: string) {
 }
 
 const useStyles = createThemedStyles((t) => ({
+  slowNote: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: t.textMuted, textAlign: 'center', paddingTop: space.xs },
   suggestions: { maxHeight: 220, backgroundColor: t.elevated, borderTopWidth: 1, borderTopColor: t.border },
   suggestion: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.sm },
   suggestionText: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
@@ -510,13 +523,7 @@ const useStyles = createThemedStyles((t) => ({
     color: t.text,
   },
   stickerButton: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
-  send: { width: 44, height: 44, borderRadius: 22, backgroundColor: brand.red, alignItems: 'center', justifyContent: 'center' },
+  send: { width: 44, height: 44, borderRadius: 22, backgroundColor: brand.accent, alignItems: 'center', justifyContent: 'center' },
   sendIdle: { backgroundColor: t.surface },
-  recording: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, height: 44, paddingLeft: space.md },
-  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: t.tickRead },
-  dotCancel: { backgroundColor: t.textMuted },
-  recordingTime: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text, minWidth: 44 },
-  recordingHint: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 14, color: t.textMuted, textAlign: 'center' },
-  recordingCancel: { color: t.dangerText },
 }));
 

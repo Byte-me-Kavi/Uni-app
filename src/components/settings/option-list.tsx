@@ -65,8 +65,8 @@ const useStyles = createThemedStyles((t) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Selected: red with an Ink centre (brand rule: what sits on red is Ink).
-  radioSelected: { borderColor: brand.red, backgroundColor: brand.red },
+  // Selected: the accent with an Ink centre (brand rule: what sits on it is Ink).
+  radioSelected: { borderColor: t.accentText, backgroundColor: t.accentText },
   radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: brand.ink },
   text: { flex: 1, gap: 1 },
   label: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text },

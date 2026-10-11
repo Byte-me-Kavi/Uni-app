@@ -62,12 +62,12 @@ const useStyles = createThemedStyles((t) => ({
   intro: { fontFamily: fonts.body, fontSize: 16, lineHeight: 24, color: t.textMuted },
   card: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.xl, gap: space.xl },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  // Red tile with an Ink icon: text and icons on red are always Ink.
+  // Accent tile with an Ink icon: text and icons on the accent are always Ink.
   icon: {
     width: 48,
     height: 48,
     borderRadius: radius.md,
-    backgroundColor: brand.red,
+    backgroundColor: brand.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -75,7 +75,7 @@ const useStyles = createThemedStyles((t) => ({
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     color: brand.ink,
-    backgroundColor: brand.redTint,
+    backgroundColor: brand.accentTint,
     paddingHorizontal: space.sm + 2,
     paddingVertical: 3,
     borderRadius: radius.pill,

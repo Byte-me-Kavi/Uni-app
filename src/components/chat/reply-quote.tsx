@@ -32,7 +32,6 @@ export function ReplyQuote({
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={`${label ? label : `Replying to ${who}`}: ${reply.text ?? ''}`}
       style={[styles.quote, onCancel && styles.composer]}>
-      <View style={styles.bar} />
       <View style={styles.text}>
         <Text style={styles.who} numberOfLines={1}>
           {who}
@@ -64,8 +63,10 @@ const useStyles = createThemedStyles((t) => ({
     minHeight: 44,
   },
   composer: { marginBottom: 0, backgroundColor: t.surface },
-  bar: { width: 4, alignSelf: 'stretch', backgroundColor: t.tickRead },
-  text: { flex: 1, paddingVertical: space.xs + 2 },
+  // Natural width, not flex: 1. Inside a bubble (which sizes itself to its content) "fill the
+  // space" meant almost nothing, and the quote wrapped a word per line; this way the bubble widens
+  // to fit the quote, as in WhatsApp, and in the full-width composer and pinned bar it still fills.
+  text: { flexGrow: 1, flexShrink: 1, paddingVertical: space.xs + 2, paddingLeft: space.md, paddingRight: space.sm },
   who: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.tickRead },
   body: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
   thumb: { width: 44, height: 44 },

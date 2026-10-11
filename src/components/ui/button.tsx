@@ -26,7 +26,7 @@ export function Button({ label, onPress, variant = 'primary', loading = false, d
     transform: [{ scale: 1 - pressed.value * 0.03 }],
   }));
 
-  // Text on red is always Ink (brand rule), in both themes.
+  // Text on the accent is always Ink (brand rule), in both themes.
   const labelColor = primary ? brand.ink : theme.text;
 
   return (
@@ -65,7 +65,7 @@ const useStyles = createThemedStyles((t) => ({
     justifyContent: 'center',
     paddingHorizontal: space.xl,
   },
-  primary: { backgroundColor: brand.red },
+  primary: { backgroundColor: brand.accent },
   quiet: { backgroundColor: 'transparent', borderWidth: 1, borderColor: t.border },
   disabled: { opacity: 0.45 },
   label: { fontFamily: fonts.bodyBold, fontSize: 17 },

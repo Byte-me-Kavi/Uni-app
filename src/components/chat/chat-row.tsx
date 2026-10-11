@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Text, View } from 'react-native';
 import { BellSlashIcon } from 'phosphor-react-native/src/icons/BellSlash';
 import { GraduationCapIcon } from 'phosphor-react-native/src/icons/GraduationCap';
+import { PushPinIcon } from 'phosphor-react-native/src/icons/PushPin';
 import { UsersThreeIcon } from 'phosphor-react-native/src/icons/UsersThree';
 
 import { Avatar } from '@/components/ui/avatar';
@@ -38,10 +39,12 @@ type Props = {
   onOpen: (chat: Chat) => void;
   /** Touch down: get the chat ready before the tap completes. */
   onWarm?: (chat: Chat) => void;
+  /** Long press: pin, archive, mute. */
+  onMenu?: (chat: Chat) => void;
 };
 
 // Memoised: a new message in one chat redraws that row only.
-export const ChatRow = memo(function ChatRow({ chat, me, onOpen, onWarm }: Props) {
+export const ChatRow = memo(function ChatRow({ chat, me, onOpen, onWarm, onMenu }: Props) {
   const theme = useTheme();
   const styles = useStyles();
   const unread = chat.unread > 0 && !chat.request;
@@ -61,9 +64,12 @@ export const ChatRow = memo(function ChatRow({ chat, me, onOpen, onWarm }: Props
     <PressableScale
       onPress={() => onOpen(chat)}
       onPressIn={onWarm ? () => onWarm(chat) : undefined}
+      onLongPress={onMenu ? () => onMenu(chat) : undefined}
+      delayLongPress={350}
+      accessibilityHint={onMenu ? 'Long press to pin, archive or mute' : undefined}
       scale={0.985}
       accessibilityRole="button"
-      accessibilityLabel={`${chat.title}. ${preview}${unread ? `. ${chat.unread} unread` : ''}`}
+      accessibilityLabel={`${chat.title}${chat.list_pinned_at ? ', pinned' : ''}. ${preview}${unread ? `. ${chat.unread} unread` : ''}`}
       style={styles.row}>
       <ChatIcon chat={chat} />
       <View style={styles.text}>
@@ -80,8 +86,9 @@ export const ChatRow = memo(function ChatRow({ chat, me, onOpen, onWarm }: Props
             {preview}
           </Text>
           {chat.muted ? <BellSlashIcon size={16} color={theme.textMuted} /> : null}
+          {chat.list_pinned_at ? <PushPinIcon size={16} color={theme.textMuted} weight="fill" /> : null}
           {unread ? (
-            // Red marks something for you to do; what sits on red is Ink.
+            // The accent marks something for you to do; what sits on it is Ink.
             <View style={[styles.badge, chat.muted && styles.badgeMuted]}>
               <Text style={styles.badgeText}>{chat.unread > 99 ? '99+' : chat.unread}</Text>
             </View>
@@ -108,7 +115,7 @@ const useStyles = createThemedStyles((t) => ({
     height: 22,
     paddingHorizontal: 6,
     borderRadius: 11,
-    backgroundColor: brand.red,
+    backgroundColor: brand.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },

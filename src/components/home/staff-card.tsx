@@ -5,8 +5,8 @@ import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/the
 
 type Props = { count: number; role: 'admin' | 'moderator' };
 
-// Only for moderators and admins. A real count from the approval queue; red only when there is
-// something to do (brand rule: red means something to do).
+// Only for moderators and admins. A real count from the approval queue; the accent only when there is
+// something to do (brand rule: the accent means something to do).
 export function StaffCard({ count, role }: Props) {
   const theme = useTheme();
   const styles = useStyles();
@@ -49,7 +49,7 @@ const useStyles = createThemedStyles((t) => ({
     justifyContent: 'center',
     backgroundColor: t.background,
   },
-  iconWaiting: { backgroundColor: brand.red },
+  iconWaiting: { backgroundColor: brand.accent },
   copy: { flex: 1, gap: 2 },
   title: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text },
   body: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },

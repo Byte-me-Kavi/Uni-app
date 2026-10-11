@@ -2,6 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
+import { ReportSheet, type ReportTarget } from '@/components/chat/report-sheet';
 import { ActionSheet } from '@/components/ui/action-sheet';
 import { Avatar } from '@/components/ui/avatar';
 import { BackHeader } from '@/components/ui/back-header';
@@ -90,6 +91,7 @@ function PersonCard({ person, onChange }: { person: Person; onChange: () => void
   const relation = person.relation ? RELATION[person.relation] : null;
   const firstName = person.full_name.split(' ')[0];
   const [confirmBlock, setConfirmBlock] = useState(false);
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
 
@@ -140,6 +142,13 @@ function PersonCard({ person, onChange }: { person: Person; onChange: () => void
             style={styles.block}>
             <Text style={styles.blockText}>Block {firstName}</Text>
           </PressableScale>
+          <PressableScale
+            onPress={() => setReporting({ kind: 'profile', id: person.user_id, who: person.full_name })}
+            accessibilityRole="button"
+            accessibilityLabel={`Report ${person.full_name}`}
+            style={styles.block}>
+            <Text style={styles.blockText}>Report {firstName}</Text>
+          </PressableScale>
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       ) : null}
@@ -150,6 +159,13 @@ function PersonCard({ person, onChange }: { person: Person; onChange: () => void
         message="They will not be able to find you, see your profile or message you, and they will not be told. You can unblock them from here or from your profile."
         actions={[{ label: 'Block', destructive: true, onPress: block }]}
         onClose={() => setConfirmBlock(false)}
+      />
+      <ReportSheet
+        target={reporting}
+        onClose={() => {
+          setReporting(null);
+          onChange(); // they may have been blocked in the same step
+        }}
       />
     </View>
   );

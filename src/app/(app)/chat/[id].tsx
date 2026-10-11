@@ -14,6 +14,8 @@ import { MediaViewer } from '@/components/chat/media-viewer';
 import { MessageBubble } from '@/components/chat/message-bubble';
 import { MessageMenu } from '@/components/chat/message-menu';
 import { ReactionDetails } from '@/components/chat/reactions';
+import { ReportSheet, type ReportTarget } from '@/components/chat/report-sheet';
+import { StickerSheet } from '@/components/chat/sticker-sheet';
 import { ReplyQuote } from '@/components/chat/reply-quote';
 import { ActionSheet, type SheetAction } from '@/components/ui/action-sheet';
 import { Button } from '@/components/ui/button';
@@ -38,7 +40,7 @@ import {
   starMessage,
 } from '@/lib/chat/engine';
 import { dayLabel, lastSeen, micros, sameDay } from '@/lib/chat/format';
-import { holdStickerImport, setFavourite } from '@/lib/chat/sticker-library';
+import { holdStickerImport } from '@/lib/chat/sticker-library';
 import { useChat, useChatState, useMessages } from '@/lib/chat/store';
 import type { Message, StickerAttachment } from '@/lib/chat/types';
 import { stopVoice } from '@/lib/chat/voice';
@@ -71,7 +73,7 @@ async function copyText(text: string) {
 export default function ChatScreen() {
   const theme = useTheme();
   const styles = useStyles();
-  const { id, jump } = useLocalSearchParams<{ id: string; jump?: string }>();
+  const { id, jump, note: startNote } = useLocalSearchParams<{ id: string; jump?: string; note?: string }>();
   const chat = useChat(id);
   const messages = useMessages(id);
   const me = useChatState((s) => s.me);
@@ -82,7 +84,8 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList<Item>>(null);
   const [typing, setTyping] = useState(false);
   const [presence, setPresence] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  // A note to show on arrival (e.g. who could not be added to a new group).
+  const [note, setNote] = useState<string | null>(startNote ?? null);
   const [confirmBlock, setConfirmBlock] = useState(false);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);
@@ -92,6 +95,9 @@ export default function ChatScreen() {
   const [forwarding, setForwarding] = useState<Message | null>(null);
   const [whoReacted, setWhoReacted] = useState<{ conversationId: string; messageId: string } | null>(null);
   const [viewing, setViewing] = useState<Message | null>(null);
+  const [reporting, setReporting] = useState<ReportTarget | null>(null);
+  const [stickerFor, setStickerFor] = useState<StickerAttachment | null>(null);
+  const [pinMenu, setPinMenu] = useState(false);
   const [chatMenu, setChatMenu] = useState(false);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
@@ -214,6 +220,16 @@ export default function ChatScreen() {
   }, [jump, messages.length, jumpTo]);
 
   const showReactions = useCallback((message: Message) => setWhoReacted({ conversationId: id, messageId: message.id }), [id]);
+  // Photos open the viewer; stickers open their sheet (add to favourites).
+  const openMedia = useCallback(
+    (m: Message) => (m.kind === 'sticker' && m.attachment ? setStickerFor(m.attachment as StickerAttachment) : setViewing(m)),
+    [],
+  );
+  // The long-press menu opens only when it has something in it (reactions or actions).
+  const openMenu = useCallback((m: Message) => {
+    if (m.status === 'pending') return;
+    setMenuFor(m);
+  }, []);
   const otherRead = micros(chat?.other_last_read_at);
   const otherDelivered = micros(chat?.other_delivered_at);
   const renderItem = useCallback(
@@ -242,8 +258,8 @@ export default function ChatScreen() {
           starred={!!starred[m.id]}
           highlighted={highlight === m.id}
           onRetry={retryMessage}
-          onOpenImage={setViewing}
-          onLongPress={setMenuFor}
+          onOpenImage={openMedia}
+          onLongPress={openMenu}
           onReply={setReplyTo}
           onJumpTo={jumpTo}
           onShowReactions={showReactions}
@@ -306,20 +322,28 @@ export default function ChatScreen() {
           ? { label: 'Unstar', onPress: () => starMessage(id, m, false).then(report) }
           : { label: 'Star', onPress: () => starMessage(id, m, true).then(report) },
       );
-      actions.push(
-        chat?.pinned?.id === m.id
-          ? { label: 'Unpin', onPress: () => pinMessage(id, null).then(report) }
-          : { label: 'Pin', onPress: () => pinMessage(id, m).then(report) },
-      );
-    }
-    if (sent && m.kind === 'sticker' && m.attachment) {
-      const s = m.attachment as StickerAttachment;
-      actions.push({ label: 'Add sticker to favourites', onPress: () => setFavourite(`${s.pack}:${s.id}`, true).then(report) });
+      // In groups only reps and group admins pin (the server enforces the same).
+      if (!group || chat?.my_role === 'admin') {
+        actions.push(
+          chat?.pinned?.id === m.id
+            ? { label: 'Unpin', onPress: () => pinMessage(id, null).then(report) }
+            : { label: 'Pin', onPress: () => pinMessage(id, m).then(report) },
+        );
+      }
     }
     if (sent && mine && ['text', 'image', 'file'].includes(m.kind) && age < EDIT_MS && (m.kind === 'text' || m.body)) {
       actions.push({ label: 'Edit', onPress: () => setEditing(m) });
     }
+    if (sent && !mine) {
+      actions.push({
+        label: 'Report',
+        destructive: true,
+        onPress: () => setReporting({ kind: 'message', id: m.id, conversationId: id, who: m.sender_name, userId: m.sender_id }),
+      });
+    }
     if (!m.deleted) actions.push({ label: 'Delete', destructive: true, onPress: () => setDeleting(m) });
+    // A deleted message's placeholder can be cleared from your own view, as in WhatsApp.
+    else actions.push({ label: 'Delete for me', destructive: true, onPress: () => deleteForMe(id, [m]).then(report) });
     return actions;
   }
 
@@ -332,6 +356,7 @@ export default function ChatScreen() {
       ]
     : [];
 
+  const firstName = chat?.title?.split(' ')[0] ?? 'They';
   const chatActions: SheetAction[] = [
     { label: 'Search', onPress: () => setSearching(true) },
     { label: 'Photos, documents and voice notes', onPress: () => router.push({ pathname: '/chat-files/[id]', params: { id } }) },
@@ -341,10 +366,16 @@ export default function ChatScreen() {
     group
       ? { label: 'Group details', onPress: () => router.push({ pathname: '/group/[id]', params: { id } }) }
       : { label: 'View profile', onPress: () => chat?.other_user_id && router.push({ pathname: '/people/[id]', params: { id: chat.other_user_id } }) },
+    group
+      ? { label: 'Report group', destructive: true, onPress: () => setReporting({ kind: 'conversation', id, who: chat?.title ?? null }) }
+      : {
+          label: `Report ${firstName}`,
+          destructive: true,
+          onPress: () => chat?.other_user_id && setReporting({ kind: 'profile', id: chat.other_user_id, who: chat.title }),
+        },
   ];
 
   const sentOne = messages.some((m) => m.sender_id === me);
-  const firstName = chat?.title?.split(' ')[0] ?? 'They';
   const subtitle = typing
     ? 'typing…'
     : chat?.request === 'incoming'
@@ -378,7 +409,7 @@ export default function ChatScreen() {
             placeholder="Search this chat"
             placeholderTextColor={theme.textMuted}
             style={styles.searchInput}
-            selectionColor={brand.red}
+            selectionColor={brand.accent}
             accessibilityLabel="Search this chat"
           />
         </View>
@@ -419,7 +450,7 @@ export default function ChatScreen() {
 
       {chat?.pinned && !searching ? (
         <View style={styles.pinned}>
-          <ReplyQuote reply={chat.pinned} me={me} label="Pinned message" onPress={() => jumpTo(chat.pinned!.id)} />
+          <ReplyQuote reply={chat.pinned} me={me} label="Pinned message" onPress={() => setPinMenu(true)} />
         </View>
       ) : null}
 
@@ -539,6 +570,10 @@ export default function ChatScreen() {
           </View>
         ) : chat?.request === 'outgoing' && sentOne ? (
           <Text style={styles.waiting}>Request sent. You can send more once {firstName} accepts.</Text>
+        ) : group && chat?.announcement_only && chat.my_role !== 'admin' ? (
+          <Text style={styles.waiting} accessibilityLiveRegion="polite">
+            {chat.kind === 'group' ? 'Only admins can send messages here.' : 'Only batch reps can send messages here.'}
+          </Text>
         ) : (
           <Composer
             chat={chat}
@@ -588,6 +623,20 @@ export default function ChatScreen() {
             }}
           />
           <ReactionDetails target={whoReacted} me={me} onClose={() => setWhoReacted(null)} />
+          <ReportSheet target={reporting} onClose={() => setReporting(null)} />
+          <StickerSheet sticker={stickerFor} onClose={() => setStickerFor(null)} />
+          <ActionSheet
+            visible={pinMenu}
+            title="Pinned message"
+            actions={[
+              { label: 'Go to message', onPress: () => chat?.pinned && jumpTo(chat.pinned.id) },
+              // In groups only reps and admins can unpin (as they pin); in direct chats either of you.
+              ...(!group || chat?.my_role === 'admin'
+                ? [{ label: 'Unpin', destructive: true, onPress: () => pinMessage(id, null).then(report) }]
+                : []),
+            ]}
+            onClose={() => setPinMenu(false)}
+          />
           <MediaViewer message={viewing} onClose={() => setViewing(null)} />
           <ActionSheet visible={chatMenu} actions={chatActions} onClose={() => setChatMenu(false)} />
           <ActionSheet
@@ -682,7 +731,7 @@ const useStyles = createThemedStyles((t) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Red marks something for you to do; what sits on red is Ink.
+  // The accent marks something for you to do; what sits on it is Ink.
   jumpBadge: {
     position: 'absolute',
     top: -6,
@@ -691,7 +740,7 @@ const useStyles = createThemedStyles((t) => ({
     height: 20,
     borderRadius: 10,
     paddingHorizontal: 5,
-    backgroundColor: brand.red,
+    backgroundColor: brand.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },

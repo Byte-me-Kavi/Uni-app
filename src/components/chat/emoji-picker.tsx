@@ -96,7 +96,7 @@ export function EmojiPicker({ visible, onClose, onPick }: { visible: boolean; on
               placeholder="Or type any emoji"
               placeholderTextColor={theme.textMuted}
               style={styles.typed}
-              selectionColor={brand.red}
+              selectionColor={brand.accent}
               accessibilityLabel="Type an emoji"
             />
           </View>

@@ -1,13 +1,17 @@
 import { StyleSheet, useColorScheme } from 'react-native';
 
-// Uni Era brand colours (brand kit: "Colour and type"). Red means you, or something to do.
-// Text on red is always Ink, in both themes.
+// Uni Era brand colours. Sky blue (the accent) means you, or something to do; it pairs with the
+// black of dark mode. Text on the accent is always Ink, in both themes. Red is kept for errors and
+// for actions that remove or block.
 export const brand = {
-  red: '#FF5C47',
+  accent: '#38BDF8',
+  /** Errors, Delete, Block, Report. */
+  danger: '#FF5C47',
   ink: '#141414',
   white: '#FFFFFF',
   smoke: '#F3F3F1',
-  redTint: '#FFE6E2',
+  accentTint: '#E0F2FE',
+  dangerTint: '#FFE6E2',
   graphite: '#555555',
 } as const;
 
@@ -22,7 +26,10 @@ export type Palette = {
   textMuted: string;
   /** The large background mark on auth screens: visible as shape, never competing with text. */
   heroMark: string;
-  /** Error text. Brand red is too light on white for small text, so light mode uses a deeper red. */
+  /** The accent where it stands alone (icons, outlines, small text): sky blue is too pale on white,
+   * so light mode uses a deeper blue of the same hue. Filled buttons and badges use brand.accent. */
+  accentText: string;
+  /** Error text. The danger red is too light on white for small text, so light mode uses a deeper red. */
   dangerText: string;
   errorBg: string;
   errorText: string;
@@ -33,11 +40,11 @@ export type Palette = {
   /** Sheets and dialogs: lifted off the page (white in light mode, a lighter grey in dark). */
   elevated: string;
   elevatedPressed: string;
-  /** Chat bubbles. Yours carry a tint of red (red means you); text in both is the normal text
+  /** Chat bubbles. Yours carry a tint of the accent (it means you); text in both is the normal text
    * colour, so long messages read as easily as anything else in the app. */
   bubbleMine: string;
   bubbleTheirs: string;
-  /** ✓✓ once read: a red deep enough to see at 15 px on your bubble. */
+  /** ✓✓ once read: an accent deep enough to see at 15 px on your bubble. */
   tickRead: string;
   statusBar: 'light' | 'dark';
 };
@@ -54,17 +61,18 @@ export const palettes: Record<'light' | 'dark', Palette> = {
     text: brand.ink,
     textMuted: brand.graphite, // 7.5:1 on white
     heroMark: '#EDEDE9',
+    accentText: '#0369A1', // 5.9:1 on white
     dangerText: '#C2311E', // 5.6:1 on white
-    errorBg: brand.redTint,
+    errorBg: brand.dangerTint,
     errorText: brand.ink,
     infoBg: brand.smoke,
     infoText: brand.ink,
     scrim: 'rgba(20, 20, 20, 0.55)',
     elevated: brand.white,
     elevatedPressed: brand.smoke,
-    bubbleMine: brand.redTint, // ink 15:1, muted 6.2:1
+    bubbleMine: brand.accentTint, // ink 16:1, muted 6.5:1
     bubbleTheirs: brand.smoke,
-    tickRead: '#C2311E', // 4.9:1 on the tint
+    tickRead: '#0369A1', // 5.2:1 on the tint
     statusBar: 'dark',
   },
   dark: {
@@ -77,7 +85,8 @@ export const palettes: Record<'light' | 'dark', Palette> = {
     text: brand.white,
     textMuted: '#A3A3A3', // 8.6:1 on black
     heroMark: '#1F1F1F',
-    dangerText: brand.red, // 6.9:1 on black
+    accentText: brand.accent, // 9.8:1 on black
+    dangerText: brand.danger, // 6.9:1 on black
     errorBg: '#331410',
     errorText: '#FFD3CC',
     infoBg: '#1C1C1C',
@@ -86,9 +95,9 @@ export const palettes: Record<'light' | 'dark', Palette> = {
     scrim: 'rgba(0, 0, 0, 0.78)',
     elevated: '#1F1F1F',
     elevatedPressed: '#2A2A2A',
-    bubbleMine: '#3A1D18', // white 14:1, muted 6:1
+    bubbleMine: '#0B2A3D', // white 14.9:1, muted 5.9:1
     bubbleTheirs: '#1C1C1C',
-    tickRead: brand.red, // 4.8:1 on the tint
+    tickRead: brand.accent, // 6.9:1 on the tint
     statusBar: 'light',
   },
 };

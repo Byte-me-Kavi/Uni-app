@@ -45,7 +45,8 @@ export function LinkCard({ link, onRemove }: { link: LinkPreview; onRemove?: () 
 const useStyles = createThemedStyles((t) => ({
   card: { backgroundColor: t.background, borderRadius: radius.md - 2, overflow: 'hidden', marginBottom: space.xs + 2 },
   composer: { flexDirection: 'row', alignItems: 'center', backgroundColor: t.surface, marginBottom: 0 },
-  image: { width: '100%', aspectRatio: 1.91 },
+  // A fixed height: a page's picture never decides how tall the bubble is.
+  image: { width: '100%', height: 136 },
   thumb: { width: 56, height: 56 },
   text: { flex: 1, padding: space.sm + 2, gap: 2 },
   title: { fontFamily: fonts.bodyBold, fontSize: 14.5, lineHeight: 19, color: t.text },

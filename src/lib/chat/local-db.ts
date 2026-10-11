@@ -20,7 +20,8 @@ export type LocalDb = {
   /** Removes messages from the phone (deleted for me). */
   deleteMessages(ids: string[]): Promise<void>;
   /** Messages in one chat whose text contains the words, newest first. */
-  search(conversationId: string, query: string, limit?: number): Promise<Message[]>;
+  /** Messages with every word; one chat, or every chat on the phone when conversationId is null. */
+  search(conversationId: string | null, query: string, limit?: number): Promise<Message[]>;
   /** Keeps the newest messages of a group; direct chats are kept whole. */
   prune(conversationId: string, keep: number): Promise<void>;
   close(): Promise<void>;
@@ -34,7 +35,10 @@ type MessageRow = Omit<Message, 'deleted' | 'attachment' | 'reply' | 'forwarded'
   mentions: string | null;
   link: string | null;
 };
-type ChatRow = Omit<Chat, 'muted' | 'other_delivered_at' | 'pinned' | 'my_role'> & { muted: number; extra: string | null };
+type ChatRow = Omit<Chat, 'muted' | 'other_delivered_at' | 'pinned' | 'my_role' | 'list_pinned_at' | 'archived' | 'announcement_only' | 'slow_mode_seconds'> & {
+  muted: number;
+  extra: string | null;
+};
 
 const SCHEMA = `
 PRAGMA journal_mode = WAL;
@@ -145,7 +149,15 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
                 $last_sender_name: c.last_sender_name, $unread: c.unread, $muted: c.muted ? 1 : 0, $request: c.request,
                 $member_count: c.member_count, $my_last_read_at: c.my_last_read_at, $other_last_read_at: c.other_last_read_at,
                 $created_at: c.created_at,
-                $extra: JSON.stringify({ other_delivered_at: c.other_delivered_at ?? null, pinned: c.pinned ?? null, my_role: c.my_role ?? null }),
+                $extra: JSON.stringify({
+                  other_delivered_at: c.other_delivered_at ?? null,
+                  pinned: c.pinned ?? null,
+                  my_role: c.my_role ?? null,
+                  list_pinned_at: c.list_pinned_at ?? null,
+                  archived: c.archived ?? false,
+                  announcement_only: c.announcement_only ?? false,
+                  slow_mode_seconds: c.slow_mode_seconds ?? 0,
+                }),
               });
             }
           } finally {
@@ -236,9 +248,13 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
         if (words.length === 0) return [];
         const where = words.map(() => "lower(body) LIKE ? ESCAPE '!'").join(' AND ');
         const params = words.map((w) => `%${w.replace(/[!%_]/g, (c) => `!${c}`)}%`);
-        const rows = await db.getAllAsync<MessageRow>(
-          `SELECT * FROM messages WHERE conversation_id = ? AND deleted = 0 AND ${where} ORDER BY ts DESC LIMIT ?`,
-          conversationId, ...params, limit);
+        const rows = conversationId
+          ? await db.getAllAsync<MessageRow>(
+              `SELECT * FROM messages WHERE conversation_id = ? AND deleted = 0 AND ${where} ORDER BY ts DESC LIMIT ?`,
+              conversationId, ...params, limit)
+          : await db.getAllAsync<MessageRow>(
+              `SELECT * FROM messages WHERE deleted = 0 AND ${where} ORDER BY ts DESC LIMIT ?`,
+              ...params, limit);
         return rows.map(toMessage);
       }),
 

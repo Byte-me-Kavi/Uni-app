@@ -66,7 +66,14 @@ let warm: string[] = [];
 
 const tsOf = (iso: string) => Date.parse(iso);
 const activity = (c: Chat) => c.last_message_at ?? c.created_at;
-const sortChats = (chats: Chat[]) => [...chats].sort((a, b) => (activity(a) < activity(b) ? 1 : -1));
+// Chats you pinned first (most recently pinned on top), then newest activity.
+const sortChats = (chats: Chat[]) =>
+  [...chats].sort((a, b) => {
+    const pa = a.list_pinned_at ?? '';
+    const pb = b.list_pinned_at ?? '';
+    if (pa !== pb) return pa < pb ? 1 : -1;
+    return activity(a) < activity(b) ? 1 : -1;
+  });
 
 type Row = {
   id: string;
@@ -291,6 +298,8 @@ async function connectInboxUnsafe() {
     .on('broadcast', { event: 'edit' }, ({ payload }) => receiveEdit(payload as EditPayload))
     .on('broadcast', { event: 'pin' }, ({ payload }) => receivePin(payload as PinPayload))
     .on('broadcast', { event: 'delivered' }, ({ payload }) => receiveDelivered(payload as DeliveredPayload))
+    // Added to (or removed from) a group, or made a rep: the chat list changed.
+    .on('broadcast', { event: 'chats' }, () => refreshChats())
     .subscribe((status) => {
       if (run !== generation) return;
       if (status === 'SUBSCRIBED') {
@@ -536,6 +545,7 @@ function subscribeOpen(conversationId: string) {
     .on('broadcast', { event: 'delete' }, ({ payload }) => receiveDelete(payload as ChangePayload))
     .on('broadcast', { event: 'edit' }, ({ payload }) => receiveEdit(payload as EditPayload))
     .on('broadcast', { event: 'pin' }, ({ payload }) => receivePin(payload as PinPayload))
+    .on('broadcast', { event: 'settings' }, ({ payload }) => receiveSettings(payload as SettingsPayload))
     .subscribe((status) => {
       if (status === 'SUBSCRIBED' && open?.id === conversationId) fetchNewer(conversationId);
     });
@@ -932,6 +942,34 @@ export async function setMuted(conversationId: string, on: boolean, hours: numbe
   return null;
 }
 
+/** Pins a chat to the top of your list, or archives it. Shows at once; undone if it fails. */
+export async function setChatListState(conversationId: string, change: { pinned?: boolean; archived?: boolean }) {
+  const before = getChatState().chats.find((c) => c.conversation_id === conversationId);
+  if (!before) return null;
+  updateChat(conversationId, (c) => ({
+    ...c,
+    list_pinned_at: change.archived ? null : change.pinned === undefined ? c.list_pinned_at : change.pinned ? new Date().toISOString() : null,
+    archived: change.archived ?? c.archived,
+  }));
+  const { error } = await supabase.rpc('set_chat_state', {
+    p_conversation_id: conversationId,
+    ...(change.pinned !== undefined ? { p_pinned: change.pinned } : {}),
+    ...(change.archived !== undefined ? { p_archived: change.archived } : {}),
+  });
+  if (error) {
+    updateChat(conversationId, () => before);
+    return error.message;
+  }
+  db?.saveChats(getChatState().chats).catch(() => {});
+  return null;
+}
+
+/** Applies new group settings locally (after the server accepted them). */
+export function applyChatSettings(conversationId: string, settings: Partial<Pick<Chat, 'slow_mode_seconds' | 'announcement_only' | 'title' | 'my_role'>>) {
+  updateChat(conversationId, (c) => ({ ...c, ...settings }));
+  db?.saveChats(getChatState().chats).catch(() => {});
+}
+
 export async function respondRequest(conversationId: string, accept: boolean) {
   const { error } = await supabase.rpc('respond_request', { p_conversation_id: conversationId, p_accept: accept });
   if (error) return error.message;
@@ -961,6 +999,17 @@ function markDelivered(conversationId: string, upTo: string) {
 type ChangePayload = { conversation_id: string; message_id: string; user_id?: string; emoji?: string | null };
 type EditPayload = { conversation_id: string; message_id: string; body: string; edited_at: string };
 type PinPayload = { conversation_id: string; pinned: ReplySnapshot | null };
+type SettingsPayload = { conversation_id: string; slow_mode_seconds: number; announcement_only: boolean; title: string | null };
+
+// A rep or admin changed the group's settings: who may send, slow mode, its name.
+function receiveSettings(p: SettingsPayload) {
+  updateChat(p.conversation_id, (c) => ({
+    ...c,
+    slow_mode_seconds: p.slow_mode_seconds,
+    announcement_only: p.announcement_only,
+    title: p.title ?? c.title,
+  }));
+}
 type DeliveredPayload = { conversation_id: string; user_id: string; delivered_at: string };
 
 function receiveDelivered(p: DeliveredPayload) {
@@ -1159,6 +1208,11 @@ export async function forwardMessages(messages: Message[], conversationIds: stri
 /** Messages in this chat containing the words (from the phone's copy). */
 export async function searchMessages(conversationId: string, query: string) {
   return (await db?.search(conversationId, query)) ?? [];
+}
+
+/** Messages on this phone, in any chat, with every word of the query (the Chats tab search). */
+export async function searchAllMessages(query: string, limit = 40) {
+  return (await db?.search(null, query, limit)) ?? [];
 }
 
 /** Loads older messages until this one is on screen (for replies, pins, search and stars).

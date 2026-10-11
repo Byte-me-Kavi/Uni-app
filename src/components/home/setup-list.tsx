@@ -19,6 +19,7 @@ export type SetupStep = {
 };
 
 export function SetupList({ steps }: { steps: SetupStep[] }) {
+  const theme = useTheme();
   const styles = useStyles();
   const doneCount = steps.filter((s) => s.done).length;
 
@@ -43,7 +44,7 @@ export function SetupList({ steps }: { steps: SetupStep[] }) {
               accessibilityLabel={`${step.label}, to do`}
               style={styles.row}>
               <StepContent step={step} />
-              <CaretRightIcon size={18} weight="bold" color={brand.red} />
+              <CaretRightIcon size={18} weight="bold" color={theme.accentText} />
             </PressableScale>
           ) : (
             <View
@@ -69,7 +70,7 @@ function StepContent({ step }: { step: SetupStep }) {
       {step.done ? (
         <CheckCircleIcon size={26} weight="fill" color={theme.text} />
       ) : (
-        <CircleIcon size={26} weight="regular" color={step.onPress ? brand.red : theme.borderFilled} />
+        <CircleIcon size={26} weight="regular" color={step.onPress ? theme.accentText : theme.borderFilled} />
       )}
       <View style={styles.copy}>
         <Text style={[styles.label, step.done && styles.labelDone]}>{step.label}</Text>
@@ -90,12 +91,12 @@ const useStyles = createThemedStyles((t) => ({
   label: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: t.text },
   labelDone: { color: t.textMuted },
   detail: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: t.text },
-  // Red tint with Ink text: the brand's soft highlight.
+  // Accent tint with Ink text: the brand's soft highlight.
   soon: {
     fontFamily: fonts.bodyBold,
     fontSize: 12,
     color: brand.ink,
-    backgroundColor: brand.redTint,
+    backgroundColor: brand.accentTint,
     paddingHorizontal: space.sm + 2,
     paddingVertical: 3,
     borderRadius: radius.pill,

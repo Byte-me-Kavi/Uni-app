@@ -66,7 +66,7 @@ function RootNavigator() {
     ...base,
     colors: {
       ...base.colors,
-      primary: brand.red,
+      primary: brand.accent,
       background: theme.background,
       card: theme.background,
       text: theme.text,

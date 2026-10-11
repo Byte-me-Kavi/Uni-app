@@ -46,7 +46,7 @@ export function ForwardPicker({ visible, onClose, onSend }: { visible: boolean; 
         placeholder="Search chats"
         placeholderTextColor={theme.textMuted}
         style={styles.search}
-        selectionColor={brand.red}
+        selectionColor={brand.accent}
         accessibilityLabel="Search chats"
       />
       <FlatList

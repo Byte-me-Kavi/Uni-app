@@ -79,9 +79,9 @@ export function useChat(conversationId: string) {
   return useChatState((s) => s.chats.find((c) => c.conversation_id === conversationId) ?? null);
 }
 
-/** Unread across accepted, unmuted chats, plus incoming requests: the Chats tab badge. */
+/** Unread across accepted, unmuted, unarchived chats, plus incoming requests: the Chats tab badge. */
 export function useUnreadTotal() {
   return useChatState((s) =>
-    s.chats.reduce((sum, c) => sum + (c.request === 'incoming' ? 1 : c.muted || c.request ? 0 : c.unread), 0),
+    s.chats.reduce((sum, c) => sum + (c.request === 'incoming' ? 1 : c.muted || c.request || c.archived ? 0 : c.unread), 0),
   );
 }

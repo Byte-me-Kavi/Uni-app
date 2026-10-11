@@ -5,7 +5,7 @@ begin;
 set local role postgres;
 create extension if not exists pgtap with schema extensions;
 set local search_path to extensions, public;
-select plan(17);
+select plan(19);
 
 -- ---------------------------------------------------------------- fixtures
 insert into identity.institutions (id, name, short_name, kind, status) overriding system value values
@@ -95,6 +95,10 @@ select is((pg_temp.send('00000000-0000-0000-0000-0000000cc001', (select id from 
   'a direct message is titled with the sender''s name');
 select is(jsonb_array_length(pg_temp.send('00000000-0000-0000-0000-0000000cc001', (select id from dm), 'Are you coming?')), 1,
   'every direct message notifies');
+select is((pg_temp.send('00000000-0000-0000-0000-0000000cc001', (select id from dm), 'Hello?') -> 0) ->> 'title', 'Nimal Jayasuriya (3 messages)',
+  'the title counts unread messages, as one notification per chat');
+select is((pg_temp.send('00000000-0000-0000-0000-0000000cc001', (select id from dm), 'Ok') -> 0) ->> 'tag', (select id from dm)::text,
+  'each chat''s notifications share a tag, so a new one replaces the last');
 
 select pg_temp.act_as('00000000-0000-0000-0000-0000000cc002');
 select api.set_message_previews(false);

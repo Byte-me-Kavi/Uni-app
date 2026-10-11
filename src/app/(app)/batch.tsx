@@ -275,7 +275,7 @@ const useStyles = createThemedStyles((t) => ({
     width: 48,
     height: 48,
     borderRadius: radius.md,
-    backgroundColor: brand.red,
+    backgroundColor: brand.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: space.md,
@@ -308,8 +308,8 @@ const useStyles = createThemedStyles((t) => ({
     borderColor: t.border,
     backgroundColor: t.surface,
   },
-  // Selected year: red with Ink text (brand rule: text on red is Ink).
-  yearActive: { backgroundColor: brand.red, borderColor: brand.red },
+  // Selected year: the accent with Ink text (brand rule: text on the accent is Ink).
+  yearActive: { backgroundColor: brand.accent, borderColor: brand.accent },
   yearText: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
   yearTextActive: { color: brand.ink },
   hint: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },

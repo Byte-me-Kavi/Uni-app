@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { firstName, type MyHome } from '@/lib/use-home';
 import { useHomeData } from '@/providers/home-provider';
-import { brand, createThemedStyles, fonts, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, space, useTheme } from '@/theme/tokens';
 
 // The home entrance (content rising in, the cap dropping onto the u in the brand card) plays once
 // per launch. Coming back to Home later shows it instantly.
@@ -39,8 +39,8 @@ export default function Home() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={refresh}
-            tintColor={brand.red}
-            colors={[brand.red]}
+            tintColor={theme.accentText}
+            colors={[theme.accentText]}
             progressBackgroundColor={theme.surface}
           />
         }>

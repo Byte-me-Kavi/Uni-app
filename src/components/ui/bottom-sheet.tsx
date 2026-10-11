@@ -4,6 +4,8 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, FadeIn, SlideInDown, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useKeyboardLift } from '@/lib/use-keyboard-lift';
+
 import { SheetModal } from '@/components/ui/sheet-layer';
 import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
@@ -25,25 +27,33 @@ export function BottomSheet({ visible, title, onClose, height = 0.55, children }
   const { height: screen } = useWindowDimensions();
   const animate = Platform.OS !== 'web';
   const drag = useSharedValue(0);
+  // Android: a text box in the sheet (a group name, report details) stays above the keyboard.
+  const lift = useKeyboardLift(visible);
 
   const pull = Gesture.Pan()
     .onUpdate((e) => {
-      drag.value = Math.max(0, e.translationY);
+      drag.set(Math.max(0, e.translationY));
     })
     .onEnd((e) => {
-      if (drag.value > 90 || e.velocityY > 900) runOnJS(onClose)();
-      drag.value = withSpring(0, { damping: 22, stiffness: 260 });
+      if (drag.get() > 90 || e.velocityY > 900) runOnJS(onClose)();
+      drag.set(withSpring(0, { damping: 22, stiffness: 260 }));
     });
-  const dragged = useAnimatedStyle(() => ({ transform: [{ translateY: drag.value }] }));
+  const dragged = useAnimatedStyle(() => ({ transform: [{ translateY: drag.get() }] }));
 
   return (
     <SheetModal visible={visible} onRequestClose={onClose}>
-      <Animated.View entering={animate ? FadeIn.duration(160) : undefined} style={styles.backdrop}>
+      <Animated.View ref={lift.ref} onLayout={lift.measure} entering={animate ? FadeIn.duration(160) : undefined} style={styles.backdrop}>
         <Pressable style={styles.fill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
       </Animated.View>
       <Animated.View
         entering={animate ? SlideInDown.duration(260).easing(Easing.bezier(0.32, 0.72, 0, 1)) : undefined}
-        style={[styles.sheet, { maxHeight: screen * height + insets.bottom, paddingBottom: insets.bottom }, dragged]}
+        style={[
+          styles.sheet,
+          lift.overlap
+            ? { bottom: lift.overlap, maxHeight: Math.min(screen * height, screen - lift.overlap - insets.top - 24) }
+            : { maxHeight: screen * height + insets.bottom, paddingBottom: insets.bottom },
+          dragged,
+        ]}
         accessibilityViewIsModal>
         <GestureDetector gesture={pull}>
           <View style={styles.top}>

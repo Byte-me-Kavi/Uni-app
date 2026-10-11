@@ -97,8 +97,8 @@ export function AttachPreview({
           maxLength={1024}
           multiline
           style={styles.caption}
-          selectionColor={brand.red}
-          cursorColor={brand.red}
+          selectionColor={brand.accent}
+          cursorColor={brand.accent}
           accessibilityLabel="Caption"
         />
       </View>

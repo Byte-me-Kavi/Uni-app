@@ -5,9 +5,9 @@ import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens'
 
 type Props = { assemble: boolean };
 
-// The one bold surface on the home screen: brand red with the tagline in Figtree Black and the
-// mark beside it, centred vertically and fully visible. On red the tassel turns white (logo system
-// rule). Text on red is Ink, never white.
+// The one bold surface on the home screen: the brand accent with the tagline in Figtree Black and the
+// mark beside it, centred vertically and fully visible. On the accent the tassel turns white (logo system
+// rule). Text on the accent is Ink, never white.
 export function BrandCard({ assemble }: Props) {
   const styles = useStyles();
   // Narrow phones (under ~380pt) get a smaller mark and headline so the headline keeps its two lines.
@@ -27,7 +27,7 @@ export function BrandCard({ assemble }: Props) {
 
 const useStyles = createThemedStyles(() => ({
   card: {
-    backgroundColor: brand.red,
+    backgroundColor: brand.accent,
     borderRadius: radius.lg + 6,
     padding: space.xl,
     minHeight: 172,
