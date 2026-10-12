@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
+import { CalendarPlusIcon } from 'phosphor-react-native/src/icons/CalendarPlus';
 import { CaretRightIcon } from 'phosphor-react-native/src/icons/CaretRight';
 
 import { ModuleDot } from '@/components/resources/module-dot';
@@ -17,10 +18,20 @@ export function ExamStrip({ limit = 3 }: { limit?: number }) {
 
   if (soon.length === 0) {
     return data?.can_edit && (data.exams.length ?? 0) === 0 ? (
-      <PressableScale onPress={() => router.push('/exams')} accessibilityRole="button" scale={0.985} style={styles.prompt}>
-        <Text style={styles.promptText}>Add your batch&apos;s exam dates: everyone gets a countdown and past papers first.</Text>
-        <CaretRightIcon size={16} weight="bold" color={theme.textMuted} />
-      </PressableScale>
+      // In the theme's tint with a button, so reps notice it: one rep adding dates gives the whole
+      // batch countdowns and past papers first.
+      <View style={styles.prompt}>
+        <CalendarPlusIcon size={22} weight="bold" color={theme.onAccentTint} />
+        <View style={styles.promptCopy}>
+          <Text style={styles.promptTitle}>Exam dates</Text>
+          <Text style={styles.promptText} numberOfLines={2}>
+            Countdowns for your whole batch
+          </Text>
+        </View>
+        <PressableScale onPress={() => router.push('/exams')} accessibilityRole="button" accessibilityLabel="Add exam dates" style={styles.promptButton}>
+          <Text style={styles.promptButtonText}>Add dates</Text>
+        </PressableScale>
+      </View>
     ) : null;
   }
 
@@ -87,6 +98,21 @@ const useStyles = createThemedStyles((t) => ({
   copy: { flex: 1, gap: 1 },
   code: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.accentText },
   name: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: t.text },
-  prompt: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: t.surface, borderRadius: radius.lg, padding: space.lg },
-  promptText: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 14, lineHeight: 20, color: t.text },
+  // The theme's soft highlight (light blue in Sky), one compact row.
+  prompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: t.accentTint,
+    borderRadius: radius.lg,
+    paddingVertical: space.sm + 2,
+    paddingLeft: space.lg,
+    paddingRight: space.sm + 2,
+  },
+  promptCopy: { flex: 1, gap: 1 },
+  promptTitle: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.onAccentTint },
+  promptText: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: t.onAccentTint },
+  // The accent with its own text colour (Ink, or white on deep accents).
+  promptButton: { backgroundColor: t.accent, borderRadius: radius.pill, paddingHorizontal: space.md + 2, minHeight: 36, justifyContent: 'center' },
+  promptButtonText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.onAccent },
 }));
