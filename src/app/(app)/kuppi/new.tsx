@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 
 import { ModuleChip } from '@/components/resources/module-chip';
 import { BackHeader } from '@/components/ui/back-header';
@@ -9,6 +9,7 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
+import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import { weekdayDay } from '@/lib/dates';
 import { createKuppi } from '@/lib/kuppi';
 import { useMyModules } from '@/lib/modules';
@@ -88,8 +89,8 @@ export default function NewKuppi() {
   return (
     <Screen style={styles.screen}>
       <BackHeader title="Host a kuppi" />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardFrame style={styles.flex}>
+        <KeyboardScroll contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.stack}>
             {params.request ? (
               <Text style={styles.hint}>
@@ -102,12 +103,25 @@ export default function NewKuppi() {
               {modules.length === 0 ? <Text style={styles.hint}>Set up your modules in Resources first.</Text> : null}
               <View style={styles.chips}>
                 {modules.map((m) => (
-                  <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={m.id === moduleId} onPress={() => setModuleId(m.id)} />
+                  <ModuleChip
+                    key={m.id}
+                    id={m.id}
+                    code={m.code}
+                    name={m.name}
+                    active={m.id === moduleId}
+                    onPress={() => setModuleId(m.id)}
+                  />
                 ))}
               </View>
             </Group>
 
-            <TextField label="Topic" value={title} onChangeText={setTitle} placeholder="e.g. AVL trees and rotations" maxLength={120} />
+            <TextField
+              label="Topic"
+              value={title}
+              onChangeText={setTitle}
+              placeholder="e.g. AVL trees and rotations"
+              maxLength={120}
+            />
             <TextField
               label="What you will cover (optional)"
               value={description}
@@ -142,7 +156,9 @@ export default function NewKuppi() {
                 data={HOURS}
                 keyExtractor={(h) => String(h)}
                 extraData={hour}
-                renderItem={({ item }) => <Chip fixed label={hourLabel(item)} active={item === hour} onPress={() => setHour(item)} />}
+                renderItem={({ item }) => (
+                  <Chip fixed label={hourLabel(item)} active={item === hour} onPress={() => setHour(item)} />
+                )}
                 getItemLayout={hourLayout}
                 initialScrollIndex={Math.max(HOURS.indexOf(19) - 2, 0)}
                 initialNumToRender={6}
@@ -195,7 +211,13 @@ export default function NewKuppi() {
                 hint="Only students who RSVP see it, from 15 minutes before the start. Turn on a waiting room or passcode, and use your university account: free Zoom stops after 40 minutes."
               />
             ) : (
-              <TextField label="Venue" value={venue} onChangeText={setVenue} placeholder="e.g. Lab 3, Faculty of Science" maxLength={160} />
+              <TextField
+                label="Venue"
+                value={venue}
+                onChangeText={setVenue}
+                placeholder="e.g. Lab 3, Faculty of Science"
+                maxLength={160}
+              />
             )}
 
             <Group label="How many can come">
@@ -209,8 +231,8 @@ export default function NewKuppi() {
             <FormMessage message={error} />
             <Button label="Publish kuppi" loading={saving} onPress={create} />
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardScroll>
+      </KeyboardFrame>
     </Screen>
   );
 }

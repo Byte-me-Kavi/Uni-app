@@ -14,7 +14,7 @@ One app that connects university students across every university in Sri Lanka. 
 | Chats | Batch group, national programme group, direct messages with requests | Built (course groups and own groups next) |
 | Resources | Your modules by semester, files and links from your chats sorted into module folders, shared notes and past papers, kuppi sessions | Built: modules, library, kuppi, Explore (shared files), file checks |
 | Events | University and inter-university events, RSVP, calendar | Opens soon |
-| Shop | Batch and society merch, second-hand items from students | Opens soon |
+| Shop | Merch, second-hand items from students, at your university and others | Built: merch with pre-orders, student listings, other universities, notifications |
 
 The account screen opens from the avatar in the top bar. Kuppi lives inside Resources (it is part of studying, not a separate destination).
 
@@ -142,14 +142,19 @@ A place to buy and sell what students actually need.
 
 | Feature | What it does | Phase |
 | --- | --- | --- |
-| Batch and society merch | Batch T-shirts, hoodies and society items listed by the Uni Era team, batch reps and verified societies | Launch |
-| Student listings | Second-hand calculators, lab coats, drafters and books, listed by students | Grow |
+| Merch with pre-orders | Batch reps publish T-shirts and hoodies (photos, sizes, size chart, price, last day to order, for their batch, their university or every university, bank details or pay on collection, where to collect). Students pre-order: how many of each size, phone number, a note (name on the back, where to deliver) and a photo of their payment slip. Every rep of the batch sees the orders with each buyer's name, batch, email and phone, checks the slips (Confirm, or Reject with a reason the buyer sees), marks orders collected, sees totals per size for the supplier and shares the list as a CSV. Replaces the Google Form and slip upload | Built |
+| Student listings | Calculators, laptops, phones, books, lab coats and tools, listed by any student for their university or every university, with condition and an optional phone number. Buyers tap I'm interested (the seller is told and sees who), message the seller or call, and meet in person; nothing is paid through the app | Built |
+| Other universities | The Shop tab has Your uni and Other unis; other universities show only what was opened to every university, with the university's name | Built |
+| Notifications | Reps and merch leads: new orders and fixed slips (one per listing every 10 minutes, with how many wait). Buyers: payment confirmed or needs a fix. Batch: new merch from its reps. Everyone who can see a new listing open to the university or every university: "New in the shop" (at most one every 30 minutes each). Sellers: someone is interested. Android channel "Shop", separate from chats; quiet hours and blocks apply | Built |
+| Merch leads (clubs and societies) | A batch rep or moderator makes a student at their university the merch lead of a club or society. Merch leads publish merch from that club (for the university or every university) and every lead of the same club runs its orders together. The rep who chose them, a moderator or the lead can end it; audited | Built |
+| Uni Era team merch | The same pre-orders for the Uni Era team | Next |
 | In-app payments | Pay through a local gateway such as PayHere, for merch first | Grow |
 
 Safety rules, built in from the first version:
 
-- Sellers are verified students, batch reps, societies or the Uni Era team.
-- Meet on campus and pay when you collect; the app warns against paying in advance.
+- Sellers are verified students, batch reps, societies or the Uni Era team. Merch comes only from the reps of a batch (admins of its group); publishing and every change to merch and to an order's status is in the audit log.
+- Payment slips are private: only the buyer and the reps running that merch can open one. A buyer's phone number and email go only to those reps.
+- Meet on campus and pay when you collect; the app warns against paying in advance (merch slips go to the batch's own reps, as before).
 - One-tap report on every listing; a listing with several reports is hidden until a moderator reviews it.
 - Not allowed: exam papers or answers, assignments for sale, alcohol, tobacco, weapons, medicines, counterfeit goods.
 - Listings expire after 30 days unless renewed.
@@ -167,9 +172,11 @@ Safety rules, built in from the first version:
 | Kuppi | Host (chips for day and time, checked meeting links), list, RSVP with capacity, link from 15 minutes before with Join, kuppi chat, cancel, report |
 | Explore | Publish from the library or upload, file checks before going live, browse and search by module, code and kind, take down, report, upload bans |
 | Exam season | Exam dates per batch with countdowns on Resources and Home, past papers first, offline packs (Wi-Fi only), search inside files |
-| Kuppi requests | Anonymous asks with votes, similar asks merged, answered by hosting; across universities by national subject, answered with online kuppi open to all |
+| Shop | Merch: reps publish with sizes, size chart, closing date and bank details; pre-orders with phone, note and slip; reps confirm or reject slips, mark collected, totals per size, CSV. Student listings with category, condition, optional phone, I'm interested, Message seller, 30-day expiry and renew. Your uni and Other unis (opt-in per listing). Push notifications for orders, slip checks, new merch and interest. Search, filters, Your orders and listings, report (three students hide a listing until a moderator looks) |
+| Kuppi requests | Anonymous asks with votes, similar asks merged; open until someone hosts a kuppi for them (no expiry), then they leave the list and everyone who asked or voted gets a notification that opens the kuppi; the asker can remove a request only while nobody else has voted; across universities by national subject, answered with online kuppi open to all |
 | Shared files v2 | Duplicates by fingerprint, national subject index with opt-in national sharing, past-paper discussions |
 | Library | Files, photos and links from chats recorded once and filed per student into module folders (chat module, sender or rep tag, module codes, own moves), categories guessed, To sort with a suggested module, folder counts on the Resources tab, open in place, Show in chat, move, pin, remove, Save to Resources from chats, saved files kept after leaving a chat |
 | Search | Name search across universities in the top bar, student cards, "who can find you" setting, typo correction, rate limit |
 | Brand | Uni Era mark, lockup, app icons, light and dark themes |
+| Notifications | Chats (direct, groups, mentions, requests); kuppi: answered requests, new kuppi in your modules, cancelled (with the reason), starting in 15 minutes; exams: date set or moved, the evening before; shop: orders, fixed slips, cancellations (to reps), payment confirmed or needs a fix, new merch and new listings (at most one every 30 minutes), interest, hidden after reports, made a merch lead, orders close tomorrow, listing about to expire; shared files: live or not published, comments, replies; account approved, not approved or active again (students waiting can turn this on). Android channels per kind; quiet hours; tapping opens the right screen |
 | Security | Row-level security on every table, database tests (accounts, batches, search, profiles, names, chats, push, read receipts, members and rich messages), audit log |

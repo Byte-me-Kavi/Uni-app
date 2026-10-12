@@ -34,6 +34,18 @@ Last full review: 12 October 2026. It covered what ships inside the app, the hos
 - **Message links:** the server accepts only `http(s)`.
 - **Realtime inboxes:** nobody can listen to another student's `user:<id>` channel.
 
+## Shop (added 12 October 2026)
+
+- **Slips and phone numbers:** a payment slip is readable only by its buyer and the reps who manage that listing (`api.media_access`), and only while the order is live. Buyers' email and phone are returned only by `api.listing_orders`, to those reps.
+- **Who manages merch:** the seller and the batch's current reps (admins of its batch group), or for club merch every merch lead of that club at the university. Only reps and moderators choose merch leads, only at their own university, up to 20 per rep; every change is audited. Moderators do not see orders; they handle reported listings in the admin repo.
+- **Uploads:** shop photos, size charts and slips are JPEGs made on the phone, up to 3 MB, to `shop/<student>/<id>.jpg` in the private bucket, one new file per link. A listing or order accepts only the student's own unused uploads (tested: someone else's path is refused).
+- **Limits:** 80 uploads, 10 new listings, 30 orders and 50 "I'm interested" a day per student; each student gets at most one "New in the shop" push every 30 minutes, so nobody can flood a university with notifications. Three students reporting a listing hides it.
+- **Other universities:** a listing reaches other universities only when its seller chose "All universities"; blocks still apply. Only the seller sees who is interested.
+- **Notifications:** sent only by the database (`shop.notify`, through the push function with its shared secret); `api.shop_push_batch` is service-role only. Text is built on the server from the listing, names and (for a rejection) the rep's reason, up to 180 characters.
+- **PDF slips:** up to 5 MB, signed as `application/pdf`, then checked by the media function with the same rules as chat documents (really a PDF; no JavaScript, launch actions, embedded files, Flash or XFA, also inside object streams). An order only accepts a checked slip; a failing one is deleted.
+- **Notifications** outside chats are written only by the database (`messaging.notify`, triggers and pg_cron), sent by the push function with its shared secret; `api.app_push_batch` is service-role only. Links in them are checked against a list of screens in the app before opening. Students waiting for approval may register a push token (only to hear the decision).
+- **CSV export:** cells starting with `= + - @` are prefixed with `'`, so a buyer's note cannot run as a formula in the reps' spreadsheet.
+
 ## Still to do
 
 - **Before regional launch: the ClamAV scanner** (see `clamav-before-regional-launch`). Today, files are checked by their structure (magic bytes, macros, PDF scripts), not by a virus scanner.
@@ -42,7 +54,8 @@ Last full review: 12 October 2026. It covered what ships inside the app, the hos
 - **Link preview DNS rebinding:** a name can change its address between our check and the fetch. The window is small, and the preview only returns a page's title and description to the student who sent the link.
 - **The phone's chat cache** (SQLite) is not encrypted. It is readable only with the unlocked phone or root access.
 - **Dependency advisories** (`pnpm audit`): 4, all in build tools or the router's query-string parsing. None can be reached from outside. Update with the next Expo upgrade.
-- **Leftover uploads:** photo uploads that were never committed stay in the public bucket (always `image/jpeg`). Add an R2 lifecycle rule to clear `avatars/` objects that are not in use.
+- **Leftover uploads:** photo uploads that were never committed stay in the public bucket (always `image/jpeg`). Add an R2 lifecycle rule to clear `avatars/` objects that are not in use, and a cleanup of `shop/` uploads with no listing or order (`shop.uploads`).
+- **Shop photos are not checked by their bytes:** they are signed as `image/jpeg` and served only through signed links, so a non-image file just fails to show. Add the same JPEG check the avatar function does if that changes.
 
 ## Rules for new code
 

@@ -1,12 +1,14 @@
 -- Exam dates (reps set them; a batch with no reps sets its own) and kuppi requests (anonymous asks,
--- votes, similar asks merged, answered by hosting a kuppi, reported, other universities kept out).
+-- votes, similar asks merged, removed by the asker only while nobody else wants them, answered by
+-- hosting a kuppi (they leave the list and the askers are notified), reported, other universities
+-- kept out).
 -- Run with: supabase test db
 
 begin;
 set local role postgres;
 create extension if not exists pgtap with schema extensions;
 set local search_path to extensions, public;
-select plan(23);
+select plan(28);
 
 insert into identity.institutions (id, name, short_name, kind, status) overriding system value values
   (9881, 'Test Eta University', 'TEU', 'state', 'live'),
@@ -23,6 +25,9 @@ begin
   perform set_config('role', 'authenticated', true);
   perform set_config('request.jwt.claims', jsonb_build_object('sub', p_id, 'role', 'authenticated')::text, true);
 end $$;
+create function pg_temp.app_pushes(p_user uuid, p_kind text) returns integer language sql security definer as $$
+  select count(*)::int from messaging.app_pushes where user_id = p_user and kind = p_kind;
+$$;
 create function pg_temp.mod(p_code text) returns bigint language sql as $$
   select id from academics.modules where institution_id = 9881 and code_key = p_code;
 $$;
@@ -92,16 +97,30 @@ select is((api.request_kuppi(pg_temp.mod('CS2012'), 'AVL tree rotations') ->> 'm
 select is((api.kuppi_requests('my_modules') -> 0 ->> 'votes'), '2', 'votes add up');
 select is((api.kuppi_requests('my_modules') -> 0 ->> 'mine'), 'false', 'other students do not see who asked');
 select ok(not (api.kuppi_requests('my_modules') -> 0 ? 'requester_id'), 'the asker is never in the answer');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000ad102');
+select throws_ok($$ select api.close_kuppi_request((select req from ids)) $$, '22023', null,
+  'once others want it, the asker cannot remove it');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000ad101');
 select is((api.vote_kuppi_request((select req from ids), false) ->> 'votes'), '1', 'a vote can be taken back');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000ad103');
 select is((api.kuppi_requests('all') -> 0 ->> 'topic'), 'AVL trees and rotations', 'everyone at the university can see requests');
-select throws_ok($$ select api.close_kuppi_request((select req from ids)) $$, '42501', null, 'only the asker closes a request');
+select throws_ok($$ select api.close_kuppi_request((select req from ids)) $$, '42501', null, 'only the asker removes a request');
 select lives_ok($$ select api.report_kuppi_request((select req from ids), 'spam') $$, 'requests can be reported');
+select set_config('role', 'postgres', true);
+insert into messaging.push_tokens (token, user_id, platform) values
+  ('ExponentPushToken[req-asker]', '00000000-0000-0000-0000-0000000ad102', 'android'),
+  ('ExponentPushToken[req-unvoted]', '00000000-0000-0000-0000-0000000ad101', 'android');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000ad103');
 select lives_ok($$ select api.create_kuppi(pg_temp.mod('CS2012'), 'AVL trees', now() + interval '2 days', 60, 'online', 30,
   'https://zoom.us/j/1', null, null, (select req from ids)) $$, 'hosting a kuppi can answer a request');
+select is(pg_temp.app_pushes('00000000-0000-0000-0000-0000000ad102', 'kuppi_answered'), 1, 'the student who asked is told');
+select is(pg_temp.app_pushes('00000000-0000-0000-0000-0000000ad101', 'kuppi_answered'), 0, 'not someone who took their vote back');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000ad102');
-select is((api.kuppi_requests('my_modules') -> 0 -> 'session' ->> 'title'), 'AVL trees', 'askers see the kuppi that answers them');
+select is(jsonb_array_length(api.kuppi_requests('my_modules')), 0, 'an answered request leaves the list');
 select throws_ok($$ select api.vote_kuppi_request((select req from ids), true) $$, 'P0002', null, 'answered requests are closed');
+update ids set req = (api.request_kuppi(pg_temp.mod('MA1013'), 'Integration by parts') ->> 'id')::uuid;
+select lives_ok($$ select api.close_kuppi_request((select req from ids)) $$, 'the asker removes a request nobody else wants');
+select is(jsonb_array_length(api.kuppi_requests('my_modules')), 0, 'and it is gone');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000ad201');
 select is(jsonb_array_length(api.kuppi_requests('all')), 0, 'another university sees none');
 

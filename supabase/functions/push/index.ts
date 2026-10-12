@@ -1,7 +1,11 @@
-// Sends push notifications for a new message.
+// Sends push notifications for a new message, and for the shop.
 //
-// Called by the database (messaging.queue_push, through pg_net) after a message is saved, never
-// by the app. The call carries a shared secret instead of a user's token:
+// Called by the database through pg_net, never by the app: messaging.queue_push after a message is
+// saved ({ message_id, created_at }), shop.notify for orders, confirmed or rejected payments, new
+// listings and interest in an item ({ shop_batch }; api.shop_push_batch returns those messages), and
+// messaging.notify for everything else, such as a kuppi request being answered ({ app_batch };
+// api.app_push_batch).
+// The call carries a shared secret instead of a user's token:
 //   1. api.push_batch picks who to notify (DMs always; groups at most once until read or 15
 //      minutes; never muted chats or the sender) and returns ready-made Expo push messages;
 //   2. they go to Expo's push service in batches of 100, which passes them to FCM (Android) and
@@ -57,7 +61,9 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json().catch(() => null);
-  if (typeof body?.message_id !== 'string' || typeof body?.created_at !== 'string') {
+  const shop = typeof body?.shop_batch === 'string';
+  const app = typeof body?.app_batch === 'string';
+  if (!shop && !app && (typeof body?.message_id !== 'string' || typeof body?.created_at !== 'string')) {
     return json({ error: 'Missing message.' }, 400);
   }
 
@@ -66,7 +72,11 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data, error } = await db.rpc('push_batch', { p_message_id: body.message_id, p_created_at: body.created_at });
+  const { data, error } = shop
+    ? await db.rpc('shop_push_batch', { p_batch_id: body.shop_batch })
+    : app
+      ? await db.rpc('app_push_batch', { p_batch_id: body.app_batch })
+      : await db.rpc('push_batch', { p_message_id: body.message_id, p_created_at: body.created_at });
   if (error) {
     console.error('[push] push_batch failed', error);
     return json({ error: 'Could not prepare notifications.' }, 500);

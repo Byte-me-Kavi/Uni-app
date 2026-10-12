@@ -34,6 +34,11 @@ export type Database = {
         Returns: Json
       }
       app_config: { Args: never; Returns: Json }
+      app_push_batch: { Args: { p_batch_id: string }; Returns: Json }
+      appoint_merch_lead: {
+        Args: { p_club: string; p_user_id: string }
+        Returns: Json
+      }
       ban_uploader: {
         Args: { p_days?: number; p_reason: string; p_user_id: string }
         Returns: undefined
@@ -72,6 +77,10 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_shop_upload: {
+        Args: { p_kind: string; p_mime?: string; p_size: number }
+        Returns: Json
+      }
       begin_sticker_upload: {
         Args: { p_animated: boolean; p_hash: string; p_size: number }
         Returns: Json
@@ -91,6 +100,7 @@ export type Database = {
         Args: { p_reason?: string; p_session_id: string }
         Returns: Json
       }
+      cancel_order: { Args: { p_order_id: string }; Returns: Json }
       cancel_rsvp: { Args: { p_session_id: string }; Returns: Json }
       chat_file_checked: {
         Args: {
@@ -305,6 +315,9 @@ export type Database = {
         Args: { p_before?: string; p_limit?: number }
         Returns: Json
       }
+      link_preview_allowed: { Args: never; Returns: boolean }
+      listing_interest: { Args: { p_listing_id: string }; Returns: Json }
+      listing_orders: { Args: { p_listing_id: string }; Returns: Json }
       mark_delivered: {
         Args: { p_conversation_id: string; p_up_to: string }
         Returns: undefined
@@ -314,6 +327,7 @@ export type Database = {
         Returns: string
       }
       media_access: { Args: { p_paths: string[] }; Returns: string[] }
+      merch_leads: { Args: never; Returns: Json }
       merge_modules: {
         Args: { p_from: number; p_into: number }
         Returns: undefined
@@ -356,7 +370,9 @@ export type Database = {
       }
       my_exams: { Args: never; Returns: Json }
       my_home: { Args: never; Returns: Json }
+      my_listings: { Args: never; Returns: Json }
       my_modules: { Args: never; Returns: Json }
+      my_orders: { Args: never; Returns: Json }
       my_stickers: {
         Args: never
         Returns: {
@@ -400,6 +416,16 @@ export type Database = {
       person: { Args: { p_user_id: string }; Returns: Json }
       pin_message: {
         Args: { p_conversation_id: string; p_message_id: string }
+        Returns: Json
+      }
+      place_order: {
+        Args: {
+          p_lines: Json
+          p_listing_id: string
+          p_note?: string
+          p_phone: string
+          p_slip_path?: string
+        }
         Returns: Json
       }
       poll_results: {
@@ -462,6 +488,7 @@ export type Database = {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: undefined
       }
+      remove_merch_lead: { Args: { p_user_id: string }; Returns: Json }
       remove_resource: { Args: { p_resource_id: string }; Returns: undefined }
       rename_module: {
         Args: { p_module_id: number; p_name: string }
@@ -496,6 +523,10 @@ export type Database = {
         Args: { p_category: string; p_details?: string; p_request_id: string }
         Returns: string
       }
+      report_listing: {
+        Args: { p_category: string; p_details?: string; p_listing_id: string }
+        Returns: string
+      }
       report_resource: {
         Args: { p_category: string; p_details?: string; p_resource_id: string }
         Returns: string
@@ -521,6 +552,10 @@ export type Database = {
         Returns: string
       }
       rsvp: { Args: { p_session_id: string }; Returns: Json }
+      save_listing: {
+        Args: { p_listing: Json; p_listing_id?: string }
+        Returns: Json
+      }
       save_semester: {
         Args: { p_items: Json; p_semester: number; p_year: number }
         Returns: Json
@@ -591,6 +626,10 @@ export type Database = {
         Returns: Json
       }
       set_findable_by: { Args: { p_findable_by: string }; Returns: string }
+      set_listing_status: {
+        Args: { p_listing_id: string; p_status: string }
+        Returns: Json
+      }
       set_member_role: {
         Args: { p_conversation_id: string; p_role: string; p_user_id: string }
         Returns: undefined
@@ -614,12 +653,34 @@ export type Database = {
       }
       set_my_avatar: { Args: { p_path: string }; Returns: string }
       set_my_name: { Args: { p_full_name: string }; Returns: string }
+      set_order_status: {
+        Args: { p_note?: string; p_order_id: string; p_status: string }
+        Returns: Json
+      }
       set_presence: { Args: { p_active: boolean }; Returns: undefined }
       set_quiet_hours: {
         Args: { p_enabled: boolean; p_end?: number; p_start?: number }
         Returns: Json
       }
       set_show_last_seen: { Args: { p_on: boolean }; Returns: boolean }
+      shop_feed: {
+        Args: {
+          p_before?: string
+          p_category?: string
+          p_filter?: string
+          p_limit?: number
+          p_query?: string
+          p_scope?: string
+        }
+        Returns: Json
+      }
+      shop_listing: { Args: { p_listing_id: string }; Returns: Json }
+      shop_push_batch: { Args: { p_batch_id: string }; Returns: Json }
+      shop_upload_checked: {
+        Args: { p_ok: boolean; p_path: string }
+        Returns: undefined
+      }
+      shop_upload_to_check: { Args: { p_path: string }; Returns: Json }
       star_message: {
         Args: { p_conversation_id: string; p_message_id: string; p_on: boolean }
         Returns: undefined

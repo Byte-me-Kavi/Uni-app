@@ -14,8 +14,8 @@ export type ReportTarget =
   | { kind: 'message'; id: string; conversationId: string; who: string | null; userId: string | null }
   | { kind: 'profile'; id: string; who: string | null }
   | { kind: 'conversation'; id: string; who: string | null }
-  /** A kuppi (its host) or a shared file (its uploader), from Resources. */
-  | { kind: 'kuppi' | 'resource'; id: string; who: string | null; userId: string | null }
+  /** A kuppi (its host) or a shared file (its uploader), from Resources; a shop listing (its seller). */
+  | { kind: 'kuppi' | 'resource' | 'listing'; id: string; who: string | null; userId: string | null }
   /** A kuppi request (anonymous) or a comment on a shared file. */
   | { kind: 'kuppi_request' | 'comment'; id: string; who: string | null; userId: string | null };
 
@@ -62,7 +62,11 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
   const blockable =
     target?.kind === 'profile'
       ? target.id
-      : target?.kind === 'message' || target?.kind === 'kuppi' || target?.kind === 'resource' || target?.kind === 'comment'
+      : target?.kind === 'message' ||
+          target?.kind === 'kuppi' ||
+          target?.kind === 'resource' ||
+          target?.kind === 'comment' ||
+          target?.kind === 'listing'
         ? target.userId
         : null;
 
@@ -80,6 +84,8 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
             ? await supabase.rpc('report_kuppi_request', { p_request_id: target.id, p_category: category, ...extra })
             : target.kind === 'comment'
               ? await supabase.rpc('report_comment', { p_comment_id: target.id, p_category: category, ...extra })
+              : target.kind === 'listing'
+                ? await supabase.rpc('report_listing', { p_listing_id: target.id, p_category: category, ...extra })
           : await supabase.rpc('report', {
               p_kind: target.kind,
               p_target_id: target.id,
@@ -110,6 +116,8 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
               ? 'Report this request'
               : target?.kind === 'comment'
                 ? 'Report this comment'
+                : target?.kind === 'listing'
+                  ? 'Report this listing'
             : 'Report this group';
 
   return (

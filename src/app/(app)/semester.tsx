@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { CheckIcon } from 'phosphor-react-native/src/icons/Check';
 import { LockSimpleIcon } from 'phosphor-react-native/src/icons/LockSimple';
 
@@ -10,6 +10,7 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
+import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import {
   findModules,
   loadSemesterPlan,
@@ -58,7 +59,8 @@ export default function Semester() {
       }
       setPlan(p);
       const start = new Map<string, Item>();
-      for (const m of p.modules) start.set(String(m.id), { key: String(m.id), id: m.id, code: m.code, name: m.name, kind: m.kind });
+      for (const m of p.modules)
+        start.set(String(m.id), { key: String(m.id), id: m.id, code: m.code, name: m.name, kind: m.kind });
       for (const m of p.proposals)
         if (m.mine) start.set(String(m.id), { key: String(m.id), id: m.id, code: m.code, name: m.name, kind: m.kind });
       setChosen(start);
@@ -144,7 +146,8 @@ export default function Semester() {
     setChosen((current) => {
       const next = new Map(current);
       for (const m of plan!.suggestions)
-        if (!next.has(String(m.id))) next.set(String(m.id), { key: String(m.id), id: m.id, code: m.code, name: m.name, kind: m.kind });
+        if (!next.has(String(m.id)))
+          next.set(String(m.id), { key: String(m.id), id: m.id, code: m.code, name: m.name, kind: m.kind });
       return next;
     });
   }
@@ -170,8 +173,8 @@ export default function Semester() {
   return (
     <Screen style={styles.screen}>
       <BackHeader title={termLabel({ year, semester })} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardFrame style={styles.flex}>
+        <KeyboardScroll contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.stack}>
             <Text style={styles.lead}>
               {edit
@@ -186,7 +189,13 @@ export default function Semester() {
                 {plan.modules.map((m) => {
                   const item: Item = { key: String(m.id), id: m.id, code: m.code, name: m.name, kind: m.kind };
                   return edit ? (
-                    <Row key={m.id} item={chosen.get(item.key) ?? item} on={chosen.has(item.key)} onToggle={() => toggle(item)} onKind={setKind} />
+                    <Row
+                      key={m.id}
+                      item={chosen.get(item.key) ?? item}
+                      on={chosen.has(item.key)}
+                      onToggle={() => toggle(item)}
+                      onKind={setKind}
+                    />
                   ) : (
                     <Row key={m.id} item={item} on locked />
                   );
@@ -206,7 +215,13 @@ export default function Semester() {
                     note: `${m.votes} of ${plan.votes_needed}`,
                   };
                   return (
-                    <Row key={m.id} item={chosen.get(item.key) ?? item} on={chosen.has(item.key)} onToggle={() => toggle(item)} onKind={setKind} />
+                    <Row
+                      key={m.id}
+                      item={chosen.get(item.key) ?? item}
+                      on={chosen.has(item.key)}
+                      onToggle={() => toggle(item)}
+                      onKind={setKind}
+                    />
                   );
                 })}
               </Group>
@@ -219,7 +234,13 @@ export default function Semester() {
                 {plan.suggestions.map((m) => {
                   const item: Item = { key: String(m.id), id: m.id, code: m.code, name: m.name, kind: m.kind };
                   return (
-                    <Row key={m.id} item={chosen.get(item.key) ?? item} on={chosen.has(item.key)} onToggle={() => toggle(item)} onKind={setKind} />
+                    <Row
+                      key={m.id}
+                      item={chosen.get(item.key) ?? item}
+                      on={chosen.has(item.key)}
+                      onToggle={() => toggle(item)}
+                      onKind={setKind}
+                    />
                   );
                 })}
               </Group>
@@ -228,7 +249,13 @@ export default function Semester() {
             {extra.length > 0 ? (
               <Group title="Added now">
                 {extra.map((item) => (
-                  <Row key={item.key} item={chosen.get(item.key) ?? item} on={chosen.has(item.key)} onToggle={() => toggle(item)} onKind={setKind} />
+                  <Row
+                    key={item.key}
+                    item={chosen.get(item.key) ?? item}
+                    on={chosen.has(item.key)}
+                    onToggle={() => toggle(item)}
+                    onKind={setKind}
+                  />
                 ))}
               </Group>
             ) : null}
@@ -260,7 +287,9 @@ export default function Semester() {
                       <Text style={styles.matchName} numberOfLines={2}>
                         {m.name}
                       </Text>
-                      {m.batches > 0 ? <Text style={styles.matchMeta}>{m.batches === 1 ? '1 batch' : `${m.batches} batches`}</Text> : null}
+                      {m.batches > 0 ? (
+                        <Text style={styles.matchMeta}>{m.batches === 1 ? '1 batch' : `${m.batches} batches`}</Text>
+                      ) : null}
                     </PressableScale>
                   ))}
                 </View>
@@ -280,12 +309,12 @@ export default function Semester() {
               ) : null}
             </View>
           </View>
-        </ScrollView>
+        </KeyboardScroll>
         <View style={styles.footer}>
           <FormMessage message={error} />
           <Button label={edit ? 'Save list' : 'Save'} loading={saving} onPress={save} />
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardFrame>
     </Screen>
   );
 }

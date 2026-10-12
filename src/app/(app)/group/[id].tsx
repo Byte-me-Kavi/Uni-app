@@ -400,7 +400,6 @@ export default function GroupDetails() {
       />
       <ActionSheet
         visible={!!memberMenu}
-        title={memberMenu?.full_name}
         message={memberMenu && !own && settings?.can_appoint ? `Reps can switch on announcements and slow mode, and pin messages. Up to 5 per group.` : undefined}
         actions={memberMenu ? memberActions(memberMenu) : []}
         onClose={() => setMemberMenu(null)}

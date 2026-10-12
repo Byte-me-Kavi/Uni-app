@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text } from 'react-native';
+import { Text } from 'react-native';
 
 import { BackHeader } from '@/components/ui/back-header';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
+import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import { supabase } from '@/lib/supabase';
 import { useAccount } from '@/lib/use-account';
 import { createThemedStyles, fonts, space } from '@/theme/tokens';
@@ -45,8 +46,8 @@ export default function About() {
   return (
     <Screen style={styles.screen}>
       <BackHeader title="About you" />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardFrame style={styles.flex}>
+        <KeyboardScroll contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.lead}>
             A line or two so students know who you are: your course, interests, what you can help with.
           </Text>
@@ -65,8 +66,8 @@ export default function About() {
           />
           <FormMessage message={error} />
           <Button label="Save" onPress={save} loading={saving} disabled={bio === null || left < 0} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardScroll>
+      </KeyboardFrame>
     </Screen>
   );
 }

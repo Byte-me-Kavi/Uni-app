@@ -270,7 +270,6 @@ export default function Chats() {
 
       <ActionSheet
         visible={!!menuFor}
-        title={menuFor?.title ?? undefined}
         actions={menuFor ? actionsFor(menuFor) : []}
         onClose={() => setMenuFor(null)}
       />

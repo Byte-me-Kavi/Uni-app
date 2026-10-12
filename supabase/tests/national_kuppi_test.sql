@@ -121,8 +121,8 @@ update ids set k2 = (api.create_kuppi(pg_temp.mod(9893), 'Hashing', now() + inte
                      'https://meet.google.com/abc-defg-hij') ->> 'id')::uuid;
 
 select pg_temp.act_as('00000000-0000-0000-0000-0000000af201');
-select is((select e -> 'session' ->> 'title' from jsonb_array_elements(api.kuppi_requests('my_modules')) e where e ->> 'id' = (select avl::text from ids)),
-          'AVL trees', 'the student who asked sees the kuppi that answers them');
+select is((select count(*)::int from jsonb_array_elements(api.kuppi_requests('my_modules')) e where e ->> 'id' = (select avl::text from ids)),
+          0, 'an answered request leaves the list (the student who asked is notified)');
 select is((select count(*)::int from jsonb_array_elements(api.kuppi_list('my_modules')) e where e ->> 'id' = (select k1::text from ids)), 1,
           'it shows with their modules');
 select is((select e ->> 'institution' from jsonb_array_elements(api.kuppi_list('module', pg_temp.mod(9894))) e where e ->> 'id' = (select k1::text from ids)), 'TRU',
@@ -143,12 +143,12 @@ select is((select (e ->> 'count')::int from jsonb_array_elements(api.library_ove
 select is((api.chat_folders((select chat from ids), array[(select slides from ids)]) -> 0 ->> 'code'), 'CO222',
           'and tagged with their own module in the chat');
 
--- Answered at the asker's own university in person: others see it was answered, not the kuppi.
+-- Answered at the asker's own university in person: it leaves the list for everyone.
 select api.create_kuppi(pg_temp.mod(9894), 'Graph colouring', now() + interval '2 days', 60, 'in_person', 30,
                         null, 'Hall B', null, (select graphs from ids));
 select pg_temp.act_as('00000000-0000-0000-0000-0000000af101');
-select is((select (e ->> 'answered') || coalesce(e ->> 'session', '-') from jsonb_array_elements(api.kuppi_requests('my_modules')) e
-           where e ->> 'id' = (select graphs::text from ids)), 'true-', 'others see it was answered, not a kuppi they cannot join');
+select is((select count(*)::int from jsonb_array_elements(api.kuppi_requests('my_modules')) e
+           where e ->> 'id' = (select graphs::text from ids)), 0, 'others no longer see it either');
 
 select pg_temp.act_as('00000000-0000-0000-0000-0000000af301');
 select is((select count(*)::int from jsonb_array_elements(api.kuppi_list('my_modules')) e where e ->> 'id' = (select k1::text from ids)), 0,

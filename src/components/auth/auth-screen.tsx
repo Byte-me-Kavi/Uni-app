@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { EntranceContext, Reveal } from '@/components/motion/reveal';
+import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import { createThemedStyles, fonts, space } from '@/theme/tokens';
 
 type Props = {
@@ -28,8 +29,8 @@ export function AuthScreen({ title, subtitle, children, footer }: Props) {
 
   return (
     <EntranceContext value={entrance}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
+      <KeyboardFrame style={styles.flex}>
+        <KeyboardScroll
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
@@ -57,8 +58,8 @@ export function AuthScreen({ title, subtitle, children, footer }: Props) {
               {footer}
             </Reveal>
           ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardScroll>
+      </KeyboardFrame>
     </EntranceContext>
   );
 }

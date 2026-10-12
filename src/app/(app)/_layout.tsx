@@ -48,6 +48,12 @@ export default function AppLayout() {
             <Stack.Screen name="kuppi/new" />
             <Stack.Screen name="exams" />
             <Stack.Screen name="resource/[id]" />
+            <Stack.Screen name="shop/[id]" />
+            <Stack.Screen name="shop/new" />
+            <Stack.Screen name="shop/mine" />
+            <Stack.Screen name="shop/leads" />
+            <Stack.Screen name="shop/order/[id]" />
+            <Stack.Screen name="shop/orders/[id]" />
           </Stack>
         </PushProvider>
       </ChatProvider>

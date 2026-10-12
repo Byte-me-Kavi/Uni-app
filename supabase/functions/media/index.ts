@@ -4,8 +4,16 @@
 //                   chat bucket. The database (api.begin_chat_upload, with the student's own
 //                   token) checks they may post in that chat and reserves chat/<chat>/<id>.<ext>;
 //                   the URL is signed for exactly that path, type and size.
+//   shop_sign       a 10-minute upload URL for one shop photo, size chart or payment slip (JPEG,
+//                   up to 3 MB; a slip may also be a PDF, up to 5 MB), to the private bucket.
+//                   api.begin_shop_upload reserves shop/<student>/<id>.jpg or .pdf; a listing or
+//                   order only accepts the student's own.
+//   shop_check      after a PDF slip is uploaded: the same checks as chat documents (really a PDF;
+//                   no JavaScript, launch actions, embedded files, Flash or XFA). A clean one can
+//                   be used in an order; anything else is deleted and the student told why.
 //   read            short-lived download links (6 hours) for private files, only those the
-//                   student may see (api.media_access: files in, or forwarded to, their chats).
+//                   student may see (api.media_access: files in, or forwarded to, their chats;
+//                   shop photos of listings they can see; slips of their orders, or for the reps).
 //   sticker_sign    stickers are public and stored once per unique file (stickers/<sha256>.webp).
 //                   If the sticker already exists it is just added to the student's library.
 //   sticker_commit  checks the uploaded sticker really is a WebP whose SHA-256 is its name, then
@@ -17,6 +25,8 @@
 
 import { createClient, type PostgrestError } from 'npm:@supabase/supabase-js@2.117.3';
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
+
+import { inspect } from '../files/inspect.ts';
 
 const CACHE_CONTROL = 'public, max-age=31536000, immutable'; // paths are never reused
 // Every upload link is for one new file only (If-None-Match: *, covered by the signature): once
@@ -96,6 +106,50 @@ Deno.serve(async (req) => {
       // Content-Length is set by the phone from the file itself.
       headers: { 'Content-Type': mime, 'Cache-Control': CACHE_CONTROL, ...ONCE },
     });
+  }
+
+  if (action === 'shop_sign') {
+    const size = Number(body.size);
+    if (!Number.isInteger(size) || size <= 0) return json({ error: 'Missing file size.' }, 400);
+    const { data, error } = await db.rpc('begin_shop_upload', {
+      p_kind: String(body.kind ?? ''),
+      p_size: size,
+      p_mime: body.mime === 'application/pdf' ? 'application/pdf' : 'image/jpeg',
+    });
+    if (error) return fromDatabase(error);
+    const { path, mime } = data as { path: string; mime: string };
+    const headers = { 'Content-Type': mime, 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL, ...ONCE };
+    return json({
+      path,
+      mime,
+      url: await signPut(chatR2, chatUrl(path), headers, 600),
+      headers: { 'Content-Type': mime, 'Cache-Control': CACHE_CONTROL, ...ONCE },
+    });
+  }
+
+  if (action === 'shop_check') {
+    // Only the student's own PDF, still waiting for its check.
+    const { data, error } = await db.rpc('shop_upload_to_check', { p_path: String(body.path ?? '') });
+    if (error) return fromDatabase(error);
+    const upload = data as { path: string; size: number; mime: string } | null;
+    if (!upload) return json({ error: 'Unknown upload.' }, 400);
+    const object = await chatR2.fetch(chatUrl(upload.path));
+    const bytes = object.ok ? new Uint8Array(await object.arrayBuffer()) : null;
+    const verdict =
+      bytes && bytes.length <= 5_000_000
+        ? await inspect(bytes, 'application/pdf')
+        : { ok: false as const, reason: 'The PDF did not finish uploading. Try again.' };
+    const service = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
+      db: { schema: 'api' },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { error: saveError } = await service.rpc('shop_upload_checked', { p_path: upload.path, p_ok: verdict.ok });
+    if (saveError) return fromDatabase(saveError);
+    if (!verdict.ok) {
+      await chatR2.fetch(chatUrl(upload.path), { method: 'DELETE' });
+      return json({ error: verdict.reason }, 400);
+    }
+    return json({ ok: true });
   }
 
   if (action === 'read') {

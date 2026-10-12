@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { CaretLeftIcon } from 'phosphor-react-native/src/icons/CaretLeft';
 import { UsersThreeIcon } from 'phosphor-react-native/src/icons/UsersThree';
 
@@ -9,6 +9,7 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
+import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import { supabase } from '@/lib/supabase';
 import { useHomeData } from '@/providers/home-provider';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
@@ -131,8 +132,8 @@ export default function Batch() {
         <View style={styles.back} />
       </View>
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardFrame style={styles.flex}>
+        <KeyboardScroll contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {mode === 'confirm' && suggestion?.programme ? (
             <View style={styles.stack}>
               <Text style={styles.title}>Is this your batch?</Text>
@@ -160,8 +161,7 @@ export default function Batch() {
             <View style={styles.stack}>
               <Text style={styles.title}>Find your batch</Text>
               <Text style={styles.lead}>
-                Your batch is your degree programme and intake year at your university. You will join its group
-                chat.
+                Your batch is your degree programme and intake year at your university. You will join its group chat.
               </Text>
 
               <TextField
@@ -248,8 +248,8 @@ export default function Batch() {
               <Button label="Done" onPress={() => router.back()} />
             </View>
           ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardScroll>
+      </KeyboardFrame>
     </Screen>
   );
 }
@@ -314,4 +314,3 @@ const useStyles = createThemedStyles((t) => ({
   yearTextActive: { color: t.onAccent },
   hint: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
 }));
- 

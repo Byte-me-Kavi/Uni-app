@@ -16,12 +16,21 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
+import { KeyboardScroll } from '@/components/ui/keyboard';
 import { openChat } from '@/lib/chat/open-chat';
 import { dayAndTime } from '@/lib/dates';
 import { daysText, EXAM_SEASON_DAYS, examLabel, nextExamFor, useMyExams } from '@/lib/exams';
 import { categoryLabel, useModuleLibrary, type Category } from '@/lib/library';
 import { useModuleColour } from '@/lib/module-colours';
-import { findCard, renameModule, setModuleChoice, termLabel, useMyModules, type BatchModules, type ModuleCard } from '@/lib/modules';
+import {
+  findCard,
+  renameModule,
+  setModuleChoice,
+  termLabel,
+  useMyModules,
+  type BatchModules,
+  type ModuleCard,
+} from '@/lib/modules';
 import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Place = 'current' | 'elective' | 'not_taking' | 'past';
@@ -112,7 +121,7 @@ export default function Module() {
   return (
     <Screen style={styles.screen}>
       <BackHeader title={card.name} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardScroll contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.stack}>
           <View style={[styles.head, { backgroundColor: colour.bg }]}>
             <View style={styles.headTop}>
@@ -239,7 +248,8 @@ export default function Module() {
           {place === 'current' || place === 'elective' ? (
             <PressableScale
               onPress={() =>
-                term && router.push({ pathname: '/semester', params: { year: String(term.year), semester: String(term.semester) } })
+                term &&
+                router.push({ pathname: '/semester', params: { year: String(term.year), semester: String(term.semester) } })
               }
               accessibilityRole="button"
               hitSlop={8}>
@@ -247,13 +257,21 @@ export default function Module() {
             </PressableScale>
           ) : null}
         </View>
-      </ScrollView>
+      </KeyboardScroll>
       <ColourSheet visible={colourOpen} moduleId={card.id} name={card.name} onClose={() => setColourOpen(false)} />
     </Screen>
   );
 }
 
-function ModuleLibrary({ moduleId, code, initialCategory = null }: { moduleId: number; code: string; initialCategory?: Category | null }) {
+function ModuleLibrary({
+  moduleId,
+  code,
+  initialCategory = null,
+}: {
+  moduleId: number;
+  code: string;
+  initialCategory?: Category | null;
+}) {
   const [category, setCategory] = useState<Category | null>(initialCategory);
   // A fresh list per folder, so switching never shows the last folder's files.
   return <Folder key={category ?? 'all'} moduleId={moduleId} code={code} category={category} onCategory={setCategory} />;
@@ -317,11 +335,12 @@ function Folder({ moduleId, code, category, onCategory }: FolderProps) {
 
       {data && data.items.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>{category ? `No ${categoryLabel(category).toLowerCase()} yet` : 'Nothing here yet'}</Text>
+          <Text style={styles.emptyTitle}>
+            {category ? `No ${categoryLabel(category).toLowerCase()} yet` : 'Nothing here yet'}
+          </Text>
           <Text style={styles.muted}>
-            Documents and study links shared in your course chat, or in your batch group and direct messages when they
-            mention {code}, collect here by themselves. To file anything else, long-press it in a chat and choose Save to
-            Resources.
+            Documents and study links shared in your course chat, or in your batch group and direct messages when they mention{' '}
+            {code}, collect here by themselves. To file anything else, long-press it in a chat and choose Save to Resources.
           </Text>
         </View>
       ) : null}
@@ -397,7 +416,13 @@ const useStyles = createThemedStyles((t) => ({
   chipTextActive: { color: t.onAccent },
   spinner: { paddingVertical: space.xl },
   gap: { gap: space.md },
-  card: { backgroundColor: t.surface, borderRadius: radius.lg, paddingLeft: space.md, paddingRight: space.xs, paddingVertical: space.xs },
+  card: {
+    backgroundColor: t.surface,
+    borderRadius: radius.lg,
+    paddingLeft: space.md,
+    paddingRight: space.xs,
+    paddingVertical: space.xs,
+  },
   cardTitle: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted, paddingTop: space.sm },
   loadMore: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   empty: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.xl, gap: space.sm },

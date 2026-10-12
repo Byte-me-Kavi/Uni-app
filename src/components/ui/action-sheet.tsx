@@ -53,19 +53,25 @@ export function ActionSheet({ visible, title, message, actions, onClose }: Props
         entering={animate ? SlideInDown.duration(260).easing(Easing.bezier(0.32, 0.72, 0, 1)) : undefined}
         style={[styles.sheet, { paddingBottom: insets.bottom + space.lg }]}
         accessibilityViewIsModal>
-        {title || message ? (
-          <View style={styles.header}>
-            {title ? <Text style={styles.title}>{title}</Text> : null}
-            {message ? <Text style={styles.message}>{message}</Text> : null}
-          </View>
-        ) : null}
         <View style={styles.group}>
+          {/* A question or caption, not a choice: small muted text inside the sheet, above the
+              choices, so it never looks like something to tap. */}
+          {title || message ? (
+            <View style={styles.header} accessibilityRole="header">
+              {title ? <Text style={styles.title}>{title}</Text> : null}
+              {message ? <Text style={styles.message}>{message}</Text> : null}
+            </View>
+          ) : null}
           {actions.map((action, i) => (
             <Pressable
               key={action.label}
               onPress={() => choose(action)}
               accessibilityRole="button"
-              style={({ pressed }) => [styles.action, i > 0 && styles.divider, pressed && styles.pressed]}>
+              style={({ pressed }) => [
+                styles.action,
+                (i > 0 || !!title || !!message) && styles.divider,
+                pressed && styles.pressed,
+              ]}>
               <Text style={[styles.actionText, action.destructive && styles.destructive]}>{action.label}</Text>
             </Pressable>
           ))}
@@ -97,17 +103,14 @@ const useStyles = createThemedStyles((t) => ({
     alignSelf: 'center',
   },
   header: {
-    backgroundColor: t.elevated,
-    borderWidth: 1,
-    borderColor: t.border,
-    borderRadius: radius.lg,
     paddingHorizontal: space.xl,
-    paddingVertical: space.lg,
-    gap: space.xs,
+    paddingTop: space.lg,
+    paddingBottom: space.md,
+    gap: 2,
     alignItems: 'center',
   },
-  title: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text, textAlign: 'center' },
-  message: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: t.textMuted, textAlign: 'center' },
+  title: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.textMuted, textAlign: 'center' },
+  message: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: t.textMuted, textAlign: 'center' },
   group: { backgroundColor: t.elevated, borderWidth: 1, borderColor: t.border, borderRadius: radius.lg, overflow: 'hidden' },
   action: { minHeight: 56, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.lg },
   divider: { borderTopWidth: 1, borderTopColor: t.border },

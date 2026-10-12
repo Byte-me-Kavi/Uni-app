@@ -104,7 +104,7 @@ export const SharedRow = memo(function SharedRow({ file, showModule = false, onR
       <Pressable onPress={() => setMenu(true)} accessibilityRole="button" accessibilityLabel={`More for ${file.title}`} hitSlop={8} style={styles.more}>
         <DotsThreeVerticalIcon size={22} weight="bold" color={theme.textMuted} />
       </Pressable>
-      <ActionSheet visible={menu} title={file.title} actions={actions} onClose={() => setMenu(false)} />
+      <ActionSheet visible={menu} actions={actions} onClose={() => setMenu(false)} />
       <ReportSheet target={reporting} onClose={() => setReporting(null)} />
     </View>
   );

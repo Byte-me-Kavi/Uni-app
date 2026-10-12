@@ -63,6 +63,39 @@ async function ensureChannel() {
     lightColor: brand.accent,
     showBadge: true,
   });
+  // Orders, confirmed payments, new merch and interest in an item: its own channel, so students can
+  // turn shop notifications off without muting chats.
+  // A kuppi you asked for is being hosted (and later, kuppi reminders).
+  await Notifications.setNotificationChannelAsync('kuppi', {
+    name: 'Kuppi',
+    importance: Notifications.AndroidImportance.HIGH,
+    lightColor: brand.accent,
+    showBadge: false,
+  });
+  await Notifications.setNotificationChannelAsync('exams', {
+    name: 'Exams and deadlines',
+    importance: Notifications.AndroidImportance.HIGH,
+    lightColor: brand.accent,
+    showBadge: false,
+  });
+  await Notifications.setNotificationChannelAsync('files', {
+    name: 'Your shared files',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    lightColor: brand.accent,
+    showBadge: false,
+  });
+  await Notifications.setNotificationChannelAsync('account', {
+    name: 'Account',
+    importance: Notifications.AndroidImportance.HIGH,
+    lightColor: brand.accent,
+    showBadge: false,
+  });
+  await Notifications.setNotificationChannelAsync('shop', {
+    name: 'Shop',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    lightColor: brand.accent,
+    showBadge: false,
+  });
 }
 
 export async function pushStatus(): Promise<PushStatus> {
@@ -125,6 +158,29 @@ export async function dismissChatNotifications(conversationId: string) {
 export function conversationOf(response: NotificationsModule.NotificationResponse | null): string | null {
   const id = response?.notification.request.content.data?.conversation_id;
   return typeof id === 'string' ? id : null;
+}
+
+// Screens a notification may open (its data carries the link). Anything else is ignored.
+const SCREENS =
+  /^\/(kuppi\/[0-9a-f-]{36}|shop\/(orders\/)?[0-9a-f-]{36}|shop\/leads|resource\/[0-9a-f-]{36}|module\/\d{1,12}|exams)?$/;
+
+/** The screen a tapped notification opens ("/kuppi/<id>", "/exams", "/" for Home). */
+export function hrefOf(response: NotificationsModule.NotificationResponse | null): string | null {
+  const href = response?.notification.request.content.data?.href;
+  return typeof href === 'string' && SCREENS.test(href) ? href : null;
+}
+
+/** The kuppi a tapped notification is about. */
+export function kuppiOf(response: NotificationsModule.NotificationResponse | null): string | null {
+  const id = response?.notification.request.content.data?.kuppi_id;
+  return typeof id === 'string' ? id : null;
+}
+
+/** The shop listing a tapped notification is about, and whether it is a new order (for the reps). */
+export function shopOf(response: NotificationsModule.NotificationResponse | null): { listingId: string; order: boolean } | null {
+  const data = response?.notification.request.content.data;
+  if (typeof data?.listing_id !== 'string' || typeof data?.shop !== 'string') return null;
+  return { listingId: data.listing_id, order: data.shop === 'order' };
 }
 
 export { supported as pushSupported };

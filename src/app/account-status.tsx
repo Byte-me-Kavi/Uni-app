@@ -6,6 +6,7 @@ import { AuthScreen } from '@/components/auth/auth-screen';
 import { Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
+import { enablePush, pushStatus, pushSupported, registerPush, type PushStatus } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
@@ -24,6 +25,22 @@ export default function AccountStatus() {
   const [account, setAccount] = useState<Account | null>(null);
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Waiting for approval: a notification when it comes, so the student need not keep checking.
+  const [push, setPush] = useState<PushStatus | null>(null);
+
+  useEffect(() => {
+    if (status !== 'pending' || !pushSupported) return;
+    pushStatus().then((s) => {
+      setPush(s);
+      // Already allowed (an earlier install): register this phone quietly.
+      if (s === 'granted') registerPush().catch(() => {});
+    });
+  }, [status]);
+
+  async function notifyMe() {
+    const on = await enablePush();
+    setPush(on ? 'granted' : 'denied');
+  }
 
   useEffect(() => {
     supabase.rpc('my_account').then(({ data }) => setAccount((data as Account | null) ?? null));
@@ -87,14 +104,24 @@ export default function AccountStatus() {
           <>
             <FormMessage message={message} tone="info" />
             <Reveal order={2}>
-              <Button label="Check again" onPress={checkAgain} loading={checking} />
+              {push === 'undetermined' ? (
+                <Button label="Notify me when I'm approved" onPress={notifyMe} />
+              ) : push === 'granted' ? (
+                <Text style={styles.help}>We will send you a notification when you are approved.</Text>
+              ) : null}
+            </Reveal>
+            <Reveal order={3}>
+              <Button
+                label="Check again"
+                variant={push === 'undetermined' ? 'quiet' : 'primary'}
+                onPress={checkAgain}
+                loading={checking}
+              />
             </Reveal>
           </>
         ) : (
           <Reveal order={3}>
-            <Text style={styles.help}>
-              If you think this is a mistake, contact the Uni Era team from your university email.
-            </Text>
+            <Text style={styles.help}>If you think this is a mistake, contact the Uni Era team from your university email.</Text>
           </Reveal>
         )}
       </AuthScreen>

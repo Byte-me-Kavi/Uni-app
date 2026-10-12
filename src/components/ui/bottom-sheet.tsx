@@ -28,7 +28,8 @@ export function BottomSheet({ visible, title, onClose, height = 0.55, children }
   const animate = Platform.OS !== 'web';
   const drag = useSharedValue(0);
   // Android: a text box in the sheet (a group name, report details) stays above the keyboard.
-  const lift = useKeyboardLift(visible);
+  // iPhone too: a sheet is not inside any screen's keyboard handling.
+  const lift = useKeyboardLift(visible, true);
 
   const pull = Gesture.Pan()
     .onUpdate((e) => {

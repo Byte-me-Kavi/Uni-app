@@ -85,7 +85,7 @@ export function useItemControls(onChanged: () => void) {
 
   const elements = (
     <>
-      <ActionSheet visible={!!menuFor} title={menuFor?.title} actions={actions} onClose={() => setMenuFor(null)} />
+      <ActionSheet visible={!!menuFor} actions={actions} onClose={() => setMenuFor(null)} />
       <OrganiseSheet
         visible={!!moving}
         name={moving?.title ?? ''}

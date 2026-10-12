@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { FileArrowUpIcon } from 'phosphor-react-native/src/icons/FileArrowUp';
 
 import { ModuleChip } from '@/components/resources/module-chip';
@@ -10,6 +10,7 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
+import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import { formatBytes } from '@/lib/chat/attachments';
 import { refreshOverview, type Category } from '@/lib/library';
 import { useMyModules } from '@/lib/modules';
@@ -91,12 +92,12 @@ export default function Share() {
   return (
     <Screen style={styles.screen}>
       <BackHeader title="Share with your university" />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardFrame style={styles.flex}>
+        <KeyboardScroll contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.stack}>
             <Text style={styles.lead}>
-              Share your own work, past papers and notes you may pass on; never assignments for sale or exam answers.
-              Each file is checked before it shows, and a file already shared is not shared twice.
+              Share your own work, past papers and notes you may pass on; never assignments for sale or exam answers. Each file is
+              checked before it shows, and a file already shared is not shared twice.
             </Text>
 
             {!fromChat ? (
@@ -106,7 +107,9 @@ export default function Share() {
                   <Text style={styles.pickTitle} numberOfLines={2}>
                     {file ? file.name : 'Choose a file'}
                   </Text>
-                  <Text style={styles.muted}>{file ? formatBytes(file.size) : 'PDF, Word, PowerPoint or a photo, up to 25 MB'}</Text>
+                  <Text style={styles.muted}>
+                    {file ? formatBytes(file.size) : 'PDF, Word, PowerPoint or a photo, up to 25 MB'}
+                  </Text>
                 </View>
               </PressableScale>
             ) : null}
@@ -114,7 +117,14 @@ export default function Share() {
             <Group label="Module">
               <View style={styles.chips}>
                 {modules.map((m) => (
-                  <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={m.id === moduleId} onPress={() => setModuleId(m.id)} />
+                  <ModuleChip
+                    key={m.id}
+                    id={m.id}
+                    code={m.code}
+                    name={m.name}
+                    active={m.id === moduleId}
+                    onPress={() => setModuleId(m.id)}
+                  />
                 ))}
               </View>
             </Group>
@@ -134,7 +144,13 @@ export default function Share() {
                 </ScrollView>
               </Group>
             ) : null}
-            <TextField label="Name" value={title} onChangeText={setTitle} placeholder="e.g. CS2012 Past Paper 2023" maxLength={160} />
+            <TextField
+              label="Name"
+              value={title}
+              onChangeText={setTitle}
+              placeholder="e.g. CS2012 Past Paper 2023"
+              maxLength={160}
+            />
             <Group label="Who can see it">
               <View style={styles.chips}>
                 <Chip label="My university" active={scope === 'university'} onPress={() => setScope('university')} />
@@ -151,8 +167,8 @@ export default function Share() {
             {progress !== null ? <Text style={styles.muted}>Uploading {Math.round(progress * 100)}%</Text> : null}
             <Button label={busy && progress === null ? 'Checking the file…' : 'Share'} loading={busy} onPress={share} />
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardScroll>
+      </KeyboardFrame>
     </Screen>
   );
 }
@@ -188,7 +204,14 @@ const useStyles = createThemedStyles((t) => ({
   stack: { gap: space.xl, width: '100%', maxWidth: 560, alignSelf: 'center' },
   lead: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: t.textMuted },
   muted: { fontFamily: fonts.body, fontSize: 14, color: t.textMuted },
-  pick: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: t.surface, borderRadius: radius.lg, padding: space.lg },
+  pick: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: t.surface,
+    borderRadius: radius.lg,
+    padding: space.lg,
+  },
   pickCopy: { flex: 1, gap: 2 },
   pickTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text },
   group: { gap: space.sm },
@@ -207,6 +230,14 @@ const useStyles = createThemedStyles((t) => ({
   chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
   chipTextActive: { color: t.onAccent },
-  done: { flex: 1, padding: space.xl, gap: space.xl, justifyContent: 'center', width: '100%', maxWidth: 560, alignSelf: 'center' },
+  done: {
+    flex: 1,
+    padding: space.xl,
+    gap: space.xl,
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
   doneTitle: { fontFamily: fonts.display, fontSize: 22, lineHeight: 28, color: t.text },
 }));

@@ -10,12 +10,25 @@ import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/toke
 
 // Choosing a student to share in a chat: the same fast name search as the top bar. Only students
 // who can be found are listed, so sharing never reveals someone who chose to stay hidden.
-export function StudentPicker({ visible, onClose, onPick }: { visible: boolean; onClose: () => void; onPick: (person: PersonResult) => void }) {
+export function StudentPicker({
+  visible,
+  onClose,
+  onPick,
+  title = 'Share a student',
+  only,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onPick: (person: PersonResult) => void;
+  title?: string;
+  /** Lists only the students this accepts (e.g. at your own university). */
+  only?: (person: PersonResult) => boolean;
+}) {
   const theme = useTheme();
   const styles = useStyles();
   const [query, setQuery] = useState('');
   const search = usePeopleSearch(query);
-  const results = search.results.filter((p) => !p.blocked);
+  const results = search.results.filter((p) => !p.blocked && (!only || only(p)));
 
   function close() {
     setQuery('');
@@ -23,7 +36,7 @@ export function StudentPicker({ visible, onClose, onPick }: { visible: boolean; 
   }
 
   return (
-    <ModalScreen visible={visible} title="Share a student" onClose={close}>
+    <ModalScreen visible={visible} title={title} onClose={close}>
       <View style={styles.field}>
         <MagnifyingGlassIcon size={20} color={theme.textMuted} weight="bold" />
         <TextInput
@@ -53,7 +66,7 @@ export function StudentPicker({ visible, onClose, onPick }: { visible: boolean; 
             }}
             scale={0.985}
             accessibilityRole="button"
-            accessibilityLabel={`Share ${item.full_name}, ${item.institution}`}
+            accessibilityLabel={`${title}: ${item.full_name}, ${item.institution}`}
             style={styles.row}>
             <Avatar name={item.full_name} path={item.avatar_path} size={44} />
             <View style={styles.text}>

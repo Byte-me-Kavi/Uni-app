@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
 import { ThumbsUpIcon } from 'phosphor-react-native/src/icons/ThumbsUp';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
+import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import { listTime } from '@/lib/chat/format';
 import { signedUrl } from '@/lib/chat/media-urls';
 import { keepOffline, offlineCopy } from '@/lib/chat/transfer';
@@ -71,7 +72,9 @@ export default function Resource() {
 
   const replace = useCallback((next: Comment) => {
     const swap = (list: Comment[]): Comment[] =>
-      list.map((c) => (c.id === next.id ? { ...next, replies: c.replies } : { ...c, replies: c.replies ? swap(c.replies) : c.replies }));
+      list.map((c) =>
+        c.id === next.id ? { ...next, replies: c.replies } : { ...c, replies: c.replies ? swap(c.replies) : c.replies },
+      );
     setComments((list) => (list ? swap(list) : list));
   }, []);
 
@@ -99,7 +102,12 @@ export default function Resource() {
     if (!draft.trim()) return;
     setPosting(true);
     setNote(null);
-    const { error: e } = await addComment(id, draft.trim(), replyTo ? null : draftQuestion.trim() || question, replyTo?.id ?? null);
+    const { error: e } = await addComment(
+      id,
+      draft.trim(),
+      replyTo ? null : draftQuestion.trim() || question,
+      replyTo?.id ?? null,
+    );
     setPosting(false);
     if (e) return setNote(e);
     setDraft('');
@@ -118,7 +126,9 @@ export default function Resource() {
     return (
       <Screen style={styles.screen}>
         <BackHeader title="File" />
-        <View style={styles.center}>{error ? <FormMessage message={error} /> : <ActivityIndicator color={theme.accentText} />}</View>
+        <View style={styles.center}>
+          {error ? <FormMessage message={error} /> : <ActivityIndicator color={theme.accentText} />}
+        </View>
       </Screen>
     );
   }
@@ -138,7 +148,14 @@ export default function Resource() {
             },
           },
         ]
-      : [{ label: 'Report comment', destructive: true, onPress: () => setReporting({ kind: 'comment', id: menu.id, who: menu.author?.name ?? null, userId: menu.author?.id ?? null }) }]
+      : [
+          {
+            label: 'Report comment',
+            destructive: true,
+            onPress: () =>
+              setReporting({ kind: 'comment', id: menu.id, who: menu.author?.name ?? null, userId: menu.author?.id ?? null }),
+          },
+        ]
     : [];
 
   const renderComment = (c: Comment, reply = false) => (
@@ -178,8 +195,8 @@ export default function Resource() {
   return (
     <Screen style={styles.screen}>
       <BackHeader title={file.module.name} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardFrame style={styles.flex}>
+        <KeyboardScroll contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.stack}>
             <View style={styles.head}>
               <Text style={styles.code}>
@@ -214,7 +231,12 @@ export default function Resource() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
                   <Chip label="All" active={question === null} onPress={() => setQuestion(null)} />
                   {file.questions.map((q) => (
-                    <Chip key={q.question} label={`${q.question} (${q.count})`} active={question === q.question} onPress={() => setQuestion(q.question)} />
+                    <Chip
+                      key={q.question}
+                      label={`${q.question} (${q.count})`}
+                      active={question === q.question}
+                      onPress={() => setQuestion(q.question)}
+                    />
                   ))}
                 </ScrollView>
               ) : null}
@@ -231,7 +253,7 @@ export default function Resource() {
               )}
             </View>
           </View>
-        </ScrollView>
+        </KeyboardScroll>
 
         <View style={styles.composer}>
           {replyTo ? (
@@ -239,7 +261,11 @@ export default function Resource() {
               <Text style={styles.muted} numberOfLines={1}>
                 Replying to {replyTo.author?.name ?? 'a comment'}
               </Text>
-              <PressableScale onPress={() => setReplyTo(null)} accessibilityRole="button" accessibilityLabel="Cancel reply" hitSlop={8}>
+              <PressableScale
+                onPress={() => setReplyTo(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel reply"
+                hitSlop={8}>
                 <XIcon size={16} weight="bold" color={theme.textMuted} />
               </PressableScale>
             </View>
@@ -270,7 +296,7 @@ export default function Resource() {
             <Button label="Post" loading={posting} disabled={!draft.trim()} onPress={post} />
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardFrame>
 
       <ActionSheet visible={!!menu} actions={menuActions} onClose={() => setMenu(null)} />
       <ReportSheet target={reporting} onClose={() => setReporting(null)} />
@@ -281,7 +307,11 @@ export default function Resource() {
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const styles = useStyles();
   return (
-    <PressableScale onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: active }} style={[styles.chip, active && styles.chipActive]}>
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      style={[styles.chip, active && styles.chipActive]}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </PressableScale>
   );
@@ -301,7 +331,14 @@ const useStyles = createThemedStyles((t) => ({
   discussion: { gap: space.md },
   sectionTitle: { fontFamily: fonts.display, fontSize: 20, color: t.text },
   chips: { gap: space.sm, paddingRight: space.xl },
-  chip: { paddingHorizontal: space.md, paddingVertical: space.xs + 2, borderRadius: radius.pill, borderWidth: 1.5, borderColor: t.border, backgroundColor: t.surface },
+  chip: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: t.border,
+    backgroundColor: t.surface,
+  },
   chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.text },
   chipTextActive: { color: t.onAccent },
@@ -324,13 +361,28 @@ const useStyles = createThemedStyles((t) => ({
   body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: t.text },
   deleted: { fontStyle: 'italic', color: t.textMuted },
   commentActions: { flexDirection: 'row', alignItems: 'center', gap: space.lg, marginTop: space.xs },
-  helpful: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: space.sm, paddingVertical: 3, borderRadius: radius.pill, borderWidth: 1, borderColor: t.border },
+  helpful: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: t.border,
+  },
   helpfulOn: { backgroundColor: t.accent, borderColor: t.accent },
   helpfulText: { fontFamily: fonts.bodyBold, fontSize: 12, color: t.textMuted },
   helpfulTextOn: { color: t.onAccent },
   action: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted },
   composer: { borderTopWidth: 1, borderTopColor: t.border, padding: space.md, gap: space.sm, backgroundColor: t.background },
-  replying: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm, paddingHorizontal: space.xs },
+  replying: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+    paddingHorizontal: space.xs,
+  },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
   input: {
     minHeight: 44,

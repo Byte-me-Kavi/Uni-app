@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useRevealOnFocus } from '@/components/ui/keyboard';
 import { duration, EASE_OUT } from '@/theme/motion';
 import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
@@ -29,6 +30,8 @@ export function TextField({ label, hint, error, secret = false, ref, style, ...i
   // Reduced motion and web (pre-rendered pages): hints and errors simply appear.
   const still = useReducedMotion() || Platform.OS === 'web';
   const focus = useSharedValue(0);
+  // In a form (KeyboardScroll), scroll this field above the keyboard when it gets focus.
+  const reveal = useRevealOnFocus();
   const invalid = useSharedValue(error ? 1 : 0);
 
   useEffect(() => {
@@ -63,6 +66,7 @@ export function TextField({ label, hint, error, secret = false, ref, style, ...i
           cursorColor={theme.accent}
           onFocus={(e) => {
             focus.value = withTiming(1, { duration: duration.state, easing: EASE_OUT });
+            reveal?.();
             input.onFocus?.(e);
           }}
           onBlur={(e) => {

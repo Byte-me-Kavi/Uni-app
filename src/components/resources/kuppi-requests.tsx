@@ -62,10 +62,12 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
   const actions: SheetAction[] = menu
     ? [
         ...(!menu.closed && menu.host_module_id ? [{ label: 'Host a kuppi for this', onPress: () => host(menu) }] : []),
-        ...(menu.mine && !menu.closed
+        // Your own request: removable only while nobody else wants it (your vote is the only one).
+        ...(menu.mine && !menu.closed && menu.votes <= (menu.voted ? 1 : 0)
           ? [
               {
-                label: 'Close my request',
+                label: 'Remove my request',
+                destructive: true,
                 onPress: async () => {
                   const e = await closeRequest(menu.id);
                   if (e) setNote(e);
@@ -74,8 +76,25 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
               },
             ]
           : []),
+        ...(menu.mine && !menu.closed && menu.votes > (menu.voted ? 1 : 0)
+          ? [
+              {
+                label: 'Why can I not remove it?',
+                onPress: () =>
+                  setNote(
+                    'Others want this too, so it stays until someone hosts a kuppi for it. You will get a notification then.',
+                  ),
+              },
+            ]
+          : []),
         ...(!menu.mine
-          ? [{ label: 'Report', destructive: true, onPress: () => setReporting({ kind: 'kuppi_request', id: menu.id, who: null, userId: null }) }]
+          ? [
+              {
+                label: 'Report',
+                destructive: true,
+                onPress: () => setReporting({ kind: 'kuppi_request', id: menu.id, who: null, userId: null }),
+              },
+            ]
           : []),
       ]
     : [];
@@ -109,9 +128,7 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
                 ) : null}
                 <Text style={styles.topic}>{r.topic}</Text>
                 {r.session ? (
-                  <Text style={styles.answered}>
-                    Kuppi on {weekdayDayMonth(r.session.starts_at)} ›
-                  </Text>
+                  <Text style={styles.answered}>Kuppi on {weekdayDayMonth(r.session.starts_at)} ›</Text>
                 ) : r.answered ? (
                   <Text style={styles.meta}>Answered with a kuppi at {r.institution ?? 'their university'}</Text>
                 ) : r.details ? (
@@ -136,10 +153,12 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
           ))}
         </View>
       ) : list ? (
-        <Text style={styles.muted}>Nobody has asked for a kuppi yet. Stuck on a topic? Ask: others add their vote and hosts see what is wanted.</Text>
+        <Text style={styles.muted}>
+          Nobody has asked for a kuppi yet. Stuck on a topic? Ask: others add their vote and hosts see what is wanted.
+        </Text>
       ) : null}
 
-      <ActionSheet visible={!!menu} title={menu?.topic} actions={actions} onClose={() => setMenu(null)} />
+      <ActionSheet visible={!!menu} actions={actions} onClose={() => setMenu(null)} />
       <ReportSheet target={reporting} onClose={() => setReporting(null)} />
     </View>
   );
@@ -191,7 +210,17 @@ export function KuppiActions({ moduleId, onAsked }: { moduleId?: number; onAsked
   );
 }
 
-function AskSheet({ visible, moduleId, onClose, onDone }: { visible: boolean; moduleId?: number; onClose: () => void; onDone: (r: KuppiRequest) => void }) {
+function AskSheet({
+  visible,
+  moduleId,
+  onClose,
+  onDone,
+}: {
+  visible: boolean;
+  moduleId?: number;
+  onClose: () => void;
+  onDone: (r: KuppiRequest) => void;
+}) {
   return (
     <BottomSheet visible={visible} title="Ask for a kuppi" onClose={onClose} height={0.8}>
       {visible ? <AskForm moduleId={moduleId} onDone={onDone} /> : null}
@@ -227,12 +256,32 @@ function AskForm({ moduleId, onDone }: { moduleId?: number; onDone: (r: KuppiReq
       {!moduleId ? (
         <View style={styles.chips}>
           {modules.map((m) => (
-            <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={m.id === module} onPress={() => setModule(m.id)} />
+            <ModuleChip
+              key={m.id}
+              id={m.id}
+              code={m.code}
+              name={m.name}
+              active={m.id === module}
+              onPress={() => setModule(m.id)}
+            />
           ))}
         </View>
       ) : null}
-      <TextField label="What do you need help with?" value={topic} onChangeText={setTopic} placeholder="e.g. AVL tree rotations" maxLength={120} />
-      <TextField label="More detail (optional)" value={details} onChangeText={setDetails} placeholder="e.g. Q4 of the 2023 paper" multiline maxLength={500} />
+      <TextField
+        label="What do you need help with?"
+        value={topic}
+        onChangeText={setTopic}
+        placeholder="e.g. AVL tree rotations"
+        maxLength={120}
+      />
+      <TextField
+        label="More detail (optional)"
+        value={details}
+        onChangeText={setDetails}
+        placeholder="e.g. Q4 of the 2023 paper"
+        multiline
+        maxLength={500}
+      />
       <View style={styles.gap}>
         <Text style={styles.label}>Who can see it</Text>
         <View style={styles.chips}>
@@ -299,7 +348,14 @@ const useStyles = createThemedStyles((t) => ({
   voteTextOn: { color: t.onAccent },
   form: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: space.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  chip: { paddingHorizontal: space.md + 2, paddingVertical: space.sm, borderRadius: radius.pill, borderWidth: 1.5, borderColor: t.border, backgroundColor: t.surface },
+  chip: {
+    paddingHorizontal: space.md + 2,
+    paddingVertical: space.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: t.border,
+    backgroundColor: t.surface,
+  },
   chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
   chipTextActive: { color: t.onAccent },

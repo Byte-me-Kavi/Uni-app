@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { DotsThreeVerticalIcon } from 'phosphor-react-native/src/icons/DotsThreeVertical';
 
 import { ModuleDot } from '@/components/resources/module-dot';
@@ -12,6 +12,7 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
+import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import { dayAndTime, weekdayDayMonth } from '@/lib/dates';
 import {
   daysText,
@@ -112,8 +113,8 @@ export default function Exams() {
   return (
     <Screen style={styles.screen}>
       <BackHeader title="Exams" />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardFrame style={styles.flex}>
+        <KeyboardScroll ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.stack}>
             {exams.length > 0 ? (
               <View style={styles.card}>
@@ -251,11 +252,10 @@ export default function Exams() {
               <FormPlaceholder />
             ) : null}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardScroll>
+      </KeyboardFrame>
       <ActionSheet
         visible={!!menu}
-        title={menu ? `${menu.module.name} · ${examLabel(menu.kind)}` : undefined}
         message="Changes are for your whole batch."
         actions={
           menu
