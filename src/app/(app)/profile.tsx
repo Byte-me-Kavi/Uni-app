@@ -10,6 +10,7 @@ import { EnvelopeSimpleIcon } from 'phosphor-react-native/src/icons/EnvelopeSimp
 import { GraduationCapIcon } from 'phosphor-react-native/src/icons/GraduationCap';
 import { IdentificationBadgeIcon } from 'phosphor-react-native/src/icons/IdentificationBadge';
 import { MagnifyingGlassIcon } from 'phosphor-react-native/src/icons/MagnifyingGlass';
+import { MegaphoneIcon } from 'phosphor-react-native/src/icons/Megaphone';
 import { MoonIcon } from 'phosphor-react-native/src/icons/Moon';
 import { PaletteIcon } from 'phosphor-react-native/src/icons/Palette';
 import { ProhibitIcon } from 'phosphor-react-native/src/icons/Prohibit';
@@ -188,16 +189,32 @@ export default function Profile() {
 
         <SettingsGroup title="Account">
           <SettingsRow first Icon={GraduationCapIcon} label="University" value={account?.institution.name} />
-          <SettingsRow Icon={EnvelopeSimpleIcon} label="Email" value={account ? `${account.email} (only you see this)` : undefined} />
+          <SettingsRow
+            Icon={EnvelopeSimpleIcon}
+            label="Email"
+            value={account ? `${account.email} (only you see this)` : undefined}
+          />
           <SettingsRow Icon={ShieldCheckIcon} label="Verified student" value="Checked and approved by the Uni Era team" />
         </SettingsGroup>
+
+        {account?.staff_role === 'admin' ? (
+          <SettingsGroup title="Admin">
+            <SettingsRow
+              first
+              Icon={MegaphoneIcon}
+              label="Ads on Home"
+              value="Sponsored slides after the brand card"
+              onPress={() => router.push('/admin/ads')}
+            />
+          </SettingsGroup>
+        ) : null}
 
         <SettingsGroup title="Display">
           <SettingsRow
             first
             Icon={MoonIcon}
             label="Appearance"
-            value={appearance === 'system' ? "Light or dark, as your phone is set" : appearance === 'dark' ? 'Dark' : 'Light'}
+            value={appearance === 'system' ? 'Light or dark, as your phone is set' : appearance === 'dark' ? 'Dark' : 'Light'}
             onPress={() => setAppearanceOpen(true)}
           />
           <SettingsRow Icon={PaletteIcon} label="Theme" value={THEMES[themeName].label} onPress={() => setThemeOpen(true)} />

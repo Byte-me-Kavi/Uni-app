@@ -18,8 +18,7 @@ export function QuietFeed() {
         </View>
         <Text style={styles.title}>Quiet for now</Text>
         <Text style={styles.body}>
-          New notes, kuppi and events from your university and from students across the country will
-          show up here.
+          New notes, kuppi and events from your university and from students across the country will show up here.
         </Text>
       </View>
     </View>

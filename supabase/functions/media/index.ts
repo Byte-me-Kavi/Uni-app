@@ -14,6 +14,11 @@
 //   read            short-lived download links (6 hours) for private files, only those the
 //                   student may see (api.media_access: files in, or forwarded to, their chats;
 //                   shop photos of listings they can see; slips of their orders, or for the reps).
+//   ad_sign         admins only: a 10-minute upload URL for one ad photo, GIF, video or cover
+//                   image, to the PUBLIC bucket (ads/<id>.<ext>; api.begin_ad_upload checks the
+//                   admin, type and size).
+//   ad_commit       checks the upload's first bytes match its type (JPEG, PNG, WebP, GIF, MP4/MOV)
+//                   and its size; only then can an ad use it. Anything else is deleted.
 //   sticker_sign    stickers are public and stored once per unique file (stickers/<sha256>.webp).
 //                   If the sticker already exists it is just added to the student's library.
 //   sticker_commit  checks the uploaded sticker really is a WebP whose SHA-256 is its name, then
@@ -68,6 +73,18 @@ async function signPut(client: AwsClient, objectUrl: string, headers: Record<str
   // allHeaders: the signature covers type, size and cache header, so R2 refuses anything else.
   const signed = await client.sign(new Request(url, { method: 'PUT', headers }), { aws: { signQuery: true, allHeaders: true } });
   return signed.url;
+}
+
+// The first bytes of each type an ad may use.
+function matchesType(b: Uint8Array, mime: string) {
+  const text = (from: number, to: number) => String.fromCharCode(...b.slice(from, to));
+  if (mime === 'image/jpeg') return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+  if (mime === 'image/png') return b[0] === 0x89 && text(1, 4) === 'PNG';
+  if (mime === 'image/webp') return text(0, 4) === 'RIFF' && text(8, 12) === 'WEBP';
+  if (mime === 'image/gif') return text(0, 4) === 'GIF8';
+  // MP4 and MOV: an "ftyp" box first (older MOV files may start with moov, mdat, wide or free).
+  if (mime === 'video/mp4' || mime === 'video/quicktime') return ['ftyp', 'moov', 'mdat', 'wide', 'free'].includes(text(4, 8));
+  return false;
 }
 
 const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -164,6 +181,46 @@ Deno.serve(async (req) => {
       urls[path] = (await chatR2.sign(new Request(url), { aws: { signQuery: true } })).url;
     }
     return json({ urls, expires_in: READ_SECONDS });
+  }
+
+  if (action === 'ad_sign') {
+    const size = Number(body.size);
+    if (!Number.isInteger(size) || size <= 0) return json({ error: 'Missing file size.' }, 400);
+    const { data, error } = await db.rpc('begin_ad_upload', {
+      p_kind: String(body.kind ?? ''),
+      p_mime: String(body.mime ?? ''),
+      p_size: size,
+    });
+    if (error) return fromDatabase(error);
+    const { path, mime } = data as { path: string; mime: string };
+    const headers = { 'Content-Type': mime, 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL, ...ONCE };
+    return json({
+      path,
+      url: await signPut(publicR2, publicUrl(path), headers, 600),
+      headers: { 'Content-Type': mime, 'Cache-Control': CACHE_CONTROL, ...ONCE },
+    });
+  }
+
+  if (action === 'ad_commit') {
+    const { data, error } = await db.rpc('ad_upload_to_check', { p_path: String(body.path ?? '') });
+    if (error) return fromDatabase(error);
+    const upload = data as { path: string; mime: string; size: number } | null;
+    if (!upload) return json({ error: 'Unknown upload.' }, 400);
+    const head = await publicR2.fetch(publicUrl(upload.path), { headers: { Range: 'bytes=0-15' } });
+    const bytes = head.ok ? new Uint8Array(await head.arrayBuffer()) : null;
+    const total = Number(head.headers.get('content-range')?.split('/')[1] ?? head.headers.get('content-length'));
+    const ok = !!bytes && total === upload.size && matchesType(bytes, upload.mime);
+    const service = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
+      db: { schema: 'api' },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { error: saveError } = await service.rpc('ad_upload_checked', { p_path: upload.path, p_ok: ok });
+    if (saveError) return fromDatabase(saveError);
+    if (!ok) {
+      await publicR2.fetch(publicUrl(upload.path), { method: 'DELETE' });
+      return json({ error: bytes ? 'That file is not the photo or video it says it is.' : 'The file did not finish uploading. Try again.' }, 400);
+    }
+    return json({ path: upload.path });
   }
 
   if (action === 'sticker_sign') {

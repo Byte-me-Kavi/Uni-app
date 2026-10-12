@@ -20,6 +20,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ad_event: {
+        Args: { p_ad_id: string; p_tap?: boolean }
+        Returns: undefined
+      }
+      ad_upload_checked: {
+        Args: { p_ok: boolean; p_path: string }
+        Returns: undefined
+      }
+      ad_upload_to_check: { Args: { p_path: string }; Returns: Json }
       add_comment: {
         Args: {
           p_body: string
@@ -33,6 +42,7 @@ export type Database = {
         Args: { p_conversation_id: string; p_member_ids: string[] }
         Returns: Json
       }
+      admin_ads: { Args: never; Returns: Json }
       app_config: { Args: never; Returns: Json }
       app_push_batch: { Args: { p_batch_id: string }; Returns: Json }
       appoint_merch_lead: {
@@ -44,6 +54,10 @@ export type Database = {
         Returns: undefined
       }
       batch_suggestion: { Args: never; Returns: Json }
+      begin_ad_upload: {
+        Args: { p_kind: string; p_mime: string; p_size: number }
+        Returns: Json
+      }
       begin_avatar_upload: { Args: never; Returns: string }
       begin_chat_upload: {
         Args: {
@@ -209,6 +223,7 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_ad: { Args: { p_ad_id: string }; Returns: undefined }
       delete_comment: { Args: { p_comment_id: string }; Returns: undefined }
       delete_message: {
         Args: {
@@ -269,6 +284,7 @@ export type Database = {
         }
         Returns: Json
       }
+      home_ads: { Args: never; Returns: Json }
       join_batch: {
         Args: {
           p_intake_year?: number
@@ -552,6 +568,7 @@ export type Database = {
         Returns: string
       }
       rsvp: { Args: { p_session_id: string }; Returns: Json }
+      save_ad: { Args: { p_ad: Json; p_ad_id?: string }; Returns: Json }
       save_listing: {
         Args: { p_listing: Json; p_listing_id?: string }
         Returns: Json
@@ -603,6 +620,10 @@ export type Database = {
           p_reply_to_id?: string
         }
         Returns: Json
+      }
+      set_ad_active: {
+        Args: { p_active: boolean; p_ad_id: string }
+        Returns: undefined
       }
       set_batch_term: {
         Args: { p_semester: number; p_year: number }

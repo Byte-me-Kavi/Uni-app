@@ -83,7 +83,8 @@
         {
           "microphonePermission": "Uni Era uses the microphone only while you hold the button to record a voice message."
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

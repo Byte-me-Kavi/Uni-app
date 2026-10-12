@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { BrandCard } from '@/components/home/brand-card';
+import { HomeCarousel } from '@/components/home/home-carousel';
 import { ExamStrip } from '@/components/resources/exam-strip';
 import { HomeSkeleton } from '@/components/home/home-skeleton';
 import { QuietFeed } from '@/components/home/quiet-feed';
@@ -94,7 +94,7 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
       </Reveal>
 
       <Reveal order={1}>
-        <BrandCard assemble={entrance} />
+        <HomeCarousel assemble={entrance} />
       </Reveal>
 
       {home.staff_role && home.pending_accounts !== null ? (
