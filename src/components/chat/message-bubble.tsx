@@ -10,6 +10,7 @@ import { WarningCircleIcon } from 'phosphor-react-native/src/icons/WarningCircle
 
 import { ContactMessage } from '@/components/chat/contact-message';
 import { FileMessage } from '@/components/chat/file-message';
+import { FolderTag } from '@/components/chat/folder-tag';
 import { ImageMessage } from '@/components/chat/image-message';
 import { LinkCard } from '@/components/chat/link-card';
 import { PollMessage } from '@/components/chat/poll-message';
@@ -118,6 +119,8 @@ function Content(props: Props) {
   // A text with a link but no preview from the sender: fetch one (once per link, cached).
   const fetched = useLinkPreview(message.kind === 'text' && !message.link && !message.deleted ? firstLink(message.body) : null);
   const link = message.link ?? fetched;
+  // Documents, photos and links the server recorded can carry a folder tag (see FolderTag).
+  const filed = message.status === 'sent' && !message.deleted && (message.kind === 'file' || message.kind === 'image' || !!message.link);
   const theme = useTheme();
   const name =
     group && !mine && showName ? (
@@ -204,8 +207,11 @@ function Content(props: Props) {
         {message.body ? (
           <View style={styles.caption}>
             <Body message={message} />
+            {filed ? <FolderTag messageId={message.id} /> : null}
             {meta}
           </View>
+        ) : filed ? (
+          <FolderTag messageId={message.id} containerStyle={styles.caption} />
         ) : null}
       </View>
     );
@@ -240,6 +246,7 @@ function Content(props: Props) {
           <Body message={message} />
         </View>
       ) : null}
+      {filed && (message.kind === 'file' || message.kind === 'text') ? <FolderTag messageId={message.id} /> : null}
       {meta}
     </View>
   );

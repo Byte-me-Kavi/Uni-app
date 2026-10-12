@@ -40,6 +40,14 @@ export default function AppLayout() {
             <Stack.Screen name="starred" />
             <Stack.Screen name="new-group" />
             <Stack.Screen name="settings/last-seen" />
+            <Stack.Screen name="semester" />
+            <Stack.Screen name="module/[id]" />
+            <Stack.Screen name="to-sort" />
+            <Stack.Screen name="share" />
+            <Stack.Screen name="kuppi/[id]" />
+            <Stack.Screen name="kuppi/new" />
+            <Stack.Screen name="exams" />
+            <Stack.Screen name="resource/[id]" />
           </Stack>
         </PushProvider>
       </ChatProvider>

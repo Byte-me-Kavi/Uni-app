@@ -20,11 +20,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_comment: {
+        Args: {
+          p_body: string
+          p_parent_id?: string
+          p_question?: string
+          p_resource_id: string
+        }
+        Returns: Json
+      }
       add_group_members: {
         Args: { p_conversation_id: string; p_member_ids: string[] }
         Returns: Json
       }
       app_config: { Args: never; Returns: Json }
+      ban_uploader: {
+        Args: { p_days?: number; p_reason: string; p_user_id: string }
+        Returns: undefined
+      }
       batch_suggestion: { Args: never; Returns: Json }
       begin_avatar_upload: { Args: never; Returns: string }
       begin_chat_upload: {
@@ -33,6 +46,29 @@ export type Database = {
           p_kind: string
           p_mime: string
           p_size: number
+        }
+        Returns: Json
+      }
+      begin_publish: {
+        Args: {
+          p_category: string
+          p_message_id: string
+          p_module_id: number
+          p_paper_year?: number
+          p_scope?: string
+          p_title?: string
+        }
+        Returns: Json
+      }
+      begin_resource_upload: {
+        Args: {
+          p_category: string
+          p_mime: string
+          p_module_id: number
+          p_paper_year?: number
+          p_scope?: string
+          p_size: number
+          p_title: string
         }
         Returns: Json
       }
@@ -51,6 +87,20 @@ export type Database = {
           user_id: string
         }[]
       }
+      cancel_kuppi: {
+        Args: { p_reason?: string; p_session_id: string }
+        Returns: Json
+      }
+      cancel_rsvp: { Args: { p_session_id: string }; Returns: Json }
+      chat_file_checked: {
+        Args: {
+          p_message_id: string
+          p_ok: boolean
+          p_reason?: string
+          p_sha256?: string
+        }
+        Returns: undefined
+      }
       chat_files: {
         Args: {
           p_before?: string
@@ -66,6 +116,10 @@ export type Database = {
           kind: string
           sender_name: string
         }[]
+      }
+      chat_folders: {
+        Args: { p_conversation_id: string; p_message_ids: string[] }
+        Returns: Json
       }
       chat_members: {
         Args: {
@@ -108,6 +162,14 @@ export type Database = {
         }[]
       }
       chat_settings: { Args: { p_conversation_id: string }; Returns: Json }
+      close_kuppi_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      comments: {
+        Args: { p_limit?: number; p_question?: string; p_resource_id: string }
+        Returns: Json
+      }
       commit_sticker: {
         Args: {
           p_animated: boolean
@@ -121,6 +183,23 @@ export type Database = {
         Args: { p_member_ids: string[]; p_title: string }
         Returns: Json
       }
+      create_kuppi: {
+        Args: {
+          p_capacity: number
+          p_description?: string
+          p_meeting_url?: string
+          p_minutes: number
+          p_mode: string
+          p_module_id: number
+          p_request_id?: string
+          p_scope?: string
+          p_starts_at: string
+          p_title: string
+          p_venue?: string
+        }
+        Returns: Json
+      }
+      delete_comment: { Args: { p_comment_id: string }; Returns: undefined }
       delete_message: {
         Args: {
           p_conversation_id: string
@@ -130,6 +209,10 @@ export type Database = {
         Returns: undefined
       }
       drop_push_tokens: { Args: { p_tokens: string[] }; Returns: undefined }
+      edit_comment: {
+        Args: { p_body: string; p_comment_id: string }
+        Returns: Json
+      }
       edit_message: {
         Args: {
           p_body: string
@@ -137,6 +220,44 @@ export type Database = {
           p_message_id: string
         }
         Returns: string
+      }
+      explore: {
+        Args: {
+          p_before?: string
+          p_category?: string
+          p_limit?: number
+          p_module_id?: number
+          p_national?: boolean
+          p_query?: string
+        }
+        Returns: Json
+      }
+      explore_overview: { Args: never; Returns: Json }
+      find_modules: {
+        Args: { p_query: string }
+        Returns: {
+          batches: number
+          code: string
+          id: number
+          name: string
+        }[]
+      }
+      find_subjects: {
+        Args: { p_query: string }
+        Returns: {
+          id: number
+          name: string
+        }[]
+      }
+      finish_resource: {
+        Args: {
+          p_ok: boolean
+          p_reason?: string
+          p_resource_id: string
+          p_sha256?: string
+          p_size?: number
+        }
+        Returns: Json
       }
       join_batch: {
         Args: {
@@ -146,7 +267,40 @@ export type Database = {
         }
         Returns: Json
       }
+      kuppi: { Args: { p_session_id: string }; Returns: Json }
+      kuppi_list: {
+        Args: {
+          p_after?: string
+          p_limit?: number
+          p_module_id?: number
+          p_scope?: string
+        }
+        Returns: Json
+      }
+      kuppi_requests: {
+        Args: { p_module_id?: number; p_scope?: string }
+        Returns: Json
+      }
       leave_group: { Args: { p_conversation_id: string }; Returns: undefined }
+      library: {
+        Args: {
+          p_before?: string
+          p_category?: string
+          p_limit?: number
+          p_module_id: number
+        }
+        Returns: Json
+      }
+      library_item: { Args: { p_message_id: string }; Returns: Json }
+      library_overview: { Args: never; Returns: Json }
+      library_search: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: Json
+      }
+      library_to_sort: {
+        Args: { p_before?: string; p_limit?: number }
+        Returns: Json
+      }
       mark_delivered: {
         Args: { p_conversation_id: string; p_up_to: string }
         Returns: undefined
@@ -156,7 +310,16 @@ export type Database = {
         Returns: string
       }
       media_access: { Args: { p_paths: string[] }; Returns: string[] }
+      merge_modules: {
+        Args: { p_from: number; p_into: number }
+        Returns: undefined
+      }
+      merge_subjects: {
+        Args: { p_from: number; p_into: number }
+        Returns: undefined
+      }
       message_previews: { Args: never; Returns: boolean }
+      module_subject: { Args: { p_module_id: number }; Returns: Json }
       my_account: { Args: never; Returns: Json }
       my_chats: {
         Args: never
@@ -186,7 +349,9 @@ export type Database = {
           unread: number
         }[]
       }
+      my_exams: { Args: never; Returns: Json }
       my_home: { Args: never; Returns: Json }
+      my_modules: { Args: never; Returns: Json }
       my_stickers: {
         Args: never
         Returns: {
@@ -197,7 +362,18 @@ export type Database = {
           used_at: string
         }[]
       }
+      needs_text: { Args: { p_sha256: string }; Returns: boolean }
       notification_settings: { Args: never; Returns: Json }
+      organise_item: {
+        Args: {
+          p_category?: string
+          p_hidden?: boolean
+          p_message_id: string
+          p_module_id?: number
+          p_pinned?: boolean
+        }
+        Returns: Json
+      }
       pending_accounts: {
         Args: {
           p_after_registered_at?: string
@@ -215,6 +391,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      pending_resource: { Args: { p_resource_id: string }; Returns: Json }
       person: { Args: { p_user_id: string }; Returns: Json }
       pin_message: {
         Args: { p_conversation_id: string; p_message_id: string }
@@ -275,9 +452,15 @@ export type Database = {
         Args: { p_platform: string; p_token: string }
         Returns: undefined
       }
+      remove_exam: { Args: { p_exam_id: string }; Returns: Json }
       remove_group_member: {
         Args: { p_conversation_id: string; p_user_id: string }
         Returns: undefined
+      }
+      remove_resource: { Args: { p_resource_id: string }; Returns: undefined }
+      rename_module: {
+        Args: { p_module_id: number; p_name: string }
+        Returns: Json
       }
       report: {
         Args: {
@@ -296,13 +479,45 @@ export type Database = {
           label: string
         }[]
       }
+      report_comment: {
+        Args: { p_category: string; p_comment_id: string; p_details?: string }
+        Returns: string
+      }
+      report_kuppi: {
+        Args: { p_category: string; p_details?: string; p_session_id: string }
+        Returns: string
+      }
+      report_kuppi_request: {
+        Args: { p_category: string; p_details?: string; p_request_id: string }
+        Returns: string
+      }
+      report_resource: {
+        Args: { p_category: string; p_details?: string; p_resource_id: string }
+        Returns: string
+      }
+      request_kuppi: {
+        Args: {
+          p_details?: string
+          p_module_id: number
+          p_scope?: string
+          p_topic: string
+        }
+        Returns: Json
+      }
+      resource: { Args: { p_resource_id: string }; Returns: Json }
       respond_request: {
         Args: { p_accept: boolean; p_conversation_id: string }
         Returns: string
       }
+      reveal_link: { Args: { p_session_id: string }; Returns: Json }
       review_account: {
         Args: { p_decision: string; p_reason?: string; p_user_id: string }
         Returns: string
+      }
+      rsvp: { Args: { p_session_id: string }; Returns: Json }
+      save_semester: {
+        Args: { p_items: Json; p_semester: number; p_year: number }
+        Returns: Json
       }
       save_sticker: {
         Args: { p_favourite?: boolean; p_mine?: boolean; p_sticker: string }
@@ -330,6 +545,10 @@ export type Database = {
           name: string
         }[]
       }
+      semester_plan: {
+        Args: { p_semester: number; p_year: number }
+        Returns: Json
+      }
       send_message: {
         Args: {
           p_attachment?: Json
@@ -344,6 +563,10 @@ export type Database = {
         }
         Returns: Json
       }
+      set_batch_term: {
+        Args: { p_semester: number; p_year: number }
+        Returns: Json
+      }
       set_chat_state: {
         Args: {
           p_archived?: boolean
@@ -352,12 +575,29 @@ export type Database = {
         }
         Returns: undefined
       }
+      set_exam: {
+        Args: {
+          p_kind: string
+          p_module_id: number
+          p_starts_at: string
+          p_venue?: string
+        }
+        Returns: Json
+      }
       set_findable_by: { Args: { p_findable_by: string }; Returns: string }
       set_member_role: {
         Args: { p_conversation_id: string; p_role: string; p_user_id: string }
         Returns: undefined
       }
       set_message_previews: { Args: { p_on: boolean }; Returns: boolean }
+      set_module_choice: {
+        Args: { p_choice: string; p_module_id: number }
+        Returns: Json
+      }
+      set_module_subject: {
+        Args: { p_module_id: number; p_subject: string }
+        Returns: Json
+      }
       set_muted: {
         Args: { p_conversation_id: string; p_hours?: number; p_on: boolean }
         Returns: string
@@ -393,6 +633,23 @@ export type Database = {
         }[]
       }
       start_direct: { Args: { p_user_id: string }; Returns: Json }
+      store_file_text: {
+        Args: { p_sha256: string; p_text: string }
+        Returns: undefined
+      }
+      tag_item: {
+        Args: { p_category?: string; p_message_id: string; p_module_id: number }
+        Returns: undefined
+      }
+      tag_message: {
+        Args: {
+          p_category?: string
+          p_conversation_id: string
+          p_message_id: string
+          p_module_id: number
+        }
+        Returns: undefined
+      }
       unblock_user: { Args: { p_user_id: string }; Returns: undefined }
       unregister_push_token: { Args: { p_token: string }; Returns: undefined }
       update_bio: { Args: { p_bio: string }; Returns: string }
@@ -407,6 +664,14 @@ export type Database = {
       }
       update_privacy: {
         Args: { p_findable_by?: string; p_who_can_message?: string }
+        Returns: Json
+      }
+      vote_comment: {
+        Args: { p_comment_id: string; p_on: boolean }
+        Returns: Json
+      }
+      vote_kuppi_request: {
+        Args: { p_on: boolean; p_request_id: string }
         Returns: Json
       }
       vote_poll: {

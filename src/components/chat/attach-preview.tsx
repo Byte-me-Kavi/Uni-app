@@ -7,35 +7,55 @@ import { XIcon } from 'phosphor-react-native/src/icons/X';
 import { ModalScreen } from '@/components/chat/modal-screen';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { documentLabel, formatBytes } from '@/lib/chat/attachments';
+import { useMyModules, type ModuleCard } from '@/lib/modules';
 import type { FileAttachment, ImageAttachment } from '@/lib/chat/types';
 import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 export type Pending = { kind: 'image'; photos: ImageAttachment[] } | { kind: 'file'; attachment: FileAttachment };
 
+const codeKey = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+/** The module whose code is in the file's name ("CS2012_Lec03.pdf"), if any. */
+function suggestedModule(name: string, modules: ModuleCard[]) {
+  const words = (name.match(/[A-Za-z]{2,6}[ _.-]?\d{3,5}[A-Za-z]?/g) ?? []).map(codeKey);
+  return modules.find((m) => words.includes(codeKey(m.code))) ?? null;
+}
+
 // A last look before photos or a document go, with room for a caption. Several photos show as a
-// strip (tap ✕ to drop one); the caption goes with the first, as in WhatsApp.
+// strip (tap ✕ to drop one); the caption goes with the first, as in WhatsApp. A document can be
+// filed into one of the student's modules for everyone in the chat (`fileable`): the module named
+// in the file is chosen already.
 export function AttachPreview({
   pending,
+  fileable = false,
   onChange,
   onClose,
   onSend,
 }: {
   pending: Pending | null;
+  fileable?: boolean;
   onChange: (next: Pending | null) => void;
   onClose: () => void;
-  onSend: (caption: string) => void;
+  onSend: (caption: string, moduleId: number | null) => void;
 }) {
   const theme = useTheme();
   const styles = useStyles();
+  const { data } = useMyModules();
   const [caption, setCaption] = useState('');
   const [current, setCurrent] = useState(0);
   const photos = pending?.kind === 'image' ? pending.photos : [];
   const shown = photos[Math.min(current, photos.length - 1)];
+  const modules = fileable && pending?.kind === 'file' && data?.batch ? data.current.filter((m) => !m.pending) : [];
+  const suggested = pending?.kind === 'file' ? suggestedModule(pending.attachment.name, modules) : null;
+  // undefined: not touched (use the suggestion); null: the student chose none.
+  const [chosen, setChosen] = useState<number | null | undefined>(undefined);
+  const moduleId = chosen === undefined ? (suggested?.id ?? null) : chosen;
 
   function send() {
-    onSend(caption);
+    onSend(caption, modules.length ? moduleId : null);
     setCaption('');
     setCurrent(0);
+    setChosen(undefined);
   }
 
   function drop(index: number) {
@@ -88,6 +108,27 @@ export function AttachPreview({
           ))}
         </ScrollView>
       ) : null}
+      {modules.length > 0 ? (
+        <View style={styles.fileIn}>
+          <Text style={styles.fileInLabel}>File in Resources for everyone here</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fileInChips}>
+            {modules.map((m) => {
+              const active = m.id === moduleId;
+              return (
+                <PressableScale
+                  key={m.id}
+                  onPress={() => setChosen(active ? null : m.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`${m.code}, ${m.name}`}
+                  style={[styles.moduleChip, active && styles.moduleChipActive]}>
+                  <Text style={[styles.moduleChipText, active && styles.moduleChipTextActive]}>{m.code}</Text>
+                </PressableScale>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
       <View style={styles.captionBar}>
         <TextInput
           value={caption}
@@ -128,6 +169,21 @@ const useStyles = createThemedStyles((t) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  fileIn: { gap: space.xs, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: t.border },
+  fileInLabel: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: t.textMuted, paddingHorizontal: space.lg },
+  fileInChips: { gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.xs },
+  moduleChip: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: t.border,
+    backgroundColor: t.surface,
+  },
+  // Chosen: the accent with Ink text (brand rule).
+  moduleChipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  moduleChipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
+  moduleChipTextActive: { color: brand.ink },
   captionBar: { padding: space.md, borderTopWidth: 1, borderTopColor: t.border },
   caption: {
     minHeight: 44,

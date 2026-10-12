@@ -48,9 +48,45 @@ export async function putFile(url: string, headers: Record<string, string>, uri:
 
 const safeName = (name: string) => name.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120) || 'file';
 
-/** The file on the phone: your own sent copy if it is still there, else a cached download. */
+// Files kept for offline (a whole module before exams) live in the documents folder, which the
+// phone never clears, unlike the cache.
+const offlineTarget = (file: { path: string; name: string }) =>
+  `${fs().documentDirectory}offline/${file.path.split('/').pop()?.split('.')[0] ?? 'file'}/${safeName(file.name)}`;
+
+/** The offline copy of a file, if one was kept. */
+export async function offlineCopy(file: { path: string; name: string }) {
+  if (!hasNative('ExponentFileSystem')) return null;
+  const target = offlineTarget(file);
+  return (await exists(target)) ? target : null;
+}
+
+/** Keeps a file on the phone for offline use. Resolves with its size in bytes. */
+export async function keepOffline(file: { url: string; path: string; name: string }) {
+  const FileSystem = fs();
+  const target = offlineTarget(file);
+  const info = await FileSystem.getInfoAsync(target).catch(() => ({ exists: false }) as const);
+  if (info.exists) return 'size' in info ? info.size : 0;
+  await FileSystem.makeDirectoryAsync(target.slice(0, target.lastIndexOf('/') + 1), { intermediates: true }).catch(() => {});
+  const result = await FileSystem.downloadAsync(file.url, target);
+  if (result.status !== 200) {
+    await FileSystem.deleteAsync(target, { idempotent: true });
+    throw new Error(`download failed (${result.status})`);
+  }
+  return Number(result.headers['Content-Length'] ?? result.headers['content-length'] ?? 0);
+}
+
+/** Removes a file's offline copy. */
+export async function dropOffline(file: { path: string; name: string }) {
+  if (!hasNative('ExponentFileSystem')) return;
+  const target = offlineTarget(file);
+  await fs().deleteAsync(target.slice(0, target.lastIndexOf('/') + 1), { idempotent: true }).catch(() => {});
+}
+
+/** The file on the phone: your own sent copy, an offline copy, else a cached download. */
 async function localCopy(file: { url: string; path: string; name: string; localUri?: string }) {
   if (await exists(file.localUri)) return file.localUri!;
+  const kept = await offlineCopy(file);
+  if (kept) return kept;
   const FileSystem = fs();
   const id = file.path.split('/').pop()?.split('.')[0] ?? 'file';
   const dir = `${FileSystem.cacheDirectory}chat-files/${id}/`;

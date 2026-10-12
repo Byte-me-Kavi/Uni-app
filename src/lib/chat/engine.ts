@@ -662,7 +662,13 @@ function markRead(conversationId: string, upTo: string) {
 // Sending
 // ---------------------------------------------------------------------------------------------
 
-type SendOptions = { replyTo?: Message | null; mentions?: string[]; link?: LinkPreview | null };
+type SendOptions = {
+  replyTo?: Message | null;
+  mentions?: string[];
+  link?: LinkPreview | null;
+  /** A UUIDv7 made by the caller, when it needs the id before sending (filing a document). */
+  id?: string;
+};
 
 async function sendMessageUnsafe(conversationId: string, body: string, options: SendOptions = {}) {
   const text = body.trim();
@@ -717,7 +723,7 @@ async function sendRichUnsafe(
   await queue({
     reply_to_id: options.replyTo?.id ?? null,
     reply: options.replyTo ? snapshot(options.replyTo) : null,
-    id: uuidv7(),
+    id: options.id ?? uuidv7(),
     conversation_id: conversationId,
     sender_id: me,
     sender_name: null,
