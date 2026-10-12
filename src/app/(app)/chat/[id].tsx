@@ -17,6 +17,8 @@ import { ReactionDetails } from '@/components/chat/reactions';
 import { ReportSheet, type ReportTarget } from '@/components/chat/report-sheet';
 import { StickerSheet } from '@/components/chat/sticker-sheet';
 import { ReplyQuote } from '@/components/chat/reply-quote';
+import { SaveFromChat } from '@/components/resources/save-from-chat';
+import { loadFolders, onFolderPress } from '@/lib/chat-folders';
 import { ActionSheet, type SheetAction } from '@/components/ui/action-sheet';
 import { Button } from '@/components/ui/button';
 import { PressableScale } from '@/components/ui/pressable-scale';
@@ -96,6 +98,7 @@ export default function ChatScreen() {
   const [whoReacted, setWhoReacted] = useState<{ conversationId: string; messageId: string } | null>(null);
   const [viewing, setViewing] = useState<Message | null>(null);
   const [reporting, setReporting] = useState<ReportTarget | null>(null);
+  const [saving, setSaving] = useState<Message | null>(null);
   const [stickerFor, setStickerFor] = useState<StickerAttachment | null>(null);
   const [pinMenu, setPinMenu] = useState(false);
   const [chatMenu, setChatMenu] = useState(false);
@@ -301,6 +304,23 @@ export default function ChatScreen() {
   }
 
   const report = (error: string | null) => error && setNote(error);
+  const closeSaving = useCallback(() => setSaving(null), []);
+
+  // Folder tags under documents, photos and links: where each is filed in Resources. Tapping one
+  // opens Save to Resources to change it.
+  useEffect(() => {
+    const ids = messages
+      .filter((m) => m.status === 'sent' && !m.deleted && (m.kind === 'file' || m.kind === 'image' || !!m.link))
+      .map((m) => m.id);
+    if (ids.length) loadFolders(id, ids);
+  }, [messages, id]);
+  useEffect(() => {
+    onFolderPress((messageId) => {
+      const m = messages.find((x) => x.id === messageId);
+      if (m) setSaving(m);
+    });
+    return () => onFolderPress(null);
+  }, [messages]);
 
   // The long-press menu, in WhatsApp's order.
   function actionsFor(m: Message): SheetAction[] {
@@ -316,6 +336,10 @@ export default function ChatScreen() {
       });
     }
     if (sent) actions.push({ label: 'Forward', onPress: () => setForwarding(m) });
+    // Documents, photos and links go to a module folder in Resources.
+    if (sent && (m.kind === 'file' || m.kind === 'image' || !!m.link?.url)) {
+      actions.push({ label: 'Save to Resources', onPress: () => setSaving(m) });
+    }
     if (sent) {
       actions.push(
         starred[m.id]
@@ -624,6 +648,12 @@ export default function ChatScreen() {
           />
           <ReactionDetails target={whoReacted} me={me} onClose={() => setWhoReacted(null)} />
           <ReportSheet target={reporting} onClose={() => setReporting(null)} />
+          <SaveFromChat
+            message={saving}
+            canTag={!!saving && group && (saving.sender_id === me || chat?.my_role === 'admin')}
+            onClose={closeSaving}
+            onDone={setNote}
+          />
           <StickerSheet sticker={stickerFor} onClose={() => setStickerFor(null)} />
           <ActionSheet
             visible={pinMenu}

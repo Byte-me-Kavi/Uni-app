@@ -1,6 +1,6 @@
 # Uni Era: product scope
 
-Last updated 10 Oct 2026. This file is the current scope for the app; the original build plan (Gansiya Build Plan v2) predates the rename, the tab layout and the Shop.
+Last updated 12 Oct 2026. This file is the current scope for the app; the original build plan (Gansiya Build Plan v2) predates the rename, the tab layout and the Shop.
 
 ## What Uni Era is
 
@@ -12,7 +12,7 @@ One app that connects university students across every university in Sri Lanka. 
 | --- | --- | --- |
 | Home | Greeting, set-up steps, feed, staff approval count | Built (feed empty until content features land) |
 | Chats | Batch group, national programme group, direct messages with requests | Built (course groups and own groups next) |
-| Resources | Notes and past papers, search across universities, kuppi sessions | Opens soon |
+| Resources | Your modules by semester, files and links from your chats sorted into module folders, shared notes and past papers, kuppi sessions | Built: modules, library, kuppi, Explore (shared files), file checks |
 | Events | University and inter-university events, RSVP, calendar | Opens soon |
 | Shop | Batch and society merch, second-hand items from students | Opens soon |
 
@@ -32,7 +32,7 @@ A search box in the top bar finds students by name at every university, as they 
 | Group | Who is in it | How they get there |
 | --- | --- | --- |
 | Batch | Same university, degree programme and intake year. Named with all three, e.g. "UCSC · BSc in Computer Science · 2023", so the same programme at two universities never looks like one group | Suggested from the student email (e.g. `2023cs115` gives code "cs", 2023 intake) and confirmed with one tap; otherwise the student types the programme and picks from matching batches at their university. Joining adds them to the batch group chat. |
-| Course groups | Students taking the same module | Added when a student adds the module (opens soon) |
+| Course groups | Students of the same intake year taking the same module | From the batch's semester list (see Resources) |
 | Faculty and university | Everyone at that faculty or university | From the verified email and batch |
 | National groups | Anyone, by subject or interest | The national subject index links the same subject across universities |
 
@@ -55,7 +55,77 @@ Programme names are built by students, not entered by admins. Spellings are merg
 - **Your own groups.** Project groups, lab groups, study circles: up to 100 members. The creator is admin and can rename the group, add and remove people, make others admins, and use the same announcement and slow mode switches. Adding someone follows their "who can message me" setting and blocks; students at another university can be added only after an accepted direct chat. If the last admin leaves, the longest-standing member becomes admin.
 - **The chat list.** Pin up to 3 chats to the top, archive chats (they stay archived when new messages arrive and do not count in the tab badge), and search chat names and every message on the phone.
 - **Quiet hours.** No notifications between two times you choose (Sri Lanka time), mentions included; messages still arrive.
-- **Next.** Course groups (with modules), kuppi chats (with kuppi), the rep request and endorsement flow, and the moderation panel where reports are handled.
+- **Next.** Kuppi chats (with kuppi), the rep request and endorsement flow, and the moderation panel where reports are handled.
+
+## Resources
+
+Everything for studying, organised by module. One module is one place: its files, its shared material, its kuppi and its course chat.
+
+### Modules: one list per batch, built once, reused every year
+
+Nobody adds modules one by one, and nobody imports catalogues.
+
+- **Degrees are 4 years of 2 semesters** (Year 1 · Semester 1 to Year 4 · Semester 2), enforced by the database.
+- **A batch keeps one short list per semester** (Year 2 · Semester 1). Core modules apply to everyone; each student ticks the electives they take, can mark a core module as not taken, and can mark an earlier module as repeated.
+- **Most of the list is suggested.** The nearest other batch of the same programme that already listed that semester (usually the senior batch) is offered as a checklist, so each programme's curriculum is typed once and reused for every later intake. Next: module codes seen in files shared in the batch's chats.
+- **Reps confirm in one step**; moderators can too. Any batchmate can add a module: it shows for them straight away and joins the batch's list once enough batchmates add it (half the batch, at most 3). Students cannot remove what is on the list.
+- **No duplicates.** A module is its university plus its code, normalised ("CS 2012", "cs-2012" and "CS2012" are one module), enforced by a unique key. The name is only a label: renaming (reps and moderators, audited) changes the same row. Codes replaced in a curriculum revision, or duplicates that slip through, are merged by moderators; lists, choices and course chats follow the merge. Each batch owns its lists, so a rep's edit never changes another batch.
+- **The current semester comes first.** Each batch stores its semester, set by a rep or, once the batch has one, moved to the next by batchmates' votes (calendars slip, so it is not computed from dates). About five months in, the app asks whether the semester has ended. The Resources tab shows the current semester's modules; earlier ones fold away.
+- **Course chats**: one per module per intake year (every programme at the university taking it that year). Students join while the module is current for them; when the batch moves on the chat is archived for them, still readable.
+
+### Library: files and links from chats, filed automatically
+
+When a document or link is sent, the server records it once with a guessed module and category; nothing is copied or uploaded again. Each student's library is a view over their own chats plus their own changes, private to them.
+
+| Shared in | Documents | Study links (YouTube, Drive, Docs, OneDrive, GitHub, .ac.lk, LMS) | Photos |
+| --- | --- | --- | --- |
+| Course chat, kuppi chat | Auto, into that module | Auto | Auto |
+| Batch group, own groups | Auto | Auto | One tap |
+| Direct messages | Auto | One tap | One tap |
+
+- Folder, strongest first: the student's own move; the sender's or a rep's tag ("File it for everyone in this chat" when saving); the chat's module; module codes in the file name, caption or link matched against the student's own modules; otherwise **To sort** (the last 60 days, with the likeliest module marked).
+- Categories, guessed from the name and type: Lecture slides, Notes, Past papers (with year), Tutorials and labs, Assignments, Videos, Links, Photos, Other files.
+- Every item opens in place (documents in the phone's viewer, photos in the app, links in the browser) and links back to its message (Show in chat). Move or change folder, pin, remove from my library. Long-press any document, photo or link in a chat for **Save to Resources**.
+- Acting on an item saves it: it stays (and still opens) after the student leaves the chat. The same file forwarded to several chats shows once.
+- Deleting a message for everyone removes it from every library, saved or not: the sender asked for it to be gone. Delete for me, and blocking a student, remove it from that student's library only.
+- Built for scale: each item is recorded once when it is sent, never copied per member; a folder reads only that module's candidates. In chats, each filed document, photo and link shows a small folder tag (tap to change it); when sending a document the composer offers the student's modules, with the one named in the file chosen already, and files it for everyone. The library can be searched by name or module code.
+
+### Shared library (Explore)
+
+Past papers and notes published to a module for the whole university. Students publish their own files (from the library's menu, or uploaded from the phone); batch reps may also publish files posted in their batch group. Files are copied inside R2 to their own key (deleting the chat message never breaks them), stay pending until checked, then go live or are quarantined with a reason the uploader sees. Explore: search by name or module code, the student's modules with file counts, their own files waiting, and the latest shares; each module has a Shared tab by kind. Report on every file (copyright included); uploaders and moderators can take files down; moderators can stop a student publishing (upload bans). Up to 20 a day; PDF, Word, PowerPoint and photos. Still to do: the public copyright takedown form on the website.
+
+### Kuppi
+
+Inside Resources (going and hosting, for your modules, more at your university) and on each module's Kuppi tab. Hosting takes under a minute: module, topic, day and time chips, length, Zoom / Meet / Teams link (only those services, checked) or a venue, capacity. RSVP is enforced on the server with a lock, so the last seat cannot be taken twice. The meeting link is never readable directly: the host always sees it, RSVP'd students from 15 minutes before the start, with a countdown and then Join, which opens the meeting app. The kuppi chat holds the host and everyone going, and its files file themselves into the module. Hosts and moderators cancel; anyone can report. Still to do: reminders an hour before, adding to the phone calendar (needs expo-calendar), slides and recordings afterwards, ratings.
+
+### Exam season
+
+- **Exam dates.** A rep sets each module's exams once for the batch (final, mid, quiz, practical, assignment due; in a batch with no reps, any batchmate; audited, and the batch sees who set it). Resources and Home count down ("CS2012 · Final exam in 12 days"); in exam season module tiles sort by the nearest exam, and a module's banner jumps to its past papers (shared, and the student's own).
+- **Offline packs.** "Download for offline" keeps every file of a module (the student's library and what the university shared) in the phone's documents folder, which the phone never clears. On Wi-Fi only unless the student confirms (expo-network; older builds ask first). Opening a file uses the offline copy first.
+- **Search inside files.** After a file passes its check, its text (PDF through pdf.js, first 80 pages; Word, PowerPoint, Excel, text) is stored once per fingerprint. Library and Explore search match it and show the matching line.
+
+### Kuppi requests
+
+"I need help with AVL trees": students ask for a kuppi on a topic; batchmates vote; a similar open request gets the vote instead of a duplicate. Anonymous to other students (moderators can see who asked). Hosting a kuppi for a request closes it and shows the askers the kuppi. Report on every request.
+
+**Across universities.** The asker chooses who sees a request: "All universities" (the default) or "My university". Asked of all universities, it reaches every student taking the same national subject: they see where it was asked (never who), vote ("Wanted at 3 universities"), and similar asks anywhere merge into it. A student elsewhere answers with an **online kuppi open to all universities** (in person is refused: nobody travels to another campus for a session arranged with strangers). Any online kuppi can also be opened to all universities by its host. Kuppi open to all show on the same subject's module at every university, with the host's university; their chat's slides file into each student's own module on the subject. Reports go to the moderators of the university where the request or kuppi was made.
+
+### Duplicates, national subjects, discussions
+
+- **Duplicates.** Every checked file is fingerprinted (SHA-256): the same PDF posted by five people shows once in a library, and a file already shared at the university is refused ("Already shared as ... in CS2012").
+- **National subject index.** Each module links to a national subject, matched from its name ("Data Structures and Algorithms II" joins "Data Structures and Algorithms"); reps and moderators correct it, national admins merge subjects. Files are shared with the uploader's university by default; only files shared with "All universities" reach students elsewhere taking the same subject (a module's Shared tab: Your university / Other universities).
+- **Discussions.** A thread on every shared file, by question for past papers ("Q3(b)"): answers, replies, helpful votes (best first), names shown, blocked students hidden, report and delete.
+
+### File safety
+
+| Layer | What | When |
+| --- | --- | --- |
+| Phone | Allowed types only, 25 MB, macro files refused | Built |
+| File checks (`files` Edge Function) | Real type matches the name; Office files with macros, ActiveX, embedded programs or remote templates refused; old .doc/.ppt/.xls with macros refused; PDFs with JavaScript, launch actions, embedded files, Flash or XFA refused (also inside compressed object streams, hex-escaped names decoded); archives with programs refused. Chat documents and photos are checked after sending (a blocked file can no longer be opened, leaves every library and says why in the chat); shared files before they go live | Built |
+| People | Moderators, reports, take-downs and upload bans | Built (the moderation panel lives in the admin repo) |
+| **ClamAV virus scan** | **Known-malware scan on Cloud Run (slim `clamav:stable_base` image, signatures kept in R2, so $0 at pilot volume). Needs a Google Cloud billing account with a card** | **Before regional launch: must be built** |
+
+> **Before regional launch: build the ClamAV scanner.** The pilot runs on the first three layers only, because the Google Cloud account needs a card. Do not open regional launch until files published to the Shared library are scanned by ClamAV.
 
 ## Shop (new)
 
@@ -84,6 +154,13 @@ Safety rules, built in from the first version:
 | Home | Greeting, brand card, set-up steps, staff approval count, empty feed |
 | Profile and settings | Profile photo (choose or take, cropped and shrunk on the phone, stored in Cloudflare R2 through a signing Edge Function), about-you line, who can find me, who can message me, block and unblock, blocked list |
 | Chats | Batch and national programme groups, direct messages, requests, live delivery, phone storage with outbox, typing (direct), read receipts (direct), unread badges, app icon badge, photos, documents, polls, stickers, shared contacts, group details with members and mute, push notifications (Android; iPhone needs the Apple Developer Program) |
+| Modules | Semester lists per batch (rep confirms, batchmates vote, senior batch suggested), one module per code with merges, current semester and votes to move on, electives, not taking, repeats, course chats per module and intake year |
+| Kuppi | Host (chips for day and time, checked meeting links), list, RSVP with capacity, link from 15 minutes before with Join, kuppi chat, cancel, report |
+| Explore | Publish from the library or upload, file checks before going live, browse and search by module, code and kind, take down, report, upload bans |
+| Exam season | Exam dates per batch with countdowns on Resources and Home, past papers first, offline packs (Wi-Fi only), search inside files |
+| Kuppi requests | Anonymous asks with votes, similar asks merged, answered by hosting; across universities by national subject, answered with online kuppi open to all |
+| Shared files v2 | Duplicates by fingerprint, national subject index with opt-in national sharing, past-paper discussions |
+| Library | Files, photos and links from chats recorded once and filed per student into module folders (chat module, sender or rep tag, module codes, own moves), categories guessed, To sort with a suggested module, folder counts on the Resources tab, open in place, Show in chat, move, pin, remove, Save to Resources from chats, saved files kept after leaving a chat |
 | Search | Name search across universities in the top bar, student cards, "who can find you" setting, typo correction, rate limit |
 | Brand | Uni Era mark, lockup, app icons, light and dark themes |
 | Security | Row-level security on every table, database tests (accounts, batches, search, profiles, names, chats, push, read receipts, members and rich messages), audit log |

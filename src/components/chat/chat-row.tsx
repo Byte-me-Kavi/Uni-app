@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import { Text, View } from 'react-native';
 import { BellSlashIcon } from 'phosphor-react-native/src/icons/BellSlash';
+import { BookOpenTextIcon } from 'phosphor-react-native/src/icons/BookOpenText';
+import { ChalkboardTeacherIcon } from 'phosphor-react-native/src/icons/ChalkboardTeacher';
 import { GraduationCapIcon } from 'phosphor-react-native/src/icons/GraduationCap';
 import { PushPinIcon } from 'phosphor-react-native/src/icons/PushPin';
 import { UsersThreeIcon } from 'phosphor-react-native/src/icons/UsersThree';
@@ -11,15 +13,22 @@ import { listTime } from '@/lib/chat/format';
 import type { Chat } from '@/lib/chat/types';
 import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
-// Group chats are told apart from people by a tile, not a face: batch (people) and programme
-// (graduation cap, national).
+// Group chats are told apart from people by a tile, not a face: batch (people), programme
+// (graduation cap, national), course (open book, one module) and kuppi (a teacher at a board).
 export function ChatIcon({ chat, size = 52 }: { chat: Chat; size?: number }) {
   const theme = useTheme();
   const styles = useStyles();
   if (chat.kind === 'direct') {
     return <Avatar name={chat.title ?? '?'} path={chat.other_avatar_path} size={size} />;
   }
-  const Icon = chat.kind === 'programme' ? GraduationCapIcon : UsersThreeIcon;
+  const Icon =
+    chat.kind === 'programme'
+      ? GraduationCapIcon
+      : chat.kind === 'module'
+        ? BookOpenTextIcon
+        : chat.kind === 'kuppi'
+          ? ChalkboardTeacherIcon
+          : UsersThreeIcon;
   return (
     <View style={[styles.tile, { width: size, height: size, borderRadius: size * 0.32 }]}>
       <Icon size={size * 0.48} weight="bold" color={theme.text} />
@@ -30,6 +39,8 @@ export function ChatIcon({ chat, size = 52 }: { chat: Chat; size?: number }) {
 export function subtitleFor(chat: Chat) {
   if (chat.kind === 'programme') return 'Students from every university';
   if (chat.kind === 'cohort') return 'Your batch';
+  if (chat.kind === 'module') return 'Course chat';
+  if (chat.kind === 'kuppi') return 'Kuppi chat';
   return null;
 }
 

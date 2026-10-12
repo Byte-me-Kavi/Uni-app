@@ -401,6 +401,10 @@ verify_jwt = false
 [functions.push]
 verify_jwt = false
 
+# Checks the student's token itself; database calls carry FILES_SECRET instead (see the function).
+[functions.files]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327

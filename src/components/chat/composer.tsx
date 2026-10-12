@@ -24,6 +24,8 @@ import { Avatar } from '@/components/ui/avatar';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { canPickPhoneContact, pickDocument, pickPhoneContact, pickPhoto, pickPhotos } from '@/lib/chat/attachments';
 import { editMessage, notifyTyping, sendMessage, sendRich } from '@/lib/chat/engine';
+import { uuidv7 } from '@/lib/chat/uuid';
+import { tagMessage } from '@/lib/chat-folders';
 import { markUsed } from '@/lib/chat/sticker-library';
 import type { Chat, LinkPreview, Message, VoiceAttachment } from '@/lib/chat/types';
 import { voiceAvailable } from '@/lib/chat/voice';
@@ -427,13 +429,18 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
       {pending ? (
         <AttachPreview
           pending={pending}
+          // Course and kuppi chats already file into their module.
+          fileable={!!chat && chat.kind !== 'module' && chat.kind !== 'kuppi'}
           onChange={setPending}
           onClose={() => setPending(null)}
-          onSend={(caption) => {
+          onSend={(caption, moduleId) => {
             if (pending?.kind === 'image') {
               pending.photos.forEach((photo, i) => postRich(conversationId, 'image', photo, i === 0 ? caption : '', { replyTo: i === 0 ? replyTo : null }));
             } else if (pending) {
-              postRich(conversationId, 'file', pending.attachment, caption, { replyTo });
+              const id = uuidv7();
+              postRich(conversationId, 'file', pending.attachment, caption, { replyTo, id });
+              // Recorded now, applied when the upload reaches the server.
+              if (moduleId) tagMessage(conversationId, id, moduleId).then((e) => e && onError(e));
             }
             onCancelReply();
             setPending(null);

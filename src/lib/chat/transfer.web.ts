@@ -27,3 +27,14 @@ export async function openFile(file: { url: string }) {
 export async function shareFile(file: { url: string }) {
   window.open(file.url, '_blank', 'noopener');
 }
+
+// The web build keeps nothing for offline.
+export async function offlineCopy(_file: { path: string; name: string }): Promise<string | null> {
+  return null;
+}
+
+export async function keepOffline(_file: { url: string; path: string; name: string }): Promise<number> {
+  return 0;
+}
+
+export async function dropOffline(_file: { path: string; name: string }) {}

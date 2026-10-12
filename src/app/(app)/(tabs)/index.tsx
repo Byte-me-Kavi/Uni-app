@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { BrandCard } from '@/components/home/brand-card';
+import { ExamStrip } from '@/components/resources/exam-strip';
 import { HomeSkeleton } from '@/components/home/home-skeleton';
 import { QuietFeed } from '@/components/home/quiet-feed';
 import { SetupList, type SetupStep } from '@/components/home/setup-list';
@@ -71,7 +72,12 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
       detail: home.batch?.name,
       onPress: () => router.push('/batch'),
     },
-    { key: 'modules', label: 'Add your modules', done: home.module_count > 0, comingSoon: true },
+    {
+      key: 'modules',
+      label: home.module_count > 0 ? 'Set up your modules' : 'Set up your modules for this semester',
+      done: home.module_count > 0,
+      onPress: home.has_cohort ? () => router.push('/resources') : undefined,
+    },
   ];
 
   return (
@@ -90,6 +96,12 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
       {home.staff_role && home.pending_accounts !== null ? (
         <Reveal order={2}>
           <StaffCard count={home.pending_accounts} role={home.staff_role} />
+        </Reveal>
+      ) : null}
+
+      {home.has_cohort ? (
+        <Reveal order={3}>
+          <ExamStrip limit={2} />
         </Reveal>
       ) : null}
 

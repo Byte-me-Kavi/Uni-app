@@ -13,7 +13,11 @@ import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/the
 export type ReportTarget =
   | { kind: 'message'; id: string; conversationId: string; who: string | null; userId: string | null }
   | { kind: 'profile'; id: string; who: string | null }
-  | { kind: 'conversation'; id: string; who: string | null };
+  | { kind: 'conversation'; id: string; who: string | null }
+  /** A kuppi (its host) or a shared file (its uploader), from Resources. */
+  | { kind: 'kuppi' | 'resource'; id: string; who: string | null; userId: string | null }
+  /** A kuppi request (anonymous) or a comment on a shared file. */
+  | { kind: 'kuppi_request' | 'comment'; id: string; who: string | null; userId: string | null };
 
 type Category = { code: string; label: string };
 const CACHE_KEY = 'report:categories';
@@ -55,19 +59,34 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
     });
   }, [target]);
 
-  const blockable = target?.kind === 'profile' ? target.id : target?.kind === 'message' ? target.userId : null;
+  const blockable =
+    target?.kind === 'profile'
+      ? target.id
+      : target?.kind === 'message' || target?.kind === 'kuppi' || target?.kind === 'resource' || target?.kind === 'comment'
+        ? target.userId
+        : null;
 
   async function send() {
     if (!target || !category) return;
     setSending(true);
     setError(null);
-    const { error: failed } = await supabase.rpc('report', {
-      p_kind: target.kind,
-      p_target_id: target.id,
-      p_category: category,
-      ...(details.trim() ? { p_details: details.trim() } : {}),
-      ...(target.kind === 'message' ? { p_conversation_id: target.conversationId } : {}),
-    });
+    const extra = details.trim() ? { p_details: details.trim() } : {};
+    const { error: failed } =
+      target.kind === 'kuppi'
+        ? await supabase.rpc('report_kuppi', { p_session_id: target.id, p_category: category, ...extra })
+        : target.kind === 'resource'
+          ? await supabase.rpc('report_resource', { p_resource_id: target.id, p_category: category, ...extra })
+          : target.kind === 'kuppi_request'
+            ? await supabase.rpc('report_kuppi_request', { p_request_id: target.id, p_category: category, ...extra })
+            : target.kind === 'comment'
+              ? await supabase.rpc('report_comment', { p_comment_id: target.id, p_category: category, ...extra })
+          : await supabase.rpc('report', {
+              p_kind: target.kind,
+              p_target_id: target.id,
+              p_category: category,
+              ...extra,
+              ...(target.kind === 'message' ? { p_conversation_id: target.conversationId } : {}),
+            });
     if (!failed && block && blockable) {
       await supabase.rpc('block_user', { p_user_id: blockable });
       refreshChats();
@@ -83,7 +102,15 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
       ? 'Report this message'
       : target?.kind === 'profile'
         ? `Report ${target.who ?? 'this student'}`
-        : 'Report this group';
+        : target?.kind === 'kuppi'
+          ? 'Report this kuppi'
+          : target?.kind === 'resource'
+            ? 'Report this file'
+            : target?.kind === 'kuppi_request'
+              ? 'Report this request'
+              : target?.kind === 'comment'
+                ? 'Report this comment'
+            : 'Report this group';
 
   return (
     <BottomSheet visible={!!target} title={title} onClose={onClose} height={0.8}>
