@@ -12,7 +12,7 @@ export function LinkCard({ link, onRemove }: { link: LinkPreview; onRemove?: () 
   const styles = useStyles();
   return (
     <Pressable
-      onPress={() => !onRemove && Linking.openURL(link.url).catch(() => {})}
+      onPress={() => !onRemove && /^https?:\/\//i.test(link.url) && Linking.openURL(link.url).catch(() => {})}
       disabled={!!onRemove}
       accessibilityRole={onRemove ? undefined : 'link'}
       accessibilityLabel={`${link.title ?? link.url}${link.site ? `, ${link.site}` : ''}`}

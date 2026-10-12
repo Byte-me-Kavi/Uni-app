@@ -41,6 +41,27 @@ export function daysText(days: number) {
   return `in ${days} days`;
 }
 
+const DAY = 24 * 60 * 60 * 1000;
+const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/** Calendar days from today to the exam on this phone's calendar: due at 11:59 pm today is 0 (today). */
+export function daysUntil(startsAt: string, now = new Date()) {
+  return Math.round((midnight(new Date(startsAt)) - midnight(now)) / DAY);
+}
+
+// Days are counted again whenever the list arrives (from the server or the phone's copy), and dates
+// whose time has passed drop off.
+function current(data: MyExams | null): MyExams | null {
+  if (!data) return null;
+  const now = new Date();
+  return {
+    ...data,
+    exams: data.exams
+      .filter((e) => new Date(e.starts_at).getTime() > now.getTime())
+      .map((e) => ({ ...e, days: daysUntil(e.starts_at, now) })),
+  };
+}
+
 type State = { key: string | null; data: MyExams | null };
 let state: State = { key: null, data: null };
 const listeners = new Set<() => void>();
@@ -52,7 +73,7 @@ function set(next: State) {
 }
 
 function adopt(data: MyExams) {
-  set({ key: state.key, data });
+  set({ key: state.key, data: current(data) });
   if (state.key) writeCache(state.key, data);
 }
 
@@ -78,11 +99,11 @@ export function useMyExams() {
     () => state,
   );
   useEffect(() => {
-    if (state.key !== key) set({ key, data: key ? readCache<MyExams>(key) : null });
+    if (state.key !== key) set({ key, data: key ? current(readCache<MyExams>(key)) : null });
     if (key) refreshExams();
   }, [key]);
   const refresh = useCallback(() => refreshExams(), []);
-  return { data: snapshot.key === key ? snapshot.data : key ? readCache<MyExams>(key) : null, refresh };
+  return { data: snapshot.key === key ? snapshot.data : key ? current(readCache<MyExams>(key)) : null, refresh };
 }
 
 /** The soonest exam for a module, if any. */

@@ -130,8 +130,8 @@ select is((select unread from api.my_chats() where conversation_id = (select id 
 select pg_temp.act_as('00000000-0000-0000-0000-0000000aa001');
 select is(messaging.can_use_topic('user:00000000-0000-0000-0000-0000000aa001', false), true, 'I can listen to my own channel');
 select is(messaging.can_use_topic('user:00000000-0000-0000-0000-0000000aa002', false), false, 'but not to someone else''s');
-select is(messaging.can_use_topic('chat:' || (select id from dm), true), true, 'typing is allowed in my direct chat');
-select is(messaging.can_use_topic('chat:' || (select programme_chat from ids), true), false, 'but not in groups (direct chats only)');
+select is(messaging.can_use_topic('typing:' || (select id from dm), true), true, 'typing is allowed in my direct chat (on its own channel)');
+select is(messaging.can_use_topic('typing:' || (select programme_chat from ids), true), false, 'but not in groups (direct chats only)');
 select is(messaging.can_use_topic('chat:' || (select id from request), false), true, 'I can listen to a chat I am in');
 
 -- ---------------------------------------------------------------- limits and leaving

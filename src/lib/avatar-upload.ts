@@ -56,7 +56,8 @@ async function put(signed: Signed, body: ArrayBuffer): Promise<'ok' | 'refused' 
       // Bytes, not a Blob: Expo's fetch replaces Content-Type with a Blob's own type (often empty
       // for files), which breaks the signature. Bytes go out exactly as signed.
       const response = await fetch(signed.url, { method: 'PUT', headers: signed.headers, body, signal: controller.signal });
-      if (response.ok) return 'ok';
+      // 412: an earlier attempt with this same link already stored the photo.
+      if (response.ok || response.status === 412) return 'ok';
       if (__DEV__) console.warn(`[photo] storage answered HTTP ${response.status}`, await response.text().catch(() => ''));
       if (response.status === 403) return 'refused';
       if (response.status < 500) return 'failed';

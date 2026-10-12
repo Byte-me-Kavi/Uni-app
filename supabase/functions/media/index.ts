@@ -19,6 +19,10 @@ import { createClient, type PostgrestError } from 'npm:@supabase/supabase-js@2.1
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
 
 const CACHE_CONTROL = 'public, max-age=31536000, immutable'; // paths are never reused
+// Every upload link is for one new file only (If-None-Match: *, covered by the signature): once
+// the file is there, the same link cannot replace it, so a file cannot be swapped for another after
+// it was checked.
+const ONCE = { 'If-None-Match': '*' };
 const READ_SECONDS = 6 * 60 * 60;
 const MAX_STICKER_BYTES = 1_000_000;
 
@@ -85,12 +89,12 @@ Deno.serve(async (req) => {
     });
     if (error) return fromDatabase(error);
     const { path, mime } = data as { path: string; mime: string };
-    const headers = { 'Content-Type': mime, 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL };
+    const headers = { 'Content-Type': mime, 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL, ...ONCE };
     return json({
       path,
       url: await signPut(chatR2, chatUrl(path), headers, 600),
       // Content-Length is set by the phone from the file itself.
-      headers: { 'Content-Type': mime, 'Cache-Control': CACHE_CONTROL },
+      headers: { 'Content-Type': mime, 'Cache-Control': CACHE_CONTROL, ...ONCE },
     });
   }
 
@@ -115,11 +119,11 @@ Deno.serve(async (req) => {
     if (error) return fromDatabase(error);
     const result = data as { exists: boolean; path?: string; sticker?: string };
     if (result.exists) return json({ exists: true, sticker: result.sticker });
-    const headers = { 'Content-Type': 'image/webp', 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL };
+    const headers = { 'Content-Type': 'image/webp', 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL, ...ONCE };
     return json({
       exists: false,
       url: await signPut(publicR2, publicUrl(result.path!), headers, 600),
-      headers: { 'Content-Type': 'image/webp', 'Cache-Control': CACHE_CONTROL },
+      headers: { 'Content-Type': 'image/webp', 'Cache-Control': CACHE_CONTROL, ...ONCE },
     });
   }
 

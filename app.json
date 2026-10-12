@@ -20,7 +20,8 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "lk.uniera.app",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "allowBackup": false
     },
     "web": {
       "output": "static",

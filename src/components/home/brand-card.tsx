@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Text, View, useWindowDimensions } from 'react-native';
 
 import { UniEraMark } from '@/components/brand/uni-era-mark';
@@ -8,7 +9,7 @@ type Props = { assemble: boolean };
 // The one bold surface on the home screen: the theme's accent with the tagline in Figtree Black and the
 // mark beside it, centred vertically and fully visible. Text and mark take the theme's colour on the
 // accent (Ink on pale accents, white on deep ones); the tassel takes the other one (logo system rule).
-export function BrandCard({ assemble }: Props) {
+export const BrandCard = memo(function BrandCard({ assemble }: Props) {
   const theme = useTheme();
   const styles = useStyles();
   const tassel = theme.onAccent === brand.ink ? brand.white : brand.ink;
@@ -25,7 +26,7 @@ export function BrandCard({ assemble }: Props) {
       </View>
     </View>
   );
-}
+});
 
 const useStyles = createThemedStyles((t) => ({
   card: {

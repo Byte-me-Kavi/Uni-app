@@ -6,7 +6,7 @@ begin;
 set local role postgres;
 create extension if not exists pgtap with schema extensions;
 set local search_path to extensions, public;
-select plan(22);
+select plan(23);
 
 insert into identity.institutions (id, name, short_name, kind, status) overriding system value values
   (9881, 'Test Eta University', 'TEU', 'state', 'live'),
@@ -58,6 +58,11 @@ select api.set_exam(pg_temp.mod('CS2012'), 'mid', now() + interval '3 days');
 select is((api.my_exams() -> 'exams' -> 0 -> 'module' ->> 'code'), 'CS2012', 'soonest first');
 select is((api.set_exam(pg_temp.mod('CS2012'), 'final', now() + interval '14 days') -> 'exams' -> 1 ->> 'days'), '14',
   'setting the same exam again moves it');
+select is((select e ->> 'days' from jsonb_array_elements(
+             api.set_exam(pg_temp.mod('MA1013'), 'deadline',
+                          ((now() at time zone 'Asia/Colombo')::date + time '23:59') at time zone 'Asia/Colombo') -> 'exams') e
+           where e ->> 'kind' = 'deadline'), '0', 'due at 11:59 pm today is today, not in 1 day');
+select api.remove_exam((select (e ->> 'id')::uuid from jsonb_array_elements(api.my_exams() -> 'exams') e where e ->> 'kind' = 'deadline'));
 select throws_ok($$ select api.set_exam(pg_temp.mod('CS2012'), 'final', now() + interval '3 years') $$, '22023', null,
   'dates are within the next year');
 select pg_temp.act_as('00000000-0000-0000-0000-0000000ad102');

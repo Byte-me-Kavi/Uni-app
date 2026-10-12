@@ -76,14 +76,15 @@ Deno.serve(async (req) => {
 
     const url = new URL(objectUrl(path as string));
     url.searchParams.set('X-Amz-Expires', '120');
-    const headers = { 'Content-Type': 'image/jpeg', 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL };
+    // One new file only (If-None-Match: *): the link cannot replace the photo after it was checked.
+    const headers = { 'Content-Type': 'image/jpeg', 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL, 'If-None-Match': '*' };
     // allHeaders: the signature covers type, size and cache header, so R2 refuses anything else.
     const signed = await r2.sign(new Request(url, { method: 'PUT', headers }), { aws: { signQuery: true, allHeaders: true } });
     return json({
       path,
       url: signed.url,
       // Content-Length is set by the phone from the file itself.
-      headers: { 'Content-Type': headers['Content-Type'], 'Cache-Control': CACHE_CONTROL },
+      headers: { 'Content-Type': headers['Content-Type'], 'Cache-Control': CACHE_CONTROL, 'If-None-Match': '*' },
     });
   }
 

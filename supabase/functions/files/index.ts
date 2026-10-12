@@ -33,6 +33,10 @@ declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | unde
 
 const MAX_BYTES = 26_214_400;
 const CACHE_CONTROL = 'private, max-age=31536000, immutable';
+// Every upload link is for one new file only (If-None-Match: *, covered by the signature): once
+// the file is there, the same link cannot replace it, so a file cannot be swapped for another after
+// it was checked.
+const ONCE = { 'If-None-Match': '*' };
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -201,12 +205,12 @@ Deno.serve(async (req) => {
     });
     if (error) return fromDatabase(error);
     const { resource_id, key, mime } = data as { resource_id: string; key: string; mime: string };
-    const headers = { 'Content-Type': mime, 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL };
+    const headers = { 'Content-Type': mime, 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL, ...ONCE };
     return json({
       resource_id,
       url: await signPut(key, headers, 600),
       // Content-Length is set by the phone from the file itself.
-      headers: { 'Content-Type': mime, 'Cache-Control': CACHE_CONTROL },
+      headers: { 'Content-Type': mime, 'Cache-Control': CACHE_CONTROL, ...ONCE },
     });
   }
 

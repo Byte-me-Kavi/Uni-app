@@ -13,8 +13,9 @@ export async function putFile(url: string, headers: Record<string, string>, uri:
   try {
     const blob = await (await fetch(uri)).blob();
     const response = await fetch(url, { method: 'PUT', headers, body: blob });
-    if (response.ok) onProgress(1);
-    return response.status;
+    // 412: an earlier attempt with this same link already stored the file.
+    if (response.ok || response.status === 412) onProgress(1);
+    return response.status === 412 ? 200 : response.status;
   } catch {
     return 0;
   }

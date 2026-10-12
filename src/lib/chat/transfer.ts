@@ -43,7 +43,9 @@ export async function putFile(url: string, headers: Record<string, string>, uri:
       totalBytesExpectedToSend > 0 && onProgress(totalBytesSent / totalBytesExpectedToSend),
   );
   const result = await task.uploadAsync().catch(() => null);
-  return result?.status ?? 0;
+  // 412: an earlier attempt with this same link already stored the file (links are for one new
+  // file only), so the upload is done.
+  return result?.status === 412 ? 200 : (result?.status ?? 0);
 }
 
 const safeName = (name: string) => name.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120) || 'file';

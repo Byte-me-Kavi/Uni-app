@@ -42,8 +42,14 @@ export function ExamStrip({ limit = 3 }: { limit?: number }) {
           accessibilityLabel={`${e.module.name}, ${e.module.code}, ${examLabel(e.kind)} ${daysText(e.days)}`}
           style={styles.row}>
           <View style={[styles.days, e.days <= 7 && styles.daysSoon]}>
-            <Text style={[styles.daysNumber, e.days <= 7 && styles.daysTextSoon]}>{Math.max(e.days, 0)}</Text>
-            <Text style={[styles.daysLabel, e.days <= 7 && styles.daysTextSoon]}>{e.days === 1 ? 'day' : 'days'}</Text>
+            {e.days <= 0 ? (
+              <Text style={[styles.daysToday, styles.daysTextSoon]}>Today</Text>
+            ) : (
+              <>
+                <Text style={[styles.daysNumber, e.days <= 7 && styles.daysTextSoon]}>{e.days}</Text>
+                <Text style={[styles.daysLabel, e.days <= 7 && styles.daysTextSoon]}>{e.days === 1 ? 'day' : 'days'}</Text>
+              </>
+            )}
           </View>
           <View style={styles.copy}>
             <View style={styles.moduleLine}>
@@ -76,6 +82,7 @@ const useStyles = createThemedStyles((t) => ({
   daysSoon: { backgroundColor: t.accent },
   daysNumber: { fontFamily: fonts.display, fontSize: 18, lineHeight: 21, color: t.text },
   daysLabel: { fontFamily: fonts.bodyBold, fontSize: 10, color: t.textMuted },
+  daysToday: { fontFamily: fonts.bodyBold, fontSize: 12 },
   daysTextSoon: { color: t.onAccent },
   copy: { flex: 1, gap: 1 },
   code: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.accentText },

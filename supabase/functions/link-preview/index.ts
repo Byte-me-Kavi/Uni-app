@@ -3,8 +3,11 @@
 // WhatsApp; the preview then travels inside the message, so the people receiving it never contact
 // the site just because a message arrived.
 //
-// Only public web pages: http(s) on the normal ports, no IP addresses in private ranges and no
-// local names, at most 3 redirects (each checked), 5 seconds and the first 400 KB of the page.
+// Only public web pages: http(s) on the normal ports, no local names, and no address in a private
+// or reserved range, whether written in the link or behind its domain name (each name is looked up
+// first, so a name pointing at 127.0.0.1 or the cloud metadata address is refused). At most 3
+// redirects (each checked the same way), 5 seconds and the first 400 KB of the page. Active
+// accounts only, up to 300 previews a day (api.link_preview_allowed).
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -20,20 +23,57 @@ const env = (name: string) => Deno.env.get(name) ?? '';
 const MAX_BYTES = 400_000;
 const cache = new Map<string, { at: number; preview: unknown }>(); // per instance, an hour
 
+function privateV4(address: string) {
+  const ip = address.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (!ip) return true; // not an address we understand: refuse
+  const [a, b, c] = [Number(ip[1]), Number(ip[2]), Number(ip[3])];
+  return (
+    a === 0 || a === 10 || a === 127 || a >= 224 ||
+    (a === 100 && b >= 64 && b <= 127) || // carrier-grade NAT
+    (a === 169 && b === 254) || // link-local, cloud metadata
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 192 && b === 0 && (c === 0 || c === 2)) ||
+    (a === 198 && (b === 18 || b === 19)) || // benchmarking
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113)
+  );
+}
+
+function privateV6(address: string) {
+  const ip = address.toLowerCase();
+  if (ip === '::' || ip === '::1') return true;
+  const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return privateV4(mapped[1]);
+  return /^(fc|fd|fe8|fe9|fea|feb|ff|64:ff9b|2001:db8)/.test(ip);
+}
+
+// The link itself: scheme, port and name.
 function isPublic(url: URL) {
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
   if (url.port && url.port !== '443' && url.port !== '80') return false;
   const host = url.hostname.toLowerCase();
   if (!host.includes('.') || /(^|\.)(localhost|local|internal|lan|home|corp)$/.test(host)) return false;
   if (host.startsWith('[') || host.includes(':')) return false; // IPv6 literals
-  const ip = host.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
-  if (ip) {
-    const [a, b] = [Number(ip[1]), Number(ip[2])];
-    if (a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a >= 224 || (a === 100 && b >= 64 && b <= 127)) {
-      return false;
-    }
-  }
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) return !privateV4(host);
   return true;
+}
+
+// Where the name points: every address it resolves to must be public.
+async function resolvesPublic(host: string) {
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) return !privateV4(host);
+  let v4: string[] = [];
+  let v6: string[] = [];
+  try {
+    [v4, v6] = await Promise.all([
+      Deno.resolveDns(host, 'A').catch(() => [] as string[]),
+      Deno.resolveDns(host, 'AAAA').catch(() => [] as string[]),
+    ]);
+  } catch {
+    return false;
+  }
+  if (v4.length === 0 && v6.length === 0) return false;
+  return v4.every((a) => !privateV4(a)) && v6.every((a) => !privateV6(a));
 }
 
 const decode = (s: string) =>
@@ -59,7 +99,7 @@ function meta(html: string, names: string[]) {
 async function fetchPage(start: URL) {
   let url = start;
   for (let hop = 0; hop < 4; hop++) {
-    if (!isPublic(url)) return null;
+    if (!isPublic(url) || !(await resolvesPublic(url.hostname.toLowerCase()))) return null;
     const response = await fetch(url, {
       redirect: 'manual',
       signal: AbortSignal.timeout(5000),
@@ -101,12 +141,24 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Use POST.' }, 405);
 
-  // Signed-in students only.
+  // Active students only, within their daily quota (the database decides, with their own token).
   const authorization = req.headers.get('Authorization') ?? '';
-  const who = await fetch(`${env('SUPABASE_URL')}/auth/v1/user`, {
-    headers: { Authorization: authorization, apikey: env('SUPABASE_ANON_KEY') },
+  const allowed = await fetch(`${env('SUPABASE_URL')}/rest/v1/rpc/link_preview_allowed`, {
+    method: 'POST',
+    headers: {
+      Authorization: authorization,
+      apikey: env('SUPABASE_ANON_KEY'),
+      'Content-Type': 'application/json',
+      'Content-Profile': 'api',
+      'Accept-Profile': 'api',
+    },
+    body: '{}',
   });
-  if (!who.ok) return json({ error: 'Sign in first.' }, 401);
+  if (!allowed.ok) {
+    await allowed.body?.cancel();
+    return allowed.status === 429 ? json({ error: 'Too many link previews today.' }, 429) : json({ error: 'Sign in first.' }, 401);
+  }
+  await allowed.body?.cancel();
 
   const body = await req.json().catch(() => null);
   let target: URL;

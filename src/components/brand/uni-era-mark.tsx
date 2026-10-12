@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -42,11 +42,15 @@ type Props = {
   motion?: 'assemble' | 'waiting';
 };
 
-export function UniEraMark({ size, color, tasselColor = brand.accent, motion }: Props) {
+// Memoised: a parent redrawing for other reasons (data arriving, a theme change) must not redraw the
+// mark mid-animation, which could leave the cap at its starting point (invisible).
+export const UniEraMark = memo(function UniEraMark({ size, color, tasselColor = brand.accent, motion }: Props) {
   const height = size * ASPECT;
   const reduceMotion = useReducedMotion();
-  // Web pages are pre-rendered, so the mark is shown already assembled there.
-  const assemble = motion === 'assemble' && !reduceMotion && Platform.OS !== 'web';
+  // Decided once, when the mark appears: the cap drops in on the first launch only, even if the
+  // parent stops asking for it halfway through. Web pages are pre-rendered, so the mark is shown
+  // already assembled there.
+  const [assemble] = useState(() => motion === 'assemble' && !reduceMotion && Platform.OS !== 'web');
 
   const uIn = useSharedValue(assemble ? 0 : 1);
   const capIn = useSharedValue(assemble ? 0 : 1);
@@ -67,7 +71,8 @@ export function UniEraMark({ size, color, tasselColor = brand.accent, motion }: 
         true,
       );
     }
-  }, [assemble, motion, reduceMotion, uIn, capIn, swing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per mark (see assemble above)
+  }, [assemble, motion === 'waiting', reduceMotion]);
 
   const uStyle = useAnimatedStyle(() => ({
     opacity: uIn.value,
@@ -81,7 +86,9 @@ export function UniEraMark({ size, color, tasselColor = brand.accent, motion }: 
     transform: [{ rotate: `${swing.value}deg` }],
   }));
 
-  const box = { width: size, height };
+  const box = useMemo(() => ({ width: size, height }), [size, height]);
+  const capOrigin = useMemo(() => ({ transformOrigin: [CAP_CENTRE.x * size, CAP_CENTRE.y * height, 0] }), [size, height]);
+  const tasselOrigin = useMemo(() => ({ transformOrigin: [TASSEL_PIVOT.x * size, TASSEL_PIVOT.y * height, 0] }), [size, height]);
 
   return (
     <View style={box} accessible accessibilityRole="image" accessibilityLabel="Uni Era">
@@ -91,7 +98,7 @@ export function UniEraMark({ size, color, tasselColor = brand.accent, motion }: 
         </Svg>
       </Animated.View>
       <Animated.View
-        style={[styles.layer, box, { transformOrigin: [CAP_CENTRE.x * size, CAP_CENTRE.y * height, 0] }, capStyle]}>
+        style={[styles.layer, box, capOrigin, capStyle]}>
         <Svg width={size} height={height} viewBox={VIEW_BOX}>
           <Path d={CAP} fill={color} />
           <Path d={BOARD} fill={color} />
@@ -99,12 +106,7 @@ export function UniEraMark({ size, color, tasselColor = brand.accent, motion }: 
           <Circle cx={493} cy={208} r={32} fill={tasselColor} />
         </Svg>
         <Animated.View
-          style={[
-            styles.layer,
-            box,
-            { transformOrigin: [TASSEL_PIVOT.x * size, TASSEL_PIVOT.y * height, 0] },
-            tasselStyle,
-          ]}>
+          style={[styles.layer, box, tasselOrigin, tasselStyle]}>
           <Svg width={size} height={height} viewBox={VIEW_BOX}>
             <Path d={DROP} stroke={tasselColor} strokeWidth={26} strokeLinecap="round" fill="none" />
             <Rect x={836} y={438} width={73} height={140} rx={30} fill={tasselColor} />
@@ -113,7 +115,7 @@ export function UniEraMark({ size, color, tasselColor = brand.accent, motion }: 
       </Animated.View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   layer: { position: 'absolute', top: 0, left: 0 },

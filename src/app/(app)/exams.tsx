@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { memo, useEffect, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { DotsThreeVerticalIcon } from 'phosphor-react-native/src/icons/DotsThreeVertical';
 
 import { ModuleDot } from '@/components/resources/module-dot';
 import { ModuleChip } from '@/components/resources/module-chip';
@@ -12,9 +13,19 @@ import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
 import { dayAndTime, weekdayDayMonth } from '@/lib/dates';
-import { daysText, EXAM_KINDS, examLabel, removeExam, setExam, useMyExams, type Exam, type ExamKind } from '@/lib/exams';
+import {
+  daysText,
+  daysUntil,
+  EXAM_KINDS,
+  examLabel,
+  removeExam,
+  setExam,
+  useMyExams,
+  type Exam,
+  type ExamKind,
+} from '@/lib/exams';
 import { useMyModules } from '@/lib/modules';
-import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // Every half hour from 5 am to 11:30 pm, and 11:59 pm for assignment deadlines.
 const TIMES = [
@@ -31,13 +42,17 @@ const timeLabel = (t: { hour: number; minute: number }) =>
 // The batch's exam dates. Everyone sees the countdowns; reps (or anyone, in a batch without reps)
 // add and change them once for the whole batch.
 export default function Exams() {
+  const theme = useTheme();
   const styles = useStyles();
   const params = useLocalSearchParams<{ module?: string }>();
   const { data } = useMyExams();
   const { data: modules } = useMyModules();
   const current = modules?.batch ? modules.current.filter((m) => !m.pending) : [];
-  const [removing, setRemoving] = useState<Exam | null>(null);
+  // The date whose menu is open (change or remove it).
+  const [menu, setMenu] = useState<Exam | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const scroll = useRef<ScrollView>(null);
 
   // The form.
   const [days] = useState(() => {
@@ -69,49 +84,92 @@ export default function Exams() {
     setVenue('');
   }
 
+  // "Change this date": the form takes the date's details, and the screen scrolls to it.
+  function change(e: Exam) {
+    const at = new Date(e.starts_at);
+    setModuleId(e.module.id);
+    setKind(e.kind);
+    setDay(Math.min(Math.max(daysUntil(e.starts_at), 0), days.length - 1));
+    const minutes = at.getHours() * 60 + at.getMinutes();
+    setTime(
+      TIMES.reduce((best, t) =>
+        Math.abs(t.hour * 60 + t.minute - minutes) < Math.abs(best.hour * 60 + best.minute - minutes) ? t : best,
+      ),
+    );
+    setVenue(e.venue ?? '');
+    setError(null);
+    requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: true }));
+  }
+
+  async function remove(e: Exam) {
+    setListError(null);
+    const message = await removeExam(e.id);
+    if (message) setListError(message);
+  }
+
   const exams = data?.exams ?? [];
 
   return (
     <Screen style={styles.screen}>
       <BackHeader title="Exams" />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.stack}>
             {exams.length > 0 ? (
               <View style={styles.card}>
                 {exams.map((e) => (
-                  <PressableScale
-                    key={e.id}
-                    onPress={() => router.push({ pathname: '/module/[id]', params: { id: String(e.module.id) } })}
-                    onLongPress={() => data?.can_edit && setRemoving(e)}
-                    accessibilityRole="button"
-                    accessibilityHint={data?.can_edit ? 'Long press to remove' : undefined}
-                    style={styles.row}>
-                    <View style={styles.days}>
-                      <Text style={styles.daysNumber}>{Math.max(e.days, 0)}</Text>
-                      <Text style={styles.daysLabel}>{e.days === 1 ? 'day' : 'days'}</Text>
-                    </View>
-                    <View style={styles.copy}>
-                      <View style={styles.moduleLine}>
-                        <ModuleDot id={e.module.id} size={8} />
-                        <Text style={[styles.code, styles.shrink]} numberOfLines={1}>
-                          {e.module.code} · {e.module.name}
+                  <View key={e.id} style={styles.rowWrap}>
+                    <PressableScale
+                      onPress={() => router.push({ pathname: '/module/[id]', params: { id: String(e.module.id) } })}
+                      onLongPress={() => data?.can_edit && setMenu(e)}
+                      accessibilityRole="button"
+                      style={[styles.row, styles.flex]}>
+                      <View style={styles.days}>
+                        {e.days <= 0 ? (
+                          <Text style={styles.daysToday}>Today</Text>
+                        ) : (
+                          <>
+                            <Text style={styles.daysNumber}>{e.days}</Text>
+                            <Text style={styles.daysLabel}>{e.days === 1 ? 'day' : 'days'}</Text>
+                          </>
+                        )}
+                      </View>
+                      <View style={styles.copy}>
+                        <View style={styles.moduleLine}>
+                          <ModuleDot id={e.module.id} size={8} />
+                          <Text style={[styles.code, styles.shrink]} numberOfLines={1}>
+                            {e.module.code} · {e.module.name}
+                          </Text>
+                        </View>
+                        <Text style={styles.title}>
+                          {examLabel(e.kind)} {daysText(e.days)}
+                        </Text>
+                        <Text style={styles.meta}>
+                          {dayAndTime(e.starts_at)}
+                          {e.venue ? ` · ${e.venue}` : ''}
                         </Text>
                       </View>
-                      <Text style={styles.title}>
-                        {examLabel(e.kind)} {daysText(e.days)}
-                      </Text>
-                      <Text style={styles.meta}>
-                        {dayAndTime(e.starts_at)}
-                        {e.venue ? ` · ${e.venue}` : ''}
-                      </Text>
-                    </View>
-                  </PressableScale>
+                    </PressableScale>
+                    {data?.can_edit ? (
+                      <Pressable
+                        onPress={() => setMenu(e)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Change or remove ${e.module.name} ${examLabel(e.kind)}`}
+                        hitSlop={8}
+                        style={styles.more}>
+                        <DotsThreeVerticalIcon size={22} weight="bold" color={theme.textMuted} />
+                      </Pressable>
+                    ) : null}
+                  </View>
                 ))}
               </View>
-            ) : (
-              <Text style={styles.lead}>No exam dates yet. {data?.can_edit ? 'Add them below, once for your whole batch.' : 'Your batch reps add them.'}</Text>
-            )}
+            ) : null}
+            <FormMessage message={listError} />
+            {exams.length === 0 ? (
+              <Text style={styles.lead}>
+                No exam dates yet. {data?.can_edit ? 'Add them below, once for your whole batch.' : 'Your batch reps add them.'}
+              </Text>
+            ) : null}
 
             {data?.can_edit && formReady ? (
               <View style={styles.form}>
@@ -121,7 +179,14 @@ export default function Exams() {
                 <Group label="Module">
                   <View style={styles.chips}>
                     {current.map((m) => (
-                      <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={m.id === moduleId} onPress={() => setModuleId(m.id)} />
+                      <ModuleChip
+                        key={m.id}
+                        id={m.id}
+                        code={m.code}
+                        name={m.name}
+                        active={m.id === moduleId}
+                        onPress={() => setModuleId(m.id)}
+                      />
                     ))}
                   </View>
                 </Group>
@@ -140,7 +205,11 @@ export default function Exams() {
                     keyExtractor={(d) => String(d.getTime())}
                     extraData={day}
                     renderItem={({ item, index }) => (
-                      <Chip label={index === 0 ? 'Today' : weekdayDayMonth(item)} active={index === day} onPress={() => setDay(index)} />
+                      <Chip
+                        label={index === 0 ? 'Today' : weekdayDayMonth(item)}
+                        active={index === day}
+                        onPress={() => setDay(index)}
+                      />
                     )}
                     initialNumToRender={6}
                     maxToRenderPerBatch={10}
@@ -155,7 +224,9 @@ export default function Exams() {
                     data={TIMES}
                     keyExtractor={(t) => `${t.hour}:${t.minute}`}
                     extraData={time}
-                    renderItem={({ item }) => <Chip fixed label={timeLabel(item)} active={item === time} onPress={() => setTime(item)} />}
+                    renderItem={({ item }) => (
+                      <Chip fixed label={timeLabel(item)} active={item === time} onPress={() => setTime(item)} />
+                    )}
                     getItemLayout={timeLayout}
                     initialScrollIndex={Math.max(START_TIME - 1, 0)}
                     initialNumToRender={6}
@@ -165,7 +236,13 @@ export default function Exams() {
                     contentContainerStyle={styles.line}
                   />
                 </Group>
-                <TextField label="Venue (optional)" value={venue} onChangeText={setVenue} placeholder="e.g. Main Hall" maxLength={160} />
+                <TextField
+                  label="Venue (optional)"
+                  value={venue}
+                  onChangeText={setVenue}
+                  placeholder="e.g. Main Hall"
+                  maxLength={160}
+                />
                 <Text style={styles.meta}>Setting the same module and kind again moves it. Your batch sees who set it.</Text>
                 <FormMessage message={error} />
                 <Button label="Save date" loading={saving} onPress={save} />
@@ -177,20 +254,18 @@ export default function Exams() {
         </ScrollView>
       </KeyboardAvoidingView>
       <ActionSheet
-        visible={!!removing}
-        title={removing ? `${removing.module.name} · ${examLabel(removing.kind)}` : undefined}
-        actions={[
-          {
-            label: 'Remove this date',
-            destructive: true,
-            onPress: async () => {
-              if (!removing) return;
-              const e = await removeExam(removing.id);
-              if (e) setError(e);
-            },
-          },
-        ]}
-        onClose={() => setRemoving(null)}
+        visible={!!menu}
+        title={menu ? `${menu.module.name} · ${examLabel(menu.kind)}` : undefined}
+        message="Changes are for your whole batch."
+        actions={
+          menu
+            ? [
+                { label: 'Change this date', onPress: () => change(menu) },
+                { label: 'Remove this date', destructive: true, onPress: () => remove(menu) },
+              ]
+            : []
+        }
+        onClose={() => setMenu(null)}
       />
     </Screen>
   );
@@ -224,14 +299,29 @@ function FormPlaceholder() {
 
 // A plain pressable (no spring animation): the form has dozens of these, and each animated one costs
 // time to set up when the screen opens.
-const Chip = memo(function Chip({ label, active, onPress, fixed = false }: { label: string; active: boolean; onPress: () => void; fixed?: boolean }) {
+const Chip = memo(function Chip({
+  label,
+  active,
+  onPress,
+  fixed = false,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  fixed?: boolean;
+}) {
   const styles = useStyles();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ selected: active }}
-      style={({ pressed }) => [styles.chip, fixed && styles.chipFixed, active && styles.chipActive, pressed && styles.chipPressed]}>
+      style={({ pressed }) => [
+        styles.chip,
+        fixed && styles.chipFixed,
+        active && styles.chipActive,
+        pressed && styles.chipPressed,
+      ]}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -245,10 +335,20 @@ const useStyles = createThemedStyles((t) => ({
   lead: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: t.textMuted },
   card: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.sm },
-  days: { width: 56, height: 56, borderRadius: radius.md, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' },
+  days: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
+    backgroundColor: t.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // Ink on the accent (brand rule).
   daysNumber: { fontFamily: fonts.display, fontSize: 22, lineHeight: 26, color: t.onAccent },
   daysLabel: { fontFamily: fonts.bodyBold, fontSize: 11, color: t.onAccent },
+  daysToday: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.onAccent },
+  rowWrap: { flexDirection: 'row', alignItems: 'center' },
+  more: { width: 40, height: 48, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, gap: 1 },
   code: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.accentText },
   moduleLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },

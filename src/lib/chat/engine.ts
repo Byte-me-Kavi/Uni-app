@@ -24,7 +24,11 @@ import { supabase } from '@/lib/supabase';
 
 // The chat engine. One live connection while the app is in the foreground:
 //   user:<me>        always: direct messages and read receipts arrive here.
-//   chat:<id>        only for the chat on screen: group messages, and typing in direct chats.
+//   chat:<id>        only for the chat on screen: group messages, edits, deletions, pins, polls.
+//                    Receive-only: only the database sends on it, so nobody in the chat can fake
+//                    an edit or a deletion on someone else's phone.
+//   typing:<id>      only for an accepted direct chat on screen: "typing…", the one thing the two
+//                    people send each other directly. Nothing else is read from it.
 // Group messages are not followed live from the list (that would count a Realtime message per
 // member for every message); the list refreshes when Chats is opened, on reconnect and on return
 // to the app. The database is the source of truth: whenever the connection (re)joins, the engine
@@ -46,7 +50,7 @@ const KEEP_OPENED = 6; // chats whose newest page stays in memory after you leav
 let db: LocalDb | null = null;
 let me: string | null = null;
 let inbox: RealtimeChannel | null = null;
-let open: { id: string; channel: RealtimeChannel | null } | null = null;
+let open: { id: string; channel: RealtimeChannel | null; typing: RealtimeChannel | null } | null = null;
 let appStateSub: NativeEventSubscription | null = null;
 let backgroundTimer: ReturnType<typeof setTimeout> | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -279,7 +283,11 @@ function disconnectLive() {
   if (inbox) supabase.removeChannel(inbox);
   inbox = null;
   if (open?.channel) supabase.removeChannel(open.channel);
-  if (open) open.channel = null;
+  if (open?.typing) supabase.removeChannel(open.typing);
+  if (open) {
+    open.channel = null;
+    open.typing = null;
+  }
   setChatState({ connection: 'offline' });
 }
 
@@ -459,7 +467,7 @@ function touchWarm(conversationId: string) {
 async function openConversationUnsafe(conversationId: string, settled?: Promise<unknown>) {
   if (!db) return;
   if (open?.id !== conversationId) closeConversation();
-  open = { id: conversationId, channel: null };
+  open = { id: conversationId, channel: null, typing: null };
   touchWarm(conversationId);
 
   // The phone's copy first: on screen in milliseconds, offline too. Already in memory when the
@@ -531,15 +539,20 @@ export async function votePoll(conversationId: string, messageId: string, option
 }
 
 function subscribeOpen(conversationId: string) {
-  if (!open || open.id !== conversationId || open.channel) return;
+  if (!open || open.id !== conversationId) return;
   const chat = getChatState().chats.find((c) => c.conversation_id === conversationId);
-  // Direct messages already arrive on user:<me>; a direct chat's own channel is only for typing,
-  // which needs an accepted chat.
+  // A direct chat request: nothing live until it is accepted.
   if (chat?.kind === 'direct' && chat.request) return;
+  if (chat?.kind === 'direct' && !open.typing) {
+    open.typing = supabase
+      .channel(`typing:${conversationId}`, { config: { private: true } })
+      .on('broadcast', { event: 'typing' }, ({ payload }) => receiveTyping(conversationId, payload as { user_id?: string }))
+      .subscribe();
+  }
+  if (open.channel) return;
   open.channel = supabase
     .channel(`chat:${conversationId}`, { config: { private: true } })
     .on('broadcast', { event: 'message' }, ({ payload }) => receive(payload as MessagePayload))
-    .on('broadcast', { event: 'typing' }, ({ payload }) => receiveTyping(conversationId, payload as { user_id?: string }))
     .on('broadcast', { event: 'poll' }, ({ payload }) => receivePoll(payload as PollPayload))
     .on('broadcast', { event: 'reaction' }, ({ payload }) => receiveReaction(payload as ChangePayload))
     .on('broadcast', { event: 'delete' }, ({ payload }) => receiveDelete(payload as ChangePayload))
@@ -558,8 +571,9 @@ export function currentConversationId() {
 
 export function closeConversation() {
   if (!open) return;
-  const { id, channel } = open;
+  const { id, channel, typing } = open;
   if (channel) supabase.removeChannel(channel);
+  if (typing) supabase.removeChannel(typing);
   open = null;
   const chat = getChatState().chats.find((c) => c.conversation_id === id);
   if (chat && chat.kind !== 'direct') db?.prune(id, GROUP_KEEP).catch(() => {});
@@ -893,13 +907,13 @@ function scheduleRetry() {
 
 // Typing, direct chats only: once when you start, then every 4 seconds while you type.
 export function notifyTyping(conversationId: string) {
-  if (!open || open.id !== conversationId || !open.channel || !me) return;
+  if (!open || open.id !== conversationId || !open.typing || !me) return;
   const now = Date.now();
   if (now - (lastTypingSent[conversationId] ?? 0) < TYPING_SEND_EVERY_MS) return;
   const chat = getChatState().chats.find((c) => c.conversation_id === conversationId);
   if (chat?.kind !== 'direct' || chat.request) return;
   lastTypingSent[conversationId] = now;
-  open.channel.send({ type: 'broadcast', event: 'typing', payload: { user_id: me } });
+  open.typing.send({ type: 'broadcast', event: 'typing', payload: { user_id: me } });
 }
 
 // ---------------------------------------------------------------------------------------------
