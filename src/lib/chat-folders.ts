@@ -7,7 +7,7 @@ import type { Category } from '@/lib/library';
 // small folder tag under the bubble. Each bubble subscribes to its own message only, so a new
 // answer redraws just the bubbles it is about.
 
-export type Folder = { module_id?: number; code?: string; category?: Category; blocked?: boolean; reason?: string };
+export type Folder = { module_id?: number; code?: string; name?: string; category?: Category; blocked?: boolean; reason?: string };
 
 const folders = new Map<string, Folder | null>();
 const listeners = new Map<string, Set<() => void>>();

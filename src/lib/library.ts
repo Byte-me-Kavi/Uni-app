@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { readCache, writeCache } from '@/lib/cache';
 import { signedUrl } from '@/lib/chat/media-urls';
 import { offlineCopy, openFile } from '@/lib/chat/transfer';
+import { dayMonth } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 
@@ -256,7 +257,7 @@ export function itemSource(item: LibraryItem) {
           : item.chat_kind === 'kuppi'
             ? 'Kuppi chat'
             : (item.chat_title ?? 'Group');
-  const when = new Date(item.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  const when = dayMonth(item.created_at);
   return [where, item.sender_name, when].filter(Boolean).join(' · ');
 }
 

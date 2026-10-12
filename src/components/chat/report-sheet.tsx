@@ -156,7 +156,7 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
             multiline
             maxLength={1000}
             style={styles.details}
-            selectionColor={brand.accent}
+            selectionColor={theme.accent}
             accessibilityLabel="Details"
           />
           {blockable ? (

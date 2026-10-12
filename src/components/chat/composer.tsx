@@ -366,8 +366,8 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
                 multiline
                 maxLength={4000}
                 style={styles.input}
-                selectionColor={brand.accent}
-                cursorColor={brand.accent}
+                selectionColor={theme.accent}
+                cursorColor={theme.accent}
                 accessibilityLabel="Message"
               />
               {!editing ? (
@@ -404,9 +404,9 @@ export function Composer({ chat, conversationId, me, replyTo, onCancelReply, edi
             accessibilityLabel={editing ? 'Save edit' : 'Send'}
             style={[styles.send, empty && styles.sendIdle]}>
             {editing ? (
-              <CheckIcon size={22} weight="bold" color={empty ? theme.textMuted : brand.ink} />
+              <CheckIcon size={22} weight="bold" color={empty ? theme.textMuted : theme.onAccent} />
             ) : (
-              <PaperPlaneRightIcon size={20} weight="fill" color={empty ? theme.textMuted : brand.ink} />
+              <PaperPlaneRightIcon size={20} weight="fill" color={empty ? theme.textMuted : theme.onAccent} />
             )}
           </PressableScale>
         )}
@@ -530,7 +530,7 @@ const useStyles = createThemedStyles((t) => ({
     color: t.text,
   },
   stickerButton: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
-  send: { width: 44, height: 44, borderRadius: 22, backgroundColor: brand.accent, alignItems: 'center', justifyContent: 'center' },
+  send: { width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' },
   sendIdle: { backgroundColor: t.surface },
 }));
 

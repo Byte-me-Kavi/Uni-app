@@ -24,7 +24,7 @@ import {
   type LibrarySticker,
 } from '@/lib/chat/sticker-library';
 import { stickerSource } from '@/lib/chat/stickers';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 const HEIGHT = 300;
 const MODE_KEY = 'tray:mode';
@@ -321,8 +321,8 @@ const useStyles = createThemedStyles((t) => ({
   cardTitle: { fontFamily: fonts.bodyBold, fontSize: 14.5, color: t.text },
   cardBody: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: t.textMuted },
   // The accent marks the thing to do; what sits on it is Ink.
-  cardButton: { height: 36, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: brand.accent, justifyContent: 'center' },
-  cardButtonText: { fontFamily: fonts.bodyBold, fontSize: 14, color: brand.ink },
+  cardButton: { height: 36, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: t.accent, justifyContent: 'center' },
+  cardButtonText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.onAccent },
   note: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: t.textMuted, paddingHorizontal: space.md, paddingTop: space.sm },
   progress: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, paddingTop: space.sm },
   progressText: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: t.text },

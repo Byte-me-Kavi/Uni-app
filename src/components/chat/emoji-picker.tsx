@@ -4,7 +4,7 @@ import { Pressable, SectionList, Text, TextInput, View, useWindowDimensions } fr
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { readCache, writeCache } from '@/lib/cache';
 import { EMOJI_GROUPS, emojiOnlyCount } from '@/lib/chat/emoji';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 const RECENT_KEY = 'emoji:recent';
 
@@ -96,7 +96,7 @@ export function EmojiPicker({ visible, onClose, onPick }: { visible: boolean; on
               placeholder="Or type any emoji"
               placeholderTextColor={theme.textMuted}
               style={styles.typed}
-              selectionColor={brand.accent}
+              selectionColor={theme.accent}
               accessibilityLabel="Type an emoji"
             />
           </View>

@@ -5,12 +5,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
-import { Platform, StyleSheet, useColorScheme } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SheetHost } from '@/components/ui/sheet-layer';
 import { SessionProvider, useSession } from '@/providers/session-provider';
-import { brand, useTheme } from '@/theme/tokens';
+import { useScheme } from '@/theme/appearance';
+import { useTheme } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -51,7 +52,7 @@ export default function RootLayout() {
 function RootNavigator() {
   const session = useSession();
   const theme = useTheme();
-  const dark = useColorScheme() === 'dark';
+  const dark = useScheme() === 'dark';
   const ready = session.status !== 'loading';
 
   // Two backgrounds sit behind every screen: the native root view and the navigator. Both default
@@ -66,7 +67,7 @@ function RootNavigator() {
     ...base,
     colors: {
       ...base.colors,
-      primary: brand.accent,
+      primary: theme.accent,
       background: theme.background,
       card: theme.background,
       text: theme.text,

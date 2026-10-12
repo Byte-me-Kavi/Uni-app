@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 import { ShieldCheckIcon } from 'phosphor-react-native/src/icons/ShieldCheck';
 
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = { count: number; role: 'admin' | 'moderator' };
 
@@ -15,7 +15,7 @@ export function StaffCard({ count, role }: Props) {
   return (
     <View style={styles.card} accessible accessibilityLabel={`${count} accounts waiting for approval`}>
       <View style={[styles.icon, waiting && styles.iconWaiting]}>
-        <ShieldCheckIcon size={22} weight="bold" color={waiting ? brand.ink : theme.textMuted} />
+        <ShieldCheckIcon size={22} weight="bold" color={waiting ? theme.onAccent : theme.textMuted} />
       </View>
       <View style={styles.copy}>
         <Text style={styles.title}>{waiting ? 'Accounts waiting' : 'All caught up'}</Text>
@@ -49,7 +49,7 @@ const useStyles = createThemedStyles((t) => ({
     justifyContent: 'center',
     backgroundColor: t.background,
   },
-  iconWaiting: { backgroundColor: brand.accent },
+  iconWaiting: { backgroundColor: t.accent },
   copy: { flex: 1, gap: 2 },
   title: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text },
   body: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },

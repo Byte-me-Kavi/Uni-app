@@ -23,7 +23,7 @@ import { readCache, writeCache } from '@/lib/cache';
 import { applyChatSettings, refreshChats, setMuted } from '@/lib/chat/engine';
 import { useChat, useChatState } from '@/lib/chat/store';
 import { supabase } from '@/lib/supabase';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Member = { user_id: string; full_name: string; avatar_path: string | null; institution: string; is_admin: boolean };
 type Settings = {
@@ -413,7 +413,7 @@ export default function GroupDetails() {
             autoFocus
             maxLength={80}
             style={styles.input}
-            selectionColor={brand.accent}
+            selectionColor={theme.accent}
             accessibilityLabel="Group name"
           />
           <Button

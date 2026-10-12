@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { UniEraMark } from '@/components/brand/uni-era-mark';
-import { brand, fonts, useTheme } from '@/theme/tokens';
+import { fonts, useTheme } from '@/theme/tokens';
 
 type Props = {
   /** Width of the mark in points; the wordmark scales with it. */
@@ -17,7 +17,7 @@ export function Lockup({ size = 32, color }: Props) {
   const ink = color ?? theme.text;
   return (
     <View style={styles.row} accessible accessibilityRole="header" accessibilityLabel="uni era">
-      <UniEraMark size={size} color={ink} tasselColor={brand.accent} />
+      <UniEraMark size={size} color={ink} tasselColor={theme.accent} />
       <Text
         style={[
           styles.word,

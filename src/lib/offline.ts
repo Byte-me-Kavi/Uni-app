@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import type * as NetworkModule from 'expo-network';
 
 import { forgetCache, readCache, writeCache } from '@/lib/cache';
@@ -7,6 +8,7 @@ import type { ModuleFolder } from '@/lib/library';
 import { hasNative } from '@/lib/native';
 import { sharedFileName, type SharedFile } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
+import { useSession } from '@/providers/session-provider';
 
 // A whole module on the phone before exams: every document and photo in the student's library for
 // it, and what their university shared for it. Kept in the documents folder (never cleared by the
@@ -19,6 +21,37 @@ const packKey = (userId: string, moduleId: number) => `${userId}:offline:${modul
 
 export function readPack(userId: string, moduleId: number) {
   return readCache<OfflinePack>(packKey(userId, moduleId));
+}
+
+// Which modules are on the phone, for the "On this phone" badge: read once per module, then kept
+// in step with downloads and removals.
+const onPhone = new Map<string, boolean>();
+const phoneListeners = new Set<() => void>();
+
+function notePack(userId: string, moduleId: number, has: boolean) {
+  onPhone.set(packKey(userId, moduleId), has);
+  phoneListeners.forEach((l) => l());
+}
+
+function subscribePhone(listener: () => void) {
+  phoneListeners.add(listener);
+  return () => phoneListeners.delete(listener);
+}
+
+/** Whether the student downloaded this module for offline. */
+export function useOnPhone(moduleId: number) {
+  const session = useSession();
+  const uid = session.status === 'signed_in' ? session.session.user.id : null;
+  return useSyncExternalStore(subscribePhone, () => {
+    if (!uid) return false;
+    const key = packKey(uid, moduleId);
+    let has = onPhone.get(key);
+    if (has === undefined) {
+      has = (readPack(uid, moduleId)?.files.length ?? 0) > 0;
+      onPhone.set(key, has);
+    }
+    return has;
+  });
 }
 
 /** true on Wi-Fi (or a cable), false on mobile data, null when the app cannot tell (older build). */
@@ -65,6 +98,7 @@ export async function downloadModule(userId: string, moduleId: number, onProgres
   onProgress(files.length, files.length);
   const pack: OfflinePack = { files: kept, saved_at: new Date().toISOString() };
   writeCache(packKey(userId, moduleId), pack);
+  notePack(userId, moduleId, kept.length > 0);
   return { pack, failed };
 }
 
@@ -72,4 +106,5 @@ export async function removeModule(userId: string, moduleId: number) {
   const pack = readPack(userId, moduleId);
   for (const f of pack?.files ?? []) await dropOffline(f);
   forgetCache(packKey(userId, moduleId));
+  notePack(userId, moduleId, false);
 }

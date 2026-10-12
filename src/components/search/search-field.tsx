@@ -3,7 +3,7 @@ import { Platform, Pressable, TextInput, View, type TextStyle } from 'react-nati
 import { MagnifyingGlassIcon } from 'phosphor-react-native/src/icons/MagnifyingGlass';
 import { XCircleIcon } from 'phosphor-react-native/src/icons/XCircle';
 
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = {
   value: string;
@@ -44,8 +44,8 @@ export function SearchField({ value, onChangeText, onFocus, ref }: Props) {
         autoComplete="off"
         spellCheck={false}
         maxLength={100}
-        selectionColor={brand.accent}
-        cursorColor={brand.accent}
+        selectionColor={theme.accent}
+        cursorColor={theme.accent}
         style={[styles.input, noFocusRing]}
       />
       {value ? (

@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { IconProps } from 'phosphor-react-native';
 
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 export type TabFeature = { title: string; body: string };
 
@@ -32,7 +32,7 @@ export function TabIntro({ title, intro, Icon, features }: Props) {
         <View style={styles.card}>
           <View style={styles.cardTop}>
             <View style={styles.icon}>
-              <Icon size={24} weight="bold" color={brand.ink} />
+              <Icon size={24} weight="bold" color={theme.onAccent} />
             </View>
             <Text style={styles.soon}>Opens soon</Text>
           </View>
@@ -67,15 +67,15 @@ const useStyles = createThemedStyles((t) => ({
     width: 48,
     height: 48,
     borderRadius: radius.md,
-    backgroundColor: brand.accent,
+    backgroundColor: t.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   soon: {
     fontFamily: fonts.bodyBold,
     fontSize: 12,
-    color: brand.ink,
-    backgroundColor: brand.accentTint,
+    color: t.onAccentTint,
+    backgroundColor: t.accentTint,
     paddingHorizontal: space.sm + 2,
     paddingVertical: 3,
     borderRadius: radius.pill,

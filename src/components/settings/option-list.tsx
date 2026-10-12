@@ -1,7 +1,7 @@
 import { Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/ui/pressable-scale';
-import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 type Option<T extends string> = { value: T; label: string; detail: string };
 
@@ -67,7 +67,7 @@ const useStyles = createThemedStyles((t) => ({
   },
   // Selected: the accent with an Ink centre (brand rule: what sits on it is Ink).
   radioSelected: { borderColor: t.accentText, backgroundColor: t.accentText },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: brand.ink },
+  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.onAccent },
   text: { flex: 1, gap: 1 },
   label: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text },
   detail: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },

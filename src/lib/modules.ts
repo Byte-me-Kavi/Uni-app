@@ -101,6 +101,12 @@ async function load() {
   return inflight;
 }
 
+/** The modules already in memory, without loading anything (for small parts drawn many times, like a
+ * module's colour dot). Screens use useMyModules. */
+export function useModulesSnapshot(): MyModules | null {
+  return useSyncExternalStore(subscribe, () => state.data);
+}
+
 /** The student's modules, from the phone first, then the server. */
 export function useMyModules() {
   const session = useSession();

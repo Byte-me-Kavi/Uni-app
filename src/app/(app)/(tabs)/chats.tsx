@@ -17,7 +17,7 @@ import { openChat } from '@/lib/chat/open-chat';
 import { useChatState } from '@/lib/chat/store';
 import type { Chat, Message } from '@/lib/chat/types';
 import { useHomeData } from '@/providers/home-provider';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Section = 'chats' | 'requests' | 'archived';
 type Row = { type: 'chat'; chat: Chat } | { type: 'message'; message: Message; title: string } | { type: 'label'; text: string };
@@ -137,7 +137,7 @@ export default function Chats() {
             accessibilityRole="button"
             accessibilityLabel="New group"
             style={styles.newGroup}>
-            <PlusIcon size={16} color={brand.ink} weight="bold" />
+            <PlusIcon size={16} color={theme.onAccent} weight="bold" />
             <Text style={styles.newGroupText}>New group</Text>
           </PressableScale>
         </View>
@@ -151,8 +151,8 @@ export default function Chats() {
             autoCorrect={false}
             returnKeyType="search"
             style={styles.searchInput}
-            selectionColor={brand.accent}
-            cursorColor={brand.accent}
+            selectionColor={theme.accent}
+            cursorColor={theme.accent}
             accessibilityLabel="Search chats and messages"
           />
           {searching ? (
@@ -219,7 +219,7 @@ export default function Chats() {
           ) : !hasBatch && section === 'chats' ? (
             <View style={styles.joinCard}>
               <View style={styles.joinIcon}>
-                <UsersThreeIcon size={24} weight="bold" color={brand.ink} />
+                <UsersThreeIcon size={24} weight="bold" color={theme.onAccent} />
               </View>
               <Text style={styles.joinTitle}>Join your batch</Text>
               <Text style={styles.joinBody}>
@@ -291,9 +291,9 @@ const useStyles = createThemedStyles((t) => ({
     paddingHorizontal: space.md,
     borderRadius: radius.pill,
     // The accent marks the thing to do; what sits on it is Ink.
-    backgroundColor: brand.accent,
+    backgroundColor: t.accent,
   },
-  newGroupText: { fontFamily: fonts.bodyBold, fontSize: 14, color: brand.ink },
+  newGroupText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.onAccent },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -320,7 +320,7 @@ const useStyles = createThemedStyles((t) => ({
   resultBody: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
   archivedNote: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: t.textMuted, paddingHorizontal: space.sm, paddingBottom: space.sm },
   joinCard: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.lg, gap: space.sm, margin: space.sm, marginBottom: space.md },
-  joinIcon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: brand.accent, alignItems: 'center', justifyContent: 'center' },
+  joinIcon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' },
   joinTitle: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
   joinBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted, marginBottom: space.xs },
   empty: { paddingHorizontal: space.sm, paddingTop: space.xl, gap: space.xs },

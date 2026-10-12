@@ -11,7 +11,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { listTime } from '@/lib/chat/format';
 import type { Chat } from '@/lib/chat/types';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // Group chats are told apart from people by a tile, not a face: batch (people), programme
 // (graduation cap, national), course (open book, one module) and kuppi (a teacher at a board).
@@ -126,10 +126,10 @@ const useStyles = createThemedStyles((t) => ({
     height: 22,
     paddingHorizontal: 6,
     borderRadius: 11,
-    backgroundColor: brand.accent,
+    backgroundColor: t.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeMuted: { backgroundColor: t.borderFilled },
-  badgeText: { fontFamily: fonts.bodyBold, fontSize: 12, color: brand.ink },
+  badgeText: { fontFamily: fonts.bodyBold, fontSize: 12, color: t.onAccent },
 }));

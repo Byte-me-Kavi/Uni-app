@@ -281,6 +281,10 @@ export type Database = {
         Args: { p_module_id?: number; p_scope?: string }
         Returns: Json
       }
+      kuppi_search: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: Json
+      }
       leave_group: { Args: { p_conversation_id: string }; Returns: undefined }
       library: {
         Args: {
@@ -319,6 +323,7 @@ export type Database = {
         Returns: undefined
       }
       message_previews: { Args: never; Returns: boolean }
+      module_colours: { Args: never; Returns: Json }
       module_subject: { Args: { p_module_id: number }; Returns: Json }
       my_account: { Args: never; Returns: Json }
       my_chats: {
@@ -505,6 +510,7 @@ export type Database = {
         Returns: Json
       }
       resource: { Args: { p_resource_id: string }; Returns: Json }
+      resources_start: { Args: never; Returns: Json }
       respond_request: {
         Args: { p_accept: boolean; p_conversation_id: string }
         Returns: string
@@ -592,6 +598,10 @@ export type Database = {
       set_message_previews: { Args: { p_on: boolean }; Returns: boolean }
       set_module_choice: {
         Args: { p_choice: string; p_module_id: number }
+        Returns: Json
+      }
+      set_module_colour: {
+        Args: { p_colour: string; p_module_id: number }
         Returns: Json
       }
       set_module_subject: {

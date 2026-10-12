@@ -20,7 +20,7 @@ import {
   type SaveItem,
   type SemesterPlan,
 } from '@/lib/modules';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Kind = 'core' | 'elective';
 /** A module on this screen: an existing one (id) or a new code the student is adding. */
@@ -341,9 +341,9 @@ function Row({ item, on, locked = false, onToggle, onKind }: RowProps) {
         style={styles.rowMain}>
         <View style={[styles.box, on && styles.boxOn]}>
           {locked ? (
-            <LockSimpleIcon size={14} weight="bold" color={brand.ink} />
+            <LockSimpleIcon size={14} weight="bold" color={theme.onAccent} />
           ) : on ? (
-            <CheckIcon size={14} weight="bold" color={brand.ink} />
+            <CheckIcon size={14} weight="bold" color={theme.onAccent} />
           ) : null}
         </View>
         <View style={styles.rowCopy}>
@@ -391,7 +391,7 @@ const useStyles = createThemedStyles((t) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxOn: { backgroundColor: brand.accent, borderColor: brand.accent },
+  boxOn: { backgroundColor: t.accent, borderColor: t.accent },
   rowCopy: { flex: 1, gap: 1 },
   rowCode: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.accentText },
   rowName: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 20, color: t.text },

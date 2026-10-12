@@ -2,7 +2,7 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { duration, EASE_OUT } from '@/theme/motion';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = {
   label: string;
@@ -27,7 +27,7 @@ export function Button({ label, onPress, variant = 'primary', loading = false, d
   }));
 
   // Text on the accent is always Ink (brand rule), in both themes.
-  const labelColor = primary ? brand.ink : theme.text;
+  const labelColor = primary ? theme.onAccent : theme.text;
 
   return (
     <AnimatedPressable
@@ -65,7 +65,7 @@ const useStyles = createThemedStyles((t) => ({
     justifyContent: 'center',
     paddingHorizontal: space.xl,
   },
-  primary: { backgroundColor: brand.accent },
+  primary: { backgroundColor: t.accent },
   quiet: { backgroundColor: 'transparent', borderWidth: 1, borderColor: t.border },
   disabled: { opacity: 0.45 },
   label: { fontFamily: fonts.bodyBold, fontSize: 17 },

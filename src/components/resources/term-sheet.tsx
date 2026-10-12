@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { nextTerm, SEMESTERS, setBatchTerm, termLabel, YEARS_OF_STUDY, type BatchModules } from '@/lib/modules';
-import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 
 type Props = { visible: boolean; data: BatchModules; onClose: () => void };
@@ -122,7 +122,7 @@ const useStyles = createThemedStyles((t) => ({
     backgroundColor: t.surface,
   },
   // Selected: the accent with Ink text (brand rule).
-  chipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
-  chipTextActive: { color: brand.ink },
+  chipTextActive: { color: t.onAccent },
 }));

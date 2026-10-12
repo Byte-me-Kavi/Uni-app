@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 
+import { ModuleChip } from '@/components/resources/module-chip';
 import { useItemControls } from '@/components/resources/item-controls';
 import { ItemRow } from '@/components/resources/item-row';
 import { BackHeader } from '@/components/ui/back-header';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
-import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { loadToSort, organiseItem, type LibraryItem } from '@/lib/library';
 import { useMyModules } from '@/lib/modules';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // To sort: files and links from the last 60 days that matched none of the student's modules. One
 // tap on a module files it; the likeliest module is marked.
@@ -88,15 +88,17 @@ export default function ToSort() {
                 {current.map((m) => {
                   const suggested = m.id === item.suggested_module_id;
                   return (
-                    <PressableScale
+                    <ModuleChip
                       key={m.id}
+                      id={m.id}
+                      code={m.code}
+                      name={m.name}
+                      active={false}
+                      suggested={suggested}
+                      role="button"
                       onPress={() => file(item, m.id)}
                       disabled={filing !== null}
-                      accessibilityRole="button"
-                      accessibilityLabel={`File in ${m.code}, ${m.name}${suggested ? ', suggested' : ''}`}
-                      style={[styles.chip, suggested && styles.chipSuggested]}>
-                      <Text style={[styles.chipText, suggested && styles.chipTextSuggested]}>{m.code}</Text>
-                    </PressableScale>
+                    />
                   );
                 })}
                 {filing === item.id ? <ActivityIndicator color={theme.accentText} /> : null}
@@ -120,18 +122,6 @@ const useStyles = createThemedStyles((t) => ({
   card: { backgroundColor: t.surface, borderRadius: radius.lg, paddingLeft: space.md, paddingRight: space.xs, paddingBottom: space.md },
   separator: { height: space.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center', paddingRight: space.md },
-  chip: {
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs + 2,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: t.border,
-    backgroundColor: t.background,
-  },
-  // The suggested module: filled accent, Ink text (brand rule).
-  chipSuggested: { backgroundColor: brand.accent, borderColor: brand.accent },
-  chipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
-  chipTextSuggested: { color: brand.ink },
   empty: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.xl, gap: space.sm },
   emptyTitle: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
 }));

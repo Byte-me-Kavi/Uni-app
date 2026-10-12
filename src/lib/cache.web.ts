@@ -44,7 +44,7 @@ export function clearCache() {
     const storage = globalThis.localStorage;
     if (!storage) return;
     Object.keys(storage)
-      .filter((k) => k.startsWith('uniera:'))
+      .filter((k) => k.startsWith('uniera:') && !k.startsWith('uniera:device:'))
       .forEach((k) => storage.removeItem(k));
   } catch {
     // nothing to clear

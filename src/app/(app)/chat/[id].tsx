@@ -50,7 +50,7 @@ import { hasNative } from '@/lib/native';
 import { dismissChatNotifications } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 import { useSettled } from '@/lib/use-settled';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Item =
   | { type: 'message'; message: Message; showName: boolean; showAvatar: boolean }
@@ -433,7 +433,7 @@ export default function ChatScreen() {
             placeholder="Search this chat"
             placeholderTextColor={theme.textMuted}
             style={styles.searchInput}
-            selectionColor={brand.accent}
+            selectionColor={theme.accent}
             accessibilityLabel="Search this chat"
           />
         </View>
@@ -770,11 +770,11 @@ const useStyles = createThemedStyles((t) => ({
     height: 20,
     borderRadius: 10,
     paddingHorizontal: 5,
-    backgroundColor: brand.accent,
+    backgroundColor: t.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  jumpBadgeText: { fontFamily: fonts.bodyBold, fontSize: 11, color: brand.ink },
+  jumpBadgeText: { fontFamily: fonts.bodyBold, fontSize: 11, color: t.onAccent },
   results: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: t.background },
   result: { paddingHorizontal: space.lg, paddingVertical: space.md, borderBottomWidth: 1, borderBottomColor: t.border },
   resultWho: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted },

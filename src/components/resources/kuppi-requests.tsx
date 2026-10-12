@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { ThumbsUpIcon } from 'phosphor-react-native/src/icons/ThumbsUp';
 
+import { ModuleDot } from '@/components/resources/module-dot';
+import { ModuleChip } from '@/components/resources/module-chip';
 import { ReportSheet, type ReportTarget } from '@/components/chat/report-sheet';
 import { ActionSheet, type SheetAction } from '@/components/ui/action-sheet';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
@@ -10,9 +12,10 @@ import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { TextField } from '@/components/ui/text-field';
+import { weekdayDayMonth } from '@/lib/dates';
 import { closeRequest, listRequests, requestKuppi, voteRequest, type KuppiRequest } from '@/lib/kuppi';
 import { useMyModules } from '@/lib/modules';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // "You asked · Wanted at 3 universities"
 const footnote = (r: KuppiRequest) =>
@@ -29,7 +32,6 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
   const theme = useTheme();
   const styles = useStyles();
   const [list, setList] = useState<KuppiRequest[] | null>(null);
-  const [asking, setAsking] = useState(false);
   const [menu, setMenu] = useState<KuppiRequest | null>(null);
   const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -80,14 +82,9 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
 
   return (
     <View style={styles.gap}>
-      <View style={styles.head}>
-        <Text style={styles.title} accessibilityRole="header">
-          Students are asking for
-        </Text>
-        <PressableScale onPress={() => setAsking(true)} accessibilityRole="button" hitSlop={8}>
-          <Text style={styles.link}>Ask for a kuppi</Text>
-        </PressableScale>
-      </View>
+      <Text style={styles.title} accessibilityRole="header">
+        Students are asking for
+      </Text>
       <FormMessage message={note} tone="info" />
       {list && list.length > 0 ? (
         <View style={styles.card}>
@@ -99,14 +96,21 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
                 accessibilityRole="button"
                 style={styles.rowMain}>
                 {r.other ? (
-                  <Text style={styles.code}>Asked at {r.institution ?? 'another university'}</Text>
+                  <Text style={styles.code} numberOfLines={1}>
+                    Asked at {r.institution ?? 'another university'} · {r.module.name}
+                  </Text>
                 ) : scope !== 'module' ? (
-                  <Text style={styles.code}>{r.module.code}</Text>
+                  <View style={styles.moduleLine}>
+                    <ModuleDot id={r.module.id} size={8} />
+                    <Text style={[styles.code, styles.shrink]} numberOfLines={1}>
+                      {r.module.code} · {r.module.name}
+                    </Text>
+                  </View>
                 ) : null}
                 <Text style={styles.topic}>{r.topic}</Text>
                 {r.session ? (
                   <Text style={styles.answered}>
-                    Kuppi on {new Date(r.session.starts_at).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} ›
+                    Kuppi on {weekdayDayMonth(r.session.starts_at)} ›
                   </Text>
                 ) : r.answered ? (
                   <Text style={styles.meta}>Answered with a kuppi at {r.institution ?? 'their university'}</Text>
@@ -124,7 +128,7 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
                   accessibilityState={{ selected: r.voted }}
                   accessibilityLabel={`${r.votes} want this. ${r.voted ? 'Take back your vote' : 'I want this too'}`}
                   style={[styles.vote, r.voted && styles.voteOn]}>
-                  <ThumbsUpIcon size={16} weight={r.voted ? 'fill' : 'bold'} color={r.voted ? brand.ink : theme.text} />
+                  <ThumbsUpIcon size={16} weight={r.voted ? 'fill' : 'bold'} color={r.voted ? theme.onAccent : theme.text} />
                   <Text style={[styles.voteText, r.voted && styles.voteTextOn]}>{r.votes}</Text>
                 </PressableScale>
               ) : null}
@@ -132,9 +136,41 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
           ))}
         </View>
       ) : list ? (
-        <Text style={styles.muted}>Stuck on a topic? Ask for a kuppi: batchmates add their vote and hosts see what is wanted.</Text>
+        <Text style={styles.muted}>Nobody has asked for a kuppi yet. Stuck on a topic? Ask: others add their vote and hosts see what is wanted.</Text>
       ) : null}
 
+      <ActionSheet visible={!!menu} title={menu?.topic} actions={actions} onClose={() => setMenu(null)} />
+      <ReportSheet target={reporting} onClose={() => setReporting(null)} />
+    </View>
+  );
+}
+
+// "Host a kuppi" and "Ask for a kuppi", side by side and equally easy to find. onAsked: a request was
+// sent (refresh the list).
+export function KuppiActions({ moduleId, onAsked }: { moduleId?: number; onAsked: () => void }) {
+  const styles = useStyles();
+  const [asking, setAsking] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  return (
+    <View style={styles.gap}>
+      <View style={styles.actions}>
+        <View style={styles.action}>
+          <Button
+            label="Host a kuppi"
+            onPress={() => router.push({ pathname: '/kuppi/new', params: moduleId ? { module: String(moduleId) } : {} })}
+          />
+        </View>
+        <View style={styles.action}>
+          <Button
+            label="Ask for a kuppi"
+            onPress={() => {
+              setNote(null);
+              setAsking(true);
+            }}
+          />
+        </View>
+      </View>
+      <FormMessage message={note} tone="info" />
       <AskSheet
         visible={asking}
         moduleId={moduleId}
@@ -148,11 +184,9 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
                 ? 'Asked. Students on this subject at every university can add their vote.'
                 : 'Asked. Batchmates can add their vote.',
           );
-          setVersion((v) => v + 1);
+          onAsked();
         }}
       />
-      <ActionSheet visible={!!menu} title={menu?.topic} actions={actions} onClose={() => setMenu(null)} />
-      <ReportSheet target={reporting} onClose={() => setReporting(null)} />
     </View>
   );
 }
@@ -193,15 +227,7 @@ function AskForm({ moduleId, onDone }: { moduleId?: number; onDone: (r: KuppiReq
       {!moduleId ? (
         <View style={styles.chips}>
           {modules.map((m) => (
-            <PressableScale
-              key={m.id}
-              onPress={() => setModule(m.id)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: m.id === module }}
-              accessibilityLabel={`${m.code}, ${m.name}`}
-              style={[styles.chip, m.id === module && styles.chipActive]}>
-              <Text style={[styles.chipText, m.id === module && styles.chipTextActive]}>{m.code}</Text>
-            </PressableScale>
+            <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={m.id === module} onPress={() => setModule(m.id)} />
           ))}
         </View>
       ) : null}
@@ -240,13 +266,16 @@ function AskForm({ moduleId, onDone }: { moduleId?: number; onDone: (r: KuppiReq
 
 const useStyles = createThemedStyles((t) => ({
   gap: { gap: space.sm },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.xs },
-  title: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.textMuted },
+  // Side by side when both labels fit, else one under the other (never cut off).
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  action: { flexGrow: 1, flexBasis: 200 },
+  title: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.textMuted, paddingHorizontal: space.xs },
   label: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
-  link: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.accentText },
   card: { backgroundColor: t.surface, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, minHeight: 56 },
   rowMain: { flex: 1, gap: 2 },
+  moduleLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  shrink: { flexShrink: 1 },
   code: { fontFamily: fonts.bodyBold, fontSize: 12, color: t.accentText },
   topic: { fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 20, color: t.text },
   meta: { fontFamily: fonts.body, fontSize: 13, color: t.textMuted },
@@ -265,13 +294,13 @@ const useStyles = createThemedStyles((t) => ({
     borderColor: t.border,
   },
   // Voted: the accent with Ink (brand rule).
-  voteOn: { backgroundColor: brand.accent, borderColor: brand.accent },
+  voteOn: { backgroundColor: t.accent, borderColor: t.accent },
   voteText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
-  voteTextOn: { color: brand.ink },
+  voteTextOn: { color: t.onAccent },
   form: { paddingHorizontal: space.xl, paddingBottom: space.xl, gap: space.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chip: { paddingHorizontal: space.md + 2, paddingVertical: space.sm, borderRadius: radius.pill, borderWidth: 1.5, borderColor: t.border, backgroundColor: t.surface },
-  chipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
-  chipTextActive: { color: brand.ink },
+  chipTextActive: { color: t.onAccent },
 }));

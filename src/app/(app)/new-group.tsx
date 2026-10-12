@@ -14,7 +14,7 @@ import { refreshChats } from '@/lib/chat/engine';
 import { useChatState } from '@/lib/chat/store';
 import { supabase } from '@/lib/supabase';
 import { usePeopleSearch } from '@/lib/use-people-search';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Person = { user_id: string; full_name: string; avatar_path: string | null; detail: string | null };
 type Skipped = { full_name: string | null; reason: 'full' | 'not_allowed' };
@@ -116,8 +116,8 @@ export default function NewGroup() {
               placeholderTextColor={theme.textMuted}
               autoCorrect={false}
               style={styles.input}
-              selectionColor={brand.accent}
-              cursorColor={brand.accent}
+              selectionColor={theme.accent}
+              cursorColor={theme.accent}
               accessibilityLabel="Search students by name"
             />
           </View>
@@ -207,8 +207,8 @@ export default function NewGroup() {
             autoFocus
             maxLength={80}
             style={styles.nameInput}
-            selectionColor={brand.accent}
-            cursorColor={brand.accent}
+            selectionColor={theme.accent}
+            cursorColor={theme.accent}
             accessibilityLabel="Group name"
           />
           <Text style={styles.detail}>

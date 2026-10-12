@@ -7,7 +7,7 @@ import { ChatIcon } from '@/components/chat/chat-row';
 import { ModalScreen } from '@/components/chat/modal-screen';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { useChatState } from '@/lib/chat/store';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 const LIMIT = 5; // as in WhatsApp: forwarding is for sharing, not broadcasting
 
@@ -46,7 +46,7 @@ export function ForwardPicker({ visible, onClose, onSend }: { visible: boolean; 
         placeholder="Search chats"
         placeholderTextColor={theme.textMuted}
         style={styles.search}
-        selectionColor={brand.accent}
+        selectionColor={theme.accent}
         accessibilityLabel="Search chats"
       />
       <FlatList

@@ -39,8 +39,8 @@ export function SaveFromChat({ message, canTag, onClose, onDone }: Props) {
     };
   }, [message, onClose, onDone]);
 
-  const codeOf = (id: number) =>
-    data?.batch ? [...data.current, ...data.past.flatMap((p) => p.modules)].find((m) => m.id === id)?.code : undefined;
+  const nameOf = (id: number) =>
+    data?.batch ? [...data.current, ...data.past.flatMap((p) => p.modules)].find((m) => m.id === id)?.name : undefined;
 
   return (
     <OrganiseSheet
@@ -57,7 +57,7 @@ export function SaveFromChat({ message, canTag, onClose, onDone }: Props) {
         const e2 = await organiseItem(item.id, { moduleId, category });
         if (e2) return e2;
         loadFolders(item.conversation_id, [item.id], true);
-        onDone(`Saved to ${codeOf(moduleId) ?? 'your module'} · ${categoryLabel(category)}`);
+        onDone(`Saved to ${nameOf(moduleId) ?? 'your module'} · ${categoryLabel(category)}`);
         return null;
       }}
     />

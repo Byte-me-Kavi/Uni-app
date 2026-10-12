@@ -13,7 +13,7 @@ import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { openChat } from '@/lib/chat/open-chat';
 import { cancelKuppi, cancelRsvp, joinKuppi, kuppiWhen, loadKuppi, PLATFORM_LABEL, rsvp, type Kuppi } from '@/lib/kuppi';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // "Opens in 2 h 5 min", "Opens in 4 min".
 function countdown(ms: number) {
@@ -162,7 +162,7 @@ export default function KuppiScreen() {
               <ChatsCircleIcon size={22} weight="bold" color={theme.text} />
               <View style={styles.chatCopy}>
                 <Text style={styles.chatTitle}>Kuppi chat</Text>
-                <Text style={styles.muted}>The host and everyone going. Slides shared here go to {kuppi.other ? 'your module on this subject' : kuppi.module.code}.</Text>
+                <Text style={styles.muted}>The host and everyone going. Slides shared here go to {kuppi.other ? 'your module on this subject' : kuppi.module.name}.</Text>
               </View>
             </PressableScale>
           ) : null}
@@ -217,10 +217,10 @@ const useStyles = createThemedStyles((t) => ({
   notice: { backgroundColor: t.errorBg, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
   noticeTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.errorText },
   actions: { gap: space.md },
-  locked: { backgroundColor: brand.accentTint, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
-  lockedTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: brand.ink },
+  locked: { backgroundColor: t.accentTint, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
+  lockedTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.onAccentTint },
   // Ink on the tint in both themes.
-  lockedBody: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: brand.ink },
+  lockedBody: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: t.onAccentTint },
   chat: { flexDirection: 'row', gap: space.md, alignItems: 'center', backgroundColor: t.surface, borderRadius: radius.lg, padding: space.lg },
   chatCopy: { flex: 1, gap: 2 },
   chatTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text },

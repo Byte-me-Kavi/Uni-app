@@ -8,9 +8,11 @@ import { TrayIcon } from 'phosphor-react-native/src/icons/Tray';
 
 import { ExamStrip } from '@/components/resources/exam-strip';
 import { ExploreSection } from '@/components/resources/explore-section';
+import { FirstWeek } from '@/components/resources/first-week';
 import { KuppiSection } from '@/components/resources/kuppi-section';
-import { LibrarySearch } from '@/components/resources/library-search';
+import { ModuleDot } from '@/components/resources/module-dot';
 import { ModuleTile } from '@/components/resources/module-tile';
+import { ResourcesSearch } from '@/components/resources/resources-search';
 import { SearchInput } from '@/components/resources/search-input';
 import { TermSheet } from '@/components/resources/term-sheet';
 import { Button } from '@/components/ui/button';
@@ -20,7 +22,7 @@ import { PressableScale } from '@/components/ui/pressable-scale';
 import { daysText, EXAM_SEASON_DAYS, refreshExams, useMyExams } from '@/lib/exams';
 import { refreshOverview, useLibraryOverview, type Overview } from '@/lib/library';
 import { nextTerm, setModuleChoice, termLabel, useMyModules, type BatchModules, type ModuleCard } from '@/lib/modules';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Section = 'modules' | 'kuppi' | 'explore';
 const SECTIONS: { key: Section; label: string }[] = [
@@ -44,6 +46,8 @@ export default function Resources() {
   // Kuppi and Explore reload when this changes (pull to refresh).
   const [refreshKey, setRefreshKey] = useState(0);
   const [query, setQuery] = useState('');
+  // One search for all of Resources: while it has text, its results replace the sections.
+  const searching = query.trim().length >= 2;
 
   async function pull() {
     setRefreshing(true);
@@ -71,28 +75,29 @@ export default function Resources() {
           Resources
         </Text>
 
-        <View style={styles.segments} accessibilityRole="tablist">
-          {SECTIONS.map((s) => {
-            const active = s.key === section;
-            return (
-              <PressableScale
-                key={s.key}
-                onPress={() => setSection(s.key)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-                style={[styles.segment, active && styles.segmentActive]}>
-                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{s.label}</Text>
-              </PressableScale>
-            );
-          })}
-        </View>
+        <SearchInput value={query} onChangeText={setQuery} placeholder="Search modules, files and kuppi" />
 
-        {section === 'modules' && data?.batch ? (
-          <SearchInput value={query} onChangeText={setQuery} placeholder="Search your files and links" />
+        {searching ? <ResourcesSearch query={query} /> : null}
+
+        {!searching ? (
+          <View style={styles.segments} accessibilityRole="tablist">
+            {SECTIONS.map((s) => {
+              const active = s.key === section;
+              return (
+                <PressableScale
+                  key={s.key}
+                  onPress={() => setSection(s.key)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                  style={[styles.segment, active && styles.segmentActive]}>
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{s.label}</Text>
+                </PressableScale>
+              );
+            })}
+          </View>
         ) : null}
-        {section === 'modules' && query.trim().length >= 2 ? <LibrarySearch query={query} /> : null}
 
-        {section === 'modules' && query.trim().length < 2 ? (
+        {!searching && section === 'modules' ? (
           data ? (
             data.batch ? (
               <Modules data={data} overview={overview} />
@@ -114,8 +119,8 @@ export default function Resources() {
           )
         ) : null}
 
-        {section === 'kuppi' ? <KuppiSection refreshKey={refreshKey} /> : null}
-        {section === 'explore' ? <ExploreSection refreshKey={refreshKey} /> : null}
+        {!searching && section === 'kuppi' ? <KuppiSection refreshKey={refreshKey} /> : null}
+        {!searching && section === 'explore' ? <ExploreSection refreshKey={refreshKey} /> : null}
       </View>
     </ScrollView>
   );
@@ -133,7 +138,11 @@ function Modules({ data, overview }: { data: BatchModules; overview: Overview | 
   const term = data.term;
   const open = (m: ModuleCard) => router.push({ pathname: '/module/[id]', params: { id: String(m.id) } });
   const editTerm = () =>
-    term && router.push({ pathname: '/semester', params: { year: String(term.year), semester: String(term.semester) } });
+    term &&
+    router.push({
+      pathname: '/semester',
+      params: { year: String(term.year), semester: String(term.semester) },
+    });
 
   async function choose(m: ModuleCard, choice: 'taking' | null) {
     setBusy(m.id);
@@ -158,7 +167,8 @@ function Modules({ data, overview }: { data: BatchModules; overview: Overview | 
   }
 
   // Exam season: modules with the nearest exams come first, each with its countdown.
-  const examDays = (m: ModuleCard) => exams?.exams.find((e) => e.module.id === m.id && e.days <= EXAM_SEASON_DAYS)?.days ?? Infinity;
+  const examDays = (m: ModuleCard) =>
+    exams?.exams.find((e) => e.module.id === m.id && e.days <= EXAM_SEASON_DAYS)?.days ?? Infinity;
   const ordered = [...data.current].sort((a, b) => examDays(a) - examDays(b));
   const rows: ModuleCard[][] = [];
   for (let i = 0; i < ordered.length; i += 2) rows.push(ordered.slice(i, i + 2));
@@ -171,9 +181,7 @@ function Modules({ data, overview }: { data: BatchModules; overview: Overview | 
             {termLabel(term)}
           </Text>
           <Text style={styles.termMeta} numberOfLines={1}>
-            {term.confirmed
-              ? data.batch.name
-              : `Waiting for your batch · ${term.votes ?? 1} of ${data.votes_needed}`}
+            {term.confirmed ? data.batch.name : `Waiting for your batch · ${term.votes ?? 1} of ${data.votes_needed}`}
           </Text>
         </View>
         <PressableScale
@@ -186,10 +194,12 @@ function Modules({ data, overview }: { data: BatchModules; overview: Overview | 
         </PressableScale>
       </View>
 
+      <FirstWeek data={data} overview={overview} />
+
       {term.confirmed && !data.my_term_vote && nextTerm(term) && (term.days ?? 0) > NUDGE_DAYS ? (
         <PressableScale onPress={() => setTermOpen(true)} accessibilityRole="button" style={styles.nudge}>
           <Text style={styles.nudgeText}>Has this semester ended? Move your batch on.</Text>
-          <CaretRightIcon size={16} weight="bold" color={brand.ink} />
+          <CaretRightIcon size={16} weight="bold" color={theme.onAccent} />
         </PressableScale>
       ) : null}
       {data.my_term_vote ? (
@@ -233,8 +243,8 @@ function Modules({ data, overview }: { data: BatchModules; overview: Overview | 
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No modules for this semester yet</Text>
           <Text style={styles.emptyBody}>
-            Add them once for your whole batch. Lists from other batches of your programme are suggested, so it
-            usually takes a few taps.
+            Add them once for your whole batch. Lists from other batches of your programme are suggested, so it usually takes a
+            few taps.
           </Text>
         </View>
       )}
@@ -305,6 +315,7 @@ function Modules({ data, overview }: { data: BatchModules; overview: Overview | 
                   <Text style={styles.pastTitle}>{termLabel(p)}</Text>
                   {p.modules.map((m) => (
                     <PressableScale key={m.id} onPress={() => open(m)} accessibilityRole="button" style={styles.listRow}>
+                      <ModuleDot id={m.id} />
                       <Text style={styles.listText} numberOfLines={1}>
                         {m.code} · {m.name}
                       </Text>
@@ -352,37 +363,77 @@ function ModulesSkeleton() {
 
 const useStyles = createThemedStyles((t) => ({
   scroll: { flex: 1 },
-  content: { paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.xxxl },
+  content: {
+    paddingHorizontal: space.xl,
+    paddingTop: space.sm,
+    paddingBottom: space.xxxl,
+  },
   stack: { gap: space.lg, width: '100%', maxWidth: 560, alignSelf: 'center' },
   gap: { gap: space.lg },
-  title: { fontFamily: fonts.display, fontSize: 32, lineHeight: 38, color: t.text, letterSpacing: -0.3 },
-  segments: { flexDirection: 'row', backgroundColor: t.surface, borderRadius: radius.pill, padding: 4 },
-  segment: { flex: 1, minHeight: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  segmentActive: { backgroundColor: brand.accent },
+  title: {
+    fontFamily: fonts.display,
+    fontSize: 32,
+    lineHeight: 38,
+    color: t.text,
+    letterSpacing: -0.3,
+  },
+  segments: {
+    flexDirection: 'row',
+    backgroundColor: t.surface,
+    borderRadius: radius.pill,
+    padding: 4,
+  },
+  segment: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentActive: { backgroundColor: t.accent },
   segmentText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.textMuted },
-  segmentTextActive: { color: brand.ink },
+  segmentTextActive: { color: t.onAccent },
   termRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   termCopy: { flex: 1, gap: 2 },
   termTitle: { fontFamily: fonts.display, fontSize: 22, color: t.text },
-  termMeta: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: t.textMuted },
+  termMeta: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 14,
+    color: t.textMuted,
+  },
   change: { minHeight: 40, justifyContent: 'center' },
   changeText: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.accentText },
   nudge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    backgroundColor: brand.accentTint,
+    backgroundColor: t.accentTint,
     borderRadius: radius.md,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
   },
-  nudgeText: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 15, color: brand.ink },
+  nudgeText: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: t.onAccentTint,
+  },
   grid: { gap: space.md },
   gridRow: { flexDirection: 'row', gap: space.md },
   gridSpacer: { flex: 1 },
-  empty: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.xl, gap: space.sm },
+  empty: {
+    backgroundColor: t.surface,
+    borderRadius: radius.lg,
+    padding: space.xl,
+    gap: space.sm,
+  },
   emptyTitle: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
-  emptyBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted },
+  emptyBody: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: t.textMuted,
+  },
   addRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -406,17 +457,63 @@ const useStyles = createThemedStyles((t) => ({
   },
   toSortTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.text },
   group: { gap: space.sm },
-  groupTitle: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.textMuted, paddingHorizontal: space.xs },
-  card: { backgroundColor: t.surface, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.sm },
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48 },
-  listText: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 15, color: t.text },
+  groupTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: t.textMuted,
+    paddingHorizontal: space.xs,
+  },
+  card: {
+    backgroundColor: t.surface,
+    borderRadius: radius.lg,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    minHeight: 48,
+  },
+  listText: {
+    flex: 1,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    color: t.text,
+  },
   link: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.accentText },
-  pastHeader: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 36 },
-  pastTitle: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.text, paddingTop: space.sm },
-  hint: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: t.textMuted, paddingHorizontal: space.xs },
-  notice: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.xl, gap: space.md },
+  pastHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    minHeight: 36,
+  },
+  pastTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: t.text,
+    paddingTop: space.sm,
+  },
+  hint: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: t.textMuted,
+    paddingHorizontal: space.xs,
+  },
+  notice: {
+    backgroundColor: t.surface,
+    borderRadius: radius.lg,
+    padding: space.xl,
+    gap: space.md,
+  },
   noticeTitle: { fontFamily: fonts.display, fontSize: 20, color: t.text },
-  noticeBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: t.textMuted },
+  noticeBody: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: t.textMuted,
+  },
   skeleton: { backgroundColor: t.surface, borderRadius: radius.lg },
   skeletonTile: { flex: 1, height: 120 },
 }));

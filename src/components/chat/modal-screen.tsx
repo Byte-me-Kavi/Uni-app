@@ -7,7 +7,7 @@ import { XIcon } from 'phosphor-react-native/src/icons/X';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { SheetModal } from '@/components/ui/sheet-layer';
 import { useKeyboardLift } from '@/lib/use-keyboard-lift';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -79,9 +79,9 @@ const useStyles = createThemedStyles((t) => ({
   close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 17, color: t.text, textAlign: 'center' },
   // The accent marks the thing to do; what sits on it is Ink.
-  action: { minWidth: 64, height: 38, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: brand.accent, alignItems: 'center', justifyContent: 'center' },
+  action: { minWidth: 64, height: 38, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' },
   actionDisabled: { backgroundColor: t.surface },
-  actionText: { fontFamily: fonts.bodyBold, fontSize: 15, color: brand.ink },
+  actionText: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.onAccent },
   actionTextDisabled: { color: t.textMuted },
   body: { flex: 1 },
 }));

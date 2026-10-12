@@ -11,11 +11,13 @@ import { GraduationCapIcon } from 'phosphor-react-native/src/icons/GraduationCap
 import { IdentificationBadgeIcon } from 'phosphor-react-native/src/icons/IdentificationBadge';
 import { MagnifyingGlassIcon } from 'phosphor-react-native/src/icons/MagnifyingGlass';
 import { MoonIcon } from 'phosphor-react-native/src/icons/Moon';
+import { PaletteIcon } from 'phosphor-react-native/src/icons/Palette';
 import { ProhibitIcon } from 'phosphor-react-native/src/icons/Prohibit';
 import { QuotesIcon } from 'phosphor-react-native/src/icons/Quotes';
 import { ShieldCheckIcon } from 'phosphor-react-native/src/icons/ShieldCheck';
 
 import { SettingsGroup, SettingsRow } from '@/components/settings/settings-group';
+import { ThemeSheet } from '@/components/settings/theme-sheet';
 import { ActionSheet, type SheetAction } from '@/components/ui/action-sheet';
 import { Avatar } from '@/components/ui/avatar';
 import { BackHeader } from '@/components/ui/back-header';
@@ -29,13 +31,15 @@ import { setAppBadge, unregisterPush } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 import { FINDABLE, labelFor, useAccount, WHO_CAN_MESSAGE } from '@/lib/use-account';
 import { useHomeData } from '@/providers/home-provider';
-import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { APPEARANCE_OPTIONS, setAppearance, useAppearance, useThemeName } from '@/theme/appearance';
+import { brand, createThemedStyles, fonts, radius, space, THEMES, useTheme } from '@/theme/tokens';
 
 const ROLE_LABEL = { admin: 'Admin', moderator: 'Moderator' } as const;
 const PHOTO = 104;
 
 // Your profile as other students see it, with your settings underneath.
 export default function Profile() {
+  const theme = useTheme();
   const styles = useStyles();
   const { account, failed, reload, setAccount } = useAccount();
   const { refresh: refreshHome } = useHomeData();
@@ -43,6 +47,14 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const appearance = useAppearance();
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const themeName = useThemeName();
+  const [themeOpen, setThemeOpen] = useState(false);
+  const appearanceActions: SheetAction[] = APPEARANCE_OPTIONS.map((o) => ({
+    label: o.key === appearance ? `${o.label} ✓` : o.label,
+    onPress: () => setAppearance(o.key),
+  }));
 
   async function updatePhoto(run: () => ReturnType<typeof removePhoto>) {
     setPhotoError(null);
@@ -93,7 +105,7 @@ export default function Profile() {
               ) : null}
               {/* The accent marks the thing to do; what sits on it is Ink. */}
               <View style={styles.cameraBadge}>
-                <CameraIcon size={17} weight="bold" color={brand.ink} />
+                <CameraIcon size={17} weight="bold" color={theme.onAccent} />
               </View>
             </PressableScale>
             <Text style={styles.name}>{account.full_name}</Text>
@@ -178,7 +190,17 @@ export default function Profile() {
           <SettingsRow first Icon={GraduationCapIcon} label="University" value={account?.institution.name} />
           <SettingsRow Icon={EnvelopeSimpleIcon} label="Email" value={account ? `${account.email} (only you see this)` : undefined} />
           <SettingsRow Icon={ShieldCheckIcon} label="Verified student" value="Checked and approved by the Uni Era team" />
-          <SettingsRow Icon={MoonIcon} label="Appearance" value="Follows your phone's light or dark mode" />
+        </SettingsGroup>
+
+        <SettingsGroup title="Display">
+          <SettingsRow
+            first
+            Icon={MoonIcon}
+            label="Appearance"
+            value={appearance === 'system' ? "Light or dark, as your phone is set" : appearance === 'dark' ? 'Dark' : 'Light'}
+            onPress={() => setAppearanceOpen(true)}
+          />
+          <SettingsRow Icon={PaletteIcon} label="Theme" value={THEMES[themeName].label} onPress={() => setThemeOpen(true)} />
         </SettingsGroup>
 
         <Button label="Sign out" variant="quiet" onPress={signOut} loading={signingOut} />
@@ -191,6 +213,14 @@ export default function Profile() {
         actions={photoActions}
         onClose={() => setSheetOpen(false)}
       />
+      <ActionSheet
+        visible={appearanceOpen}
+        title="Appearance"
+        message="Dark is easier on the eyes at night and saves battery on many phones."
+        actions={appearanceActions}
+        onClose={() => setAppearanceOpen(false)}
+      />
+      <ThemeSheet visible={themeOpen} onClose={() => setThemeOpen(false)} />
     </Screen>
   );
 }
@@ -226,7 +256,7 @@ const useStyles = createThemedStyles((t) => ({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: brand.accent,
+    backgroundColor: t.accent,
     borderWidth: 3,
     borderColor: t.background,
     alignItems: 'center',

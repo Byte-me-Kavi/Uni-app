@@ -6,7 +6,7 @@ import { ModalScreen } from '@/components/chat/modal-screen';
 import { Avatar } from '@/components/ui/avatar';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { usePeopleSearch, type PersonResult } from '@/lib/use-people-search';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // Choosing a student to share in a chat: the same fast name search as the top bar. Only students
 // who can be found are listed, so sharing never reveals someone who chose to stay hidden.
@@ -34,8 +34,8 @@ export function StudentPicker({ visible, onClose, onPick }: { visible: boolean; 
           autoFocus
           autoCorrect={false}
           style={styles.input}
-          selectionColor={brand.accent}
-          cursorColor={brand.accent}
+          selectionColor={theme.accent}
+          cursorColor={theme.accent}
           accessibilityLabel="Search students by name"
         />
         {search.status === 'loading' ? <ActivityIndicator color={theme.textMuted} /> : null}

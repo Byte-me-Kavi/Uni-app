@@ -1,18 +1,23 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 
+import { ModuleChip } from '@/components/resources/module-chip';
 import { BackHeader } from '@/components/ui/back-header';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
+import { weekdayDay } from '@/lib/dates';
 import { createKuppi } from '@/lib/kuppi';
 import { useMyModules } from '@/lib/modules';
-import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
-const HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // 6 am to 10 pm
+const HOURS = Array.from({ length: 19 }, (_, i) => i + 5); // 5 am to 11 pm (and :45 reaches 11:45 pm)
+// Hour chips have one width, so the list can open scrolled to the chosen hour without measuring.
+const HOUR_CHIP = 72;
+const hourLayout = (_: unknown, index: number) => ({ length: HOUR_CHIP, offset: (HOUR_CHIP + space.sm) * index, index });
 const MINUTES = [0, 15, 30, 45];
 const LENGTHS = [
   { minutes: 30, label: '30 min' },
@@ -97,7 +102,7 @@ export default function NewKuppi() {
               {modules.length === 0 ? <Text style={styles.hint}>Set up your modules in Resources first.</Text> : null}
               <View style={styles.chips}>
                 {modules.map((m) => (
-                  <Chip key={m.id} label={m.code} a11y={`${m.code}, ${m.name}`} active={m.id === moduleId} onPress={() => setModuleId(m.id)} />
+                  <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={m.id === moduleId} onPress={() => setModuleId(m.id)} />
                 ))}
               </View>
             </Group>
@@ -113,23 +118,38 @@ export default function NewKuppi() {
             />
 
             <Group label="Day">
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                {days.map((d, i) => (
+              <FlatList
+                horizontal
+                data={days}
+                keyExtractor={(d) => String(d.getTime())}
+                extraData={day}
+                renderItem={({ item, index }) => (
                   <Chip
-                    key={d.toISOString()}
-                    label={i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
-                    active={i === day}
-                    onPress={() => setDay(i)}
+                    label={index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : weekdayDay(item)}
+                    active={index === day}
+                    onPress={() => setDay(index)}
                   />
-                ))}
-              </ScrollView>
+                )}
+                initialNumToRender={6}
+                maxToRenderPerBatch={8}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.row}
+              />
             </Group>
             <Group label="Starts at">
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                {HOURS.map((h) => (
-                  <Chip key={h} label={hourLabel(h)} active={h === hour} onPress={() => setHour(h)} />
-                ))}
-              </ScrollView>
+              <FlatList
+                horizontal
+                data={HOURS}
+                keyExtractor={(h) => String(h)}
+                extraData={hour}
+                renderItem={({ item }) => <Chip fixed label={hourLabel(item)} active={item === hour} onPress={() => setHour(item)} />}
+                getItemLayout={hourLayout}
+                initialScrollIndex={Math.max(HOURS.indexOf(19) - 2, 0)}
+                initialNumToRender={6}
+                maxToRenderPerBatch={8}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.row}
+              />
               <View style={styles.chips}>
                 {MINUTES.map((m) => (
                   <Chip key={m} label={`:${String(m).padStart(2, '0')}`} active={m === minute} onPress={() => setMinute(m)} />
@@ -205,7 +225,19 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Chip({ label, a11y, active, onPress }: { label: string; a11y?: string; active: boolean; onPress: () => void }) {
+function Chip({
+  label,
+  a11y,
+  active,
+  onPress,
+  fixed = false,
+}: {
+  label: string;
+  a11y?: string;
+  active: boolean;
+  onPress: () => void;
+  fixed?: boolean;
+}) {
   const styles = useStyles();
   return (
     <PressableScale
@@ -213,7 +245,7 @@ function Chip({ label, a11y, active, onPress }: { label: string; a11y?: string; 
       accessibilityRole="radio"
       accessibilityState={{ selected: active }}
       accessibilityLabel={a11y ?? label}
-      style={[styles.chip, active && styles.chipActive]}>
+      style={[styles.chip, fixed && styles.chipFixed, active && styles.chipActive]}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </PressableScale>
   );
@@ -238,7 +270,8 @@ const useStyles = createThemedStyles((t) => ({
     backgroundColor: t.surface,
   },
   // Selected: the accent with Ink text (brand rule).
-  chipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  chipFixed: { width: HOUR_CHIP, alignItems: 'center', paddingHorizontal: 0 },
+  chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
-  chipTextActive: { color: brand.ink },
+  chipTextActive: { color: t.onAccent },
 }));

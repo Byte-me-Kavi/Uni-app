@@ -3,12 +3,16 @@ import { memo } from 'react';
 import { Text, View } from 'react-native';
 
 import { PressableScale } from '@/components/ui/pressable-scale';
+import { monthShort } from '@/lib/dates';
 import { kuppiPlace, kuppiWhen, PLATFORM_LABEL, type Kuppi } from '@/lib/kuppi';
-import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { useModuleColour } from '@/lib/module-colours';
+import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
-// A kuppi in a list: the date at a glance, the topic and module, and where the student stands.
+// A kuppi in a list: the date at a glance (in the module's colour), the topic and module, and where
+// the student stands.
 export const KuppiCard = memo(function KuppiCard({ kuppi }: { kuppi: Kuppi }) {
   const styles = useStyles();
+  const colour = useModuleColour(kuppi.module.id);
   const start = new Date(kuppi.starts_at);
   const status = kuppi.cancelled
     ? 'Cancelled'
@@ -27,8 +31,8 @@ export const KuppiCard = memo(function KuppiCard({ kuppi }: { kuppi: Kuppi }) {
       accessibilityRole="button"
       accessibilityLabel={`${kuppi.title}, ${kuppiPlace(kuppi)}, ${kuppiWhen(kuppi)}${status ? `, ${status}` : ''}`}
       style={[styles.card, kuppi.cancelled && styles.cancelled]}>
-      <View style={styles.date}>
-        <Text style={styles.month}>{start.toLocaleDateString(undefined, { month: 'short' }).toUpperCase()}</Text>
+      <View style={[styles.date, { backgroundColor: colour.bg }]}>
+        <Text style={[styles.month, { color: colour.fg }]}>{monthShort(start).toUpperCase()}</Text>
         <Text style={styles.day}>{start.getDate()}</Text>
       </View>
       <View style={styles.copy}>
@@ -79,7 +83,7 @@ const useStyles = createThemedStyles((t) => ({
     borderRadius: radius.pill,
   },
   // Going and hosting: the accent with Ink text (brand rule).
-  badgeOn: { backgroundColor: brand.accent },
+  badgeOn: { backgroundColor: t.accent },
   badgeText: { fontFamily: fonts.bodyBold, fontSize: 12, color: t.text },
-  badgeTextOn: { color: brand.ink },
+  badgeTextOn: { color: t.onAccent },
 }));

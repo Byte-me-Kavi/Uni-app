@@ -4,11 +4,12 @@ import { FolderSimpleIcon } from 'phosphor-react-native/src/icons/FolderSimple';
 import { ProhibitIcon } from 'phosphor-react-native/src/icons/Prohibit';
 
 import { pressFolder, useFolder } from '@/lib/chat-folders';
+import { useModuleColour } from '@/lib/module-colours';
 import { categoryLabel } from '@/lib/library';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
-// Under a file, photo or link: where it is filed in Resources for this student ("CS2012 · Lecture
-// slides"); tap to change it. A file the check blocked says so instead. Nothing for items that are
+// Under a file, photo or link: where it is filed in Resources for this student ("Data Structures and
+// Algorithms · Lecture slides", by name: students do not know modules by code); tap to change it. A file the check blocked says so instead. Nothing for items that are
 // not in the student's library.
 export const FolderTag = memo(function FolderTag({ messageId, containerStyle }: { messageId: string; containerStyle?: StyleProp<ViewStyle> }) {
   const folder = useFolder(messageId);
@@ -26,6 +27,7 @@ export const FolderTag = memo(function FolderTag({ messageId, containerStyle }: 
 function Tag({ messageId, folder }: { messageId: string; folder: NonNullable<ReturnType<typeof useFolder>> }) {
   const theme = useTheme();
   const styles = useStyles();
+  const colour = useModuleColour(folder.module_id ?? 0);
 
   if (folder.blocked) {
     return (
@@ -35,7 +37,7 @@ function Tag({ messageId, folder }: { messageId: string; folder: NonNullable<Ret
       </View>
     );
   }
-  const label = `${folder.code}${folder.category ? ` · ${categoryLabel(folder.category)}` : ''}`;
+  const label = `${folder.name ?? folder.code}${folder.category ? ` · ${categoryLabel(folder.category)}` : ''}`;
   return (
     <Pressable
       onPress={() => pressFolder(messageId)}
@@ -43,7 +45,7 @@ function Tag({ messageId, folder }: { messageId: string; folder: NonNullable<Ret
       accessibilityLabel={`Filed in Resources: ${label}. Change`}
       hitSlop={6}
       style={({ pressed }) => [styles.chip, pressed && styles.pressed]}>
-      <FolderSimpleIcon size={12} weight="bold" color={theme.textMuted} />
+      <FolderSimpleIcon size={12} weight="fill" color={colour.fg} />
       <Text style={styles.tag} numberOfLines={1}>
         {label}
       </Text>

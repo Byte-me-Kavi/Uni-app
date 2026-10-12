@@ -59,8 +59,8 @@ export function TextField({ label, hint, error, secret = false, ref, style, ...i
           accessibilityHint={hint}
           secureTextEntry={hidden}
           placeholderTextColor={theme.textMuted}
-          selectionColor={brand.accent}
-          cursorColor={brand.accent}
+          selectionColor={theme.accent}
+          cursorColor={theme.accent}
           onFocus={(e) => {
             focus.value = withTiming(1, { duration: duration.state, easing: EASE_OUT });
             input.onFocus?.(e);

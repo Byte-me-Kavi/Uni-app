@@ -2,7 +2,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { ChatsCircleIcon } from 'phosphor-react-native/src/icons/ChatsCircle';
+import { PaletteIcon } from 'phosphor-react-native/src/icons/Palette';
 
+import { ColourSheet } from '@/components/resources/colour-sheet';
 import { useItemControls } from '@/components/resources/item-controls';
 import { ItemRow } from '@/components/resources/item-row';
 import { KuppiForModule, SharedForModule } from '@/components/resources/module-tabs';
@@ -15,8 +17,10 @@ import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
 import { openChat } from '@/lib/chat/open-chat';
+import { dayAndTime } from '@/lib/dates';
 import { daysText, EXAM_SEASON_DAYS, examLabel, nextExamFor, useMyExams } from '@/lib/exams';
 import { categoryLabel, useModuleLibrary, type Category } from '@/lib/library';
+import { useModuleColour } from '@/lib/module-colours';
 import { findCard, renameModule, setModuleChoice, termLabel, useMyModules, type BatchModules, type ModuleCard } from '@/lib/modules';
 import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
@@ -53,6 +57,8 @@ export default function Module() {
   const [error, setError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState('');
+  const [colourOpen, setColourOpen] = useState(false);
+  const colour = useModuleColour(Number(id));
 
   if (!data || !data.batch || !card) {
     return (
@@ -105,11 +111,22 @@ export default function Module() {
 
   return (
     <Screen style={styles.screen}>
-      <BackHeader title={card.code} />
+      <BackHeader title={card.name} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.stack}>
-          <View style={styles.head}>
-            <Text style={styles.code}>{card.code}</Text>
+          <View style={[styles.head, { backgroundColor: colour.bg }]}>
+            <View style={styles.headTop}>
+              <Text style={[styles.code, { color: colour.fg }]}>{card.code}</Text>
+              <PressableScale
+                onPress={() => setColourOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Colour: ${colour.label}. Change`}
+                hitSlop={8}
+                style={styles.colourButton}>
+                <PaletteIcon size={18} weight="bold" color={colour.fg} />
+                <Text style={[styles.colourText, { color: colour.fg }]}>Colour</Text>
+              </PressableScale>
+            </View>
             <Text style={styles.name} accessibilityRole="header">
               {card.name}
             </Text>
@@ -122,7 +139,7 @@ export default function Module() {
                 {examLabel(exam.kind)} {daysText(exam.days)}
               </Text>
               <Text style={styles.examBody}>
-                {new Date(exam.starts_at).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                {dayAndTime(exam.starts_at)}
                 {exam.venue ? ` · ${exam.venue}` : ''}
               </Text>
               <View style={styles.examActions}>
@@ -138,10 +155,10 @@ export default function Module() {
 
           {card.chat_id ? (
             <PressableScale onPress={() => openChat(card.chat_id!)} accessibilityRole="button" scale={0.985} style={styles.chat}>
-              <ChatsCircleIcon size={24} weight="bold" color={brand.ink} />
+              <ChatsCircleIcon size={24} weight="bold" color={theme.onAccent} />
               <View style={styles.chatCopy}>
                 <Text style={styles.chatTitle}>Course chat</Text>
-                <Text style={styles.chatBody}>Everyone in your intake taking {card.code}</Text>
+                <Text style={styles.chatBody}>Everyone in your intake taking {card.name}</Text>
               </View>
             </PressableScale>
           ) : null}
@@ -161,7 +178,7 @@ export default function Module() {
 
           {tab === 'files' ? (
             <>
-              <OfflineCard moduleId={card.id} code={card.code} />
+              <OfflineCard moduleId={card.id} />
               <ModuleLibrary key={`files-${focus.n}`} moduleId={card.id} code={card.code} initialCategory={focus.category} />
             </>
           ) : null}
@@ -169,11 +186,10 @@ export default function Module() {
             <SharedForModule
               key={`shared-${focus.n}`}
               moduleId={card.id}
-              code={card.code}
               initialCategory={focus.category === 'past_papers' ? 'past_papers' : null}
             />
           ) : null}
-          {tab === 'kuppi' ? <KuppiForModule moduleId={card.id} code={card.code} /> : null}
+          {tab === 'kuppi' ? <KuppiForModule moduleId={card.id} /> : null}
 
           <FormMessage message={error} />
 
@@ -232,6 +248,7 @@ export default function Module() {
           ) : null}
         </View>
       </ScrollView>
+      <ColourSheet visible={colourOpen} moduleId={card.id} name={card.name} onClose={() => setColourOpen(false)} />
     </Screen>
   );
 }
@@ -332,8 +349,12 @@ const useStyles = createThemedStyles((t) => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl },
   content: { padding: space.xl, paddingBottom: space.xxxl },
   stack: { gap: space.xl, width: '100%', maxWidth: 560, alignSelf: 'center' },
-  head: { gap: space.xs },
-  code: { fontFamily: fonts.display, fontSize: 18, color: t.accentText },
+  // Tinted in the module's colour (see module-colours.ts).
+  head: { gap: space.xs, borderRadius: radius.lg, padding: space.lg },
+  headTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
+  code: { fontFamily: fonts.display, fontSize: 18 },
+  colourButton: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36 },
+  colourText: { fontFamily: fonts.bodyBold, fontSize: 14 },
   name: { fontFamily: fonts.display, fontSize: 28, lineHeight: 34, color: t.text, letterSpacing: -0.3 },
   muted: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: t.textMuted },
   // The accent with Ink text and icon (brand rule).
@@ -341,26 +362,26 @@ const useStyles = createThemedStyles((t) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    backgroundColor: brand.accent,
+    backgroundColor: t.accent,
     borderRadius: radius.lg,
     padding: space.lg,
   },
   chatCopy: { flex: 1, gap: 1 },
-  chatTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: brand.ink },
-  chatBody: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: brand.ink },
+  chatTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.onAccent },
+  chatBody: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: t.onAccent },
   library: { gap: space.md },
   // Exam countdown: the accent with Ink text (brand rule).
-  exam: { backgroundColor: brand.accent, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
-  examTitle: { fontFamily: fonts.display, fontSize: 20, color: brand.ink },
-  examBody: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: brand.ink },
+  exam: { backgroundColor: t.accent, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
+  examTitle: { fontFamily: fonts.display, fontSize: 20, color: t.onAccent },
+  examBody: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: t.onAccent },
   examActions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.sm },
   examButton: { backgroundColor: brand.white, borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: space.sm },
   examButtonText: { fontFamily: fonts.bodyBold, fontSize: 14, color: brand.ink },
   segments: { flexDirection: 'row', backgroundColor: t.surface, borderRadius: radius.pill, padding: 4 },
   segment: { flex: 1, minHeight: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  segmentActive: { backgroundColor: brand.accent },
+  segmentActive: { backgroundColor: t.accent },
   segmentText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.textMuted },
-  segmentTextActive: { color: brand.ink },
+  segmentTextActive: { color: t.onAccent },
   chips: { gap: space.sm, paddingRight: space.xl },
   chip: {
     paddingHorizontal: space.md + 2,
@@ -371,9 +392,9 @@ const useStyles = createThemedStyles((t) => ({
     backgroundColor: t.surface,
   },
   // Selected: the accent with Ink text (brand rule).
-  chipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
-  chipTextActive: { color: brand.ink },
+  chipTextActive: { color: t.onAccent },
   spinner: { paddingVertical: space.xl },
   gap: { gap: space.md },
   card: { backgroundColor: t.surface, borderRadius: radius.lg, paddingLeft: space.md, paddingRight: space.xs, paddingVertical: space.xs },

@@ -1,10 +1,8 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { KuppiCard } from '@/components/resources/kuppi-card';
-import { KuppiRequests } from '@/components/resources/kuppi-requests';
-import { Button } from '@/components/ui/button';
+import { KuppiActions, KuppiRequests } from '@/components/resources/kuppi-requests';
 import { FormMessage } from '@/components/ui/form-message';
 import { listKuppi, type Kuppi } from '@/lib/kuppi';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
@@ -28,6 +26,7 @@ export function KuppiSection({ refreshKey }: { refreshKey: number }) {
   const styles = useStyles();
   const [lists, setLists] = useState<Lists | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [asked, setAsked] = useState(0);
 
   const apply = useCallback((r: { lists: Lists | null; error: string | null }) => {
     if (r.lists) setLists(r.lists);
@@ -56,8 +55,8 @@ export function KuppiSection({ refreshKey }: { refreshKey: number }) {
 
   return (
     <View style={styles.stack}>
-      <Button label="Host a kuppi" onPress={() => router.push('/kuppi/new')} />
-      <KuppiRequests scope="my_modules" refreshKey={refreshKey} />
+      <KuppiActions onAsked={() => setAsked((n) => n + 1)} />
+      <KuppiRequests scope="my_modules" refreshKey={refreshKey + asked} />
       {lists === null ? (
         error ? <FormMessage message={error} /> : <ActivityIndicator color={theme.accentText} style={styles.spinner} />
       ) : lists.mine.length + lists.modules.length + lists.others.length === 0 ? (

@@ -116,6 +116,15 @@ Inside Resources (going and hosting, for your modules, more at your university) 
 - **National subject index.** Each module links to a national subject, matched from its name ("Data Structures and Algorithms II" joins "Data Structures and Algorithms"); reps and moderators correct it, national admins merge subjects. Files are shared with the uploader's university by default; only files shared with "All universities" reach students elsewhere taking the same subject (a module's Shared tab: Your university / Other universities).
 - **Discussions.** A thread on every shared file, by question for past papers ("Q3(b)"): answers, replies, helpful votes (best first), names shown, blocked students hidden, report and delete.
 
+### Finding your way around
+
+- **Names first.** Students know modules by name, not code: tiles, pickers, chat folder tags and kuppi show the name, with the code small.
+- **A colour per module.** Eight muted colours (teal, green, amber, clay, rose, violet, indigo, slate), each with a light and a dark version (text on the tint at least 5:1). This semester's modules get different colours by default; a student picks their own from the module page (kept on the server, only for them). Used on tiles, the module page header, module pickers, chat folder tags, kuppi date blocks and list dots. The blue accent stays for buttons and selection, red for errors.
+- **One search** above the Resources sections: modules (name or code), your files (including text inside), files shared at your university, kuppi and kuppi requests, grouped by kind.
+- **On this phone** badge on modules downloaded for offline.
+- **Getting started** card while the library is empty: add this semester's modules, open the batch chat, exam dates (reps add them; others ask in the batch chat). Ticks itself off, goes when done or hidden.
+- **Appearance** (Profile → Display): match the phone, light or dark. Kept on the phone, survives sign-out.
+
 ### File safety
 
 | Layer | What | When |

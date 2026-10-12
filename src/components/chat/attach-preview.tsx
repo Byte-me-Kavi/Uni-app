@@ -4,6 +4,7 @@ import { ScrollView, Text, TextInput, View } from 'react-native';
 import { FileTextIcon } from 'phosphor-react-native/src/icons/FileText';
 import { XIcon } from 'phosphor-react-native/src/icons/X';
 
+import { ModuleChip } from '@/components/resources/module-chip';
 import { ModalScreen } from '@/components/chat/modal-screen';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { documentLabel, formatBytes } from '@/lib/chat/attachments';
@@ -115,15 +116,7 @@ export function AttachPreview({
             {modules.map((m) => {
               const active = m.id === moduleId;
               return (
-                <PressableScale
-                  key={m.id}
-                  onPress={() => setChosen(active ? null : m.id)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={`${m.code}, ${m.name}`}
-                  style={[styles.moduleChip, active && styles.moduleChipActive]}>
-                  <Text style={[styles.moduleChipText, active && styles.moduleChipTextActive]}>{m.code}</Text>
-                </PressableScale>
+                <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={active} onPress={() => setChosen(active ? null : m.id)} />
               );
             })}
           </ScrollView>
@@ -138,8 +131,8 @@ export function AttachPreview({
           maxLength={1024}
           multiline
           style={styles.caption}
-          selectionColor={brand.accent}
-          cursorColor={brand.accent}
+          selectionColor={theme.accent}
+          cursorColor={theme.accent}
           accessibilityLabel="Caption"
         />
       </View>
@@ -172,18 +165,6 @@ const useStyles = createThemedStyles((t) => ({
   fileIn: { gap: space.xs, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: t.border },
   fileInLabel: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: t.textMuted, paddingHorizontal: space.lg },
   fileInChips: { gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.xs },
-  moduleChip: {
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs + 2,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: t.border,
-    backgroundColor: t.surface,
-  },
-  // Chosen: the accent with Ink text (brand rule).
-  moduleChipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
-  moduleChipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
-  moduleChipTextActive: { color: brand.ink },
   captionBar: { padding: space.md, borderTopWidth: 1, borderTopColor: t.border },
   caption: {
     minHeight: 44,

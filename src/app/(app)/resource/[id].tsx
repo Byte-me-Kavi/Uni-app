@@ -26,7 +26,7 @@ import {
   type Comment,
   type SharedDetail,
 } from '@/lib/shared';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // A shared file: open it, keep it offline, and its discussion. Past papers are discussed question by
 // question ("Q3(b)"), with the most helpful answers first, so a paper collects its worked answers.
@@ -158,7 +158,7 @@ export default function Resource() {
             accessibilityState={{ selected: c.voted }}
             accessibilityLabel={`Helpful, ${c.votes}`}
             style={[styles.helpful, c.voted && styles.helpfulOn]}>
-            <ThumbsUpIcon size={14} weight={c.voted ? 'fill' : 'bold'} color={c.voted ? brand.ink : theme.textMuted} />
+            <ThumbsUpIcon size={14} weight={c.voted ? 'fill' : 'bold'} color={c.voted ? theme.onAccent : theme.textMuted} />
             <Text style={[styles.helpfulText, c.voted && styles.helpfulTextOn]}>{c.votes > 0 ? c.votes : 'Helpful'}</Text>
           </PressableScale>
           {!reply ? (
@@ -177,13 +177,13 @@ export default function Resource() {
 
   return (
     <Screen style={styles.screen}>
-      <BackHeader title={file.module.code} />
+      <BackHeader title={file.module.name} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.stack}>
             <View style={styles.head}>
               <Text style={styles.code}>
-                {file.module.code} · {category}
+                {file.module.code} · {file.module.name} · {category}
                 {file.paper_year ? ` · ${file.paper_year}` : ''}
               </Text>
               <Text style={styles.title} accessibilityRole="header">
@@ -302,9 +302,9 @@ const useStyles = createThemedStyles((t) => ({
   sectionTitle: { fontFamily: fonts.display, fontSize: 20, color: t.text },
   chips: { gap: space.sm, paddingRight: space.xl },
   chip: { paddingHorizontal: space.md, paddingVertical: space.xs + 2, borderRadius: radius.pill, borderWidth: 1.5, borderColor: t.border, backgroundColor: t.surface },
-  chipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.text },
-  chipTextActive: { color: brand.ink },
+  chipTextActive: { color: t.onAccent },
   comment: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.md, gap: space.xs },
   reply: { backgroundColor: t.background, marginTop: space.sm, marginLeft: space.md },
   commentHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
@@ -313,8 +313,8 @@ const useStyles = createThemedStyles((t) => ({
   qBadge: {
     fontFamily: fonts.bodyBold,
     fontSize: 12,
-    color: brand.ink,
-    backgroundColor: brand.accentTint,
+    color: t.onAccentTint,
+    backgroundColor: t.accentTint,
     paddingHorizontal: space.sm,
     paddingVertical: 1,
     borderRadius: radius.pill,
@@ -325,9 +325,9 @@ const useStyles = createThemedStyles((t) => ({
   deleted: { fontStyle: 'italic', color: t.textMuted },
   commentActions: { flexDirection: 'row', alignItems: 'center', gap: space.lg, marginTop: space.xs },
   helpful: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: space.sm, paddingVertical: 3, borderRadius: radius.pill, borderWidth: 1, borderColor: t.border },
-  helpfulOn: { backgroundColor: brand.accent, borderColor: brand.accent },
+  helpfulOn: { backgroundColor: t.accent, borderColor: t.accent },
   helpfulText: { fontFamily: fonts.bodyBold, fontSize: 12, color: t.textMuted },
-  helpfulTextOn: { color: brand.ink },
+  helpfulTextOn: { color: t.onAccent },
   action: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted },
   composer: { borderTopWidth: 1, borderTopColor: t.border, padding: space.md, gap: space.sm, backgroundColor: t.background },
   replying: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm, paddingHorizontal: space.xs },

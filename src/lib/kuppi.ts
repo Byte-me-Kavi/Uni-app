@@ -1,5 +1,6 @@
 import { Linking } from 'react-native';
 
+import { timeOfDay, weekdayDayMonth } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 
 // Kuppi: peer tutoring sessions on Zoom, Meet or Teams, or in person (see the kuppi migration).
@@ -113,19 +114,17 @@ export async function joinKuppi(id: string) {
   }
 }
 
-/** "CS2012", "CS2012 · All universities", or "CO222 · TMU" for a kuppi hosted at another university. */
+/** "CS2012 · Data Structures", "… · All universities", or "TMU · CO222 · Data Structures II" for a
+ * kuppi hosted at another university. */
 export function kuppiPlace(k: Pick<Kuppi, 'module' | 'scope' | 'other' | 'institution'>) {
-  if (k.other) return `${k.module.code} · ${k.institution ?? 'Another university'}`;
-  return k.scope === 'national' ? `${k.module.code} · All universities` : k.module.code;
+  const module = `${k.module.code} · ${k.module.name}`;
+  if (k.other) return `${k.institution ?? 'Another university'} · ${module}`;
+  return k.scope === 'national' ? `${module} · All universities` : module;
 }
 
 /** Mon 14 Oct · 7:00 pm – 8:30 pm */
 export function kuppiWhen(k: Pick<Kuppi, 'starts_at' | 'ends_at'>) {
-  const start = new Date(k.starts_at);
-  const end = new Date(k.ends_at);
-  const day = start.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-  const time = (d: Date) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-  return `${day} · ${time(start)} – ${time(end)}`;
+  return `${weekdayDayMonth(k.starts_at)} · ${timeOfDay(k.starts_at)} – ${timeOfDay(k.ends_at)}`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -187,4 +186,12 @@ export async function voteRequest(id: string, on: boolean) {
 export async function closeRequest(id: string) {
   const { error } = await supabase.rpc('close_kuppi_request', { p_request_id: id });
   return error?.message ?? null;
+}
+
+/** Upcoming kuppi and open requests matching a topic, module code or module name. */
+export async function searchKuppi(query: string) {
+  const { data, error } = await supabase.rpc('kuppi_search', { p_query: query, p_limit: 20 });
+  if (error || !data) return { sessions: null, requests: null, error: error?.message ?? 'Could not search kuppi.' };
+  const r = data as { sessions: Kuppi[]; requests: KuppiRequest[] };
+  return { sessions: r.sessions, requests: r.requests, error: null };
 }

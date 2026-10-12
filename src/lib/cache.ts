@@ -40,7 +40,10 @@ export function forgetCache(key: string) {
   Storage.removeItemAsync(key).catch(() => {});
 }
 
-/** On sign-out: nothing of this account stays on the phone. */
+/** On sign-out: nothing of this account stays on the phone. Keys starting with `device:` are about
+ * the phone itself (light or dark mode) and stay. */
 export function clearCache() {
-  Storage.clearAsync().catch(() => {});
+  Storage.getAllKeysAsync()
+    .then((keys) => Promise.all(keys.filter((k) => !k.startsWith('device:')).map((k) => Storage.removeItemAsync(k))))
+    .catch(() => {});
 }

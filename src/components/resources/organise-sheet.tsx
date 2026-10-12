@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
+import { ModuleChip } from '@/components/resources/module-chip';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
 import { CheckRow } from '@/components/ui/check-row';
@@ -8,7 +9,7 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { CATEGORIES, type Category } from '@/lib/library';
 import { useMyModules, type ModuleCard } from '@/lib/modules';
-import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 type Props = {
   visible: boolean;
@@ -73,7 +74,7 @@ function OrganiseForm({ name, moduleId, category, canTag, saveLabel, onClose, on
       ) : null}
       <View style={styles.chips}>
         {current.map((m) => (
-          <Chip key={m.id} label={m.code} a11y={`${m.code}, ${m.name}`} active={m.id === module} onPress={() => setModule(m.id)} />
+          <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={m.id === module} onPress={() => setModule(m.id)} />
         ))}
       </View>
       {earlier.length > 0 ? (
@@ -81,7 +82,7 @@ function OrganiseForm({ name, moduleId, category, canTag, saveLabel, onClose, on
           <Text style={styles.sub}>Earlier semesters</Text>
           <View style={styles.chips}>
             {earlier.map((m) => (
-              <Chip key={m.id} label={m.code} a11y={`${m.code}, ${m.name}`} active={m.id === module} onPress={() => setModule(m.id)} />
+              <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={m.id === module} onPress={() => setModule(m.id)} />
             ))}
           </View>
         </>
@@ -137,8 +138,8 @@ const useStyles = createThemedStyles((t) => ({
     backgroundColor: t.surface,
   },
   // Selected: the accent with Ink text (brand rule).
-  chipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
-  chipTextActive: { color: brand.ink },
+  chipTextActive: { color: t.onAccent },
   everyone: { gap: space.xs, marginTop: space.xs },
 }));

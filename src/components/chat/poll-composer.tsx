@@ -55,8 +55,8 @@ export function PollComposer({ visible, onClose, onSend }: { visible: boolean; o
           multiline
           autoFocus
           style={[styles.input, styles.question]}
-          selectionColor={brand.accent}
-          cursorColor={brand.accent}
+          selectionColor={theme.accent}
+          cursorColor={theme.accent}
           accessibilityLabel="Question"
         />
 
@@ -71,8 +71,8 @@ export function PollComposer({ visible, onClose, onSend }: { visible: boolean; o
                 placeholderTextColor={theme.textMuted}
                 maxLength={100}
                 style={[styles.input, styles.option]}
-                selectionColor={brand.accent}
-                cursorColor={brand.accent}
+                selectionColor={theme.accent}
+                cursorColor={theme.accent}
                 accessibilityLabel={`Option ${i + 1}`}
               />
               {options.length > 2 ? (

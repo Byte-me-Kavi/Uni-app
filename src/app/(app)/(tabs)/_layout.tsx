@@ -18,7 +18,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { useHomeData } from '@/providers/home-provider';
-import { brand, createThemedStyles, fonts, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, space, useTheme } from '@/theme/tokens';
 
 // Persistent chrome for the signed-in app: the top bar (mark, search, avatar) and the bottom tab
 // bar are drawn once here and never move. Each tab renders only its own content in the TabSlot.
@@ -59,7 +59,7 @@ export default function TabsLayout() {
   return (
     <Screen edges={['top']} style={styles.screen}>
       <View style={styles.topBar}>
-        <UniEraMark size={30} color={theme.text} tasselColor={brand.accent} />
+        <UniEraMark size={30} color={theme.text} tasselColor={theme.accent} />
         <SearchField
           ref={input}
           value={query}

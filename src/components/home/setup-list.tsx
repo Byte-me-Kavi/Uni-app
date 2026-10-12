@@ -4,7 +4,7 @@ import { CheckCircleIcon } from 'phosphor-react-native/src/icons/CheckCircle';
 import { CircleIcon } from 'phosphor-react-native/src/icons/Circle';
 
 import { PressableScale } from '@/components/ui/pressable-scale';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 export type SetupStep = {
   key: string;
@@ -95,8 +95,8 @@ const useStyles = createThemedStyles((t) => ({
   soon: {
     fontFamily: fonts.bodyBold,
     fontSize: 12,
-    color: brand.ink,
-    backgroundColor: brand.accentTint,
+    color: t.onAccentTint,
+    backgroundColor: t.accentTint,
     paddingHorizontal: space.sm + 2,
     paddingVertical: 3,
     borderRadius: radius.pill,

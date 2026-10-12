@@ -11,6 +11,7 @@ import { StaffCard } from '@/components/home/staff-card';
 import { EntranceContext, Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
+import { useModulesSnapshot } from '@/lib/modules';
 import { firstName, type MyHome } from '@/lib/use-home';
 import { useHomeData } from '@/providers/home-provider';
 import { createThemedStyles, fonts, space, useTheme } from '@/theme/tokens';
@@ -60,6 +61,9 @@ export default function Home() {
 
 function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
   const styles = useStyles();
+  // Modules set up since Home last loaded count straight away.
+  const modules = useModulesSnapshot();
+  const hasModules = home.module_count > 0 || (!!modules?.batch && modules.current.length > 0);
 
   // Real account state only. Steps that are not built yet say so instead of linking nowhere.
   const steps: SetupStep[] = [
@@ -74,8 +78,8 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
     },
     {
       key: 'modules',
-      label: home.module_count > 0 ? 'Set up your modules' : 'Set up your modules for this semester',
-      done: home.module_count > 0,
+      label: hasModules ? 'Set up your modules' : 'Set up your modules for this semester',
+      done: hasModules,
       onPress: home.has_cohort ? () => router.push('/resources') : undefined,
     },
   ];
@@ -105,9 +109,12 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
         </Reveal>
       ) : null}
 
-      <Reveal order={3}>
-        <SetupList steps={steps} />
-      </Reveal>
+      {/* Gone once every step is done. */}
+      {steps.some((s) => !s.done) ? (
+        <Reveal order={3}>
+          <SetupList steps={steps} />
+        </Reveal>
+      ) : null}
 
       <Reveal order={4}>
         <QuietFeed />

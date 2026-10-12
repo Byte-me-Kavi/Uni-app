@@ -11,7 +11,7 @@ import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/toke
 
 // "Download for offline": every file of the module on the phone, to study with no data (on the bus,
 // in the exam hall queue). On Wi-Fi only, unless the student says so.
-export function OfflineCard({ moduleId, code }: { moduleId: number; code: string }) {
+export function OfflineCard({ moduleId }: { moduleId: number }) {
   const theme = useTheme();
   const styles = useStyles();
   const session = useSession();
@@ -44,7 +44,7 @@ export function OfflineCard({ moduleId, code }: { moduleId: number; code: string
       : 'Getting the list…'
     : pack
       ? `${pack.files.length === 1 ? '1 file' : `${pack.files.length} files`} · ${formatBytes(size)} on this phone`
-      : `Keep every ${code} file on this phone`;
+      : 'Keep every file of this module on this phone';
 
   return (
     <View style={styles.card}>
@@ -68,7 +68,7 @@ export function OfflineCard({ moduleId, code }: { moduleId: number; code: string
       ) : null}
       <ActionSheet
         visible={confirm !== null}
-        title={confirm === 'remove' ? `Remove ${code} from this phone?` : confirm === 'data' ? 'You are on mobile data' : 'Are you on Wi-Fi?'}
+        title={confirm === 'remove' ? 'Remove this module from this phone?' : confirm === 'data' ? 'You are on mobile data' : 'Are you on Wi-Fi?'}
         message={
           confirm === 'remove'
             ? 'The files stay in your library and download again when you open them.'

@@ -5,7 +5,7 @@ import type { IconProps } from 'phosphor-react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { duration, EASE_OUT } from '@/theme/motion';
-import { brand, createThemedStyles, fonts, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, useTheme } from '@/theme/tokens';
 
 type Props = TabTriggerSlotProps & {
   label: string;
@@ -69,11 +69,11 @@ const useStyles = createThemedStyles((t) => ({
     height: 19,
     paddingHorizontal: 5,
     borderRadius: 10,
-    backgroundColor: brand.accent,
+    backgroundColor: t.accent,
     borderWidth: 2,
     borderColor: t.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { fontFamily: fonts.bodyBold, fontSize: 10, lineHeight: 12, color: brand.ink },
+  badgeText: { fontFamily: fonts.bodyBold, fontSize: 10, lineHeight: 12, color: t.onAccent },
 }));

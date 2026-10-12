@@ -82,6 +82,7 @@ function buzz(kind: 'light' | 'medium' = 'light') {
 }
 
 export function VoiceRecorder({ onRecorded, onState, onError }: Props) {
+  const theme = useTheme();
   const styles = useStyles();
   const [phase, setPhase] = useState<Phase>('idle');
   const [seconds, setSeconds] = useState(0);
@@ -189,7 +190,7 @@ export function VoiceRecorder({ onRecorded, onState, onError }: Props) {
             accessibilityRole="button"
             accessibilityLabel="Send voice message"
             style={styles.send}>
-            <PaperPlaneRightIcon size={20} weight="fill" color={brand.ink} />
+            <PaperPlaneRightIcon size={20} weight="fill" color={theme.onAccent} />
           </Pressable>
         ) : (
           <GestureDetector gesture={hold}>
@@ -199,7 +200,7 @@ export function VoiceRecorder({ onRecorded, onState, onError }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Hold to record a voice message"
               accessibilityHint="Let go to send. Slide left to cancel, or up to keep recording hands-free">
-              <MicrophoneIcon size={22} color={brand.ink} weight="fill" />
+              <MicrophoneIcon size={22} color={theme.onAccent} weight="fill" />
             </Animated.View>
           </GestureDetector>
         )}
@@ -504,8 +505,8 @@ const useStyles = createThemedStyles((t) => ({
   dotSent: { backgroundColor: t.accentText },
   micSlot: { width: 44, height: 44, alignItems: 'center', justifyContent: 'flex-end' },
   // The accent marks the thing to do; what sits on it is Ink.
-  mic: { width: 44, height: 44, borderRadius: 22, backgroundColor: brand.accent, alignItems: 'center', justifyContent: 'center' },
-  send: { width: 44, height: 44, borderRadius: 22, backgroundColor: brand.accent, alignItems: 'center', justifyContent: 'center' },
+  mic: { width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' },
+  send: { width: 44, height: 44, borderRadius: 22, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' },
   lockSlot: { position: 'absolute', bottom: 64, width: 40 },
   lockPill: {
     width: 40,

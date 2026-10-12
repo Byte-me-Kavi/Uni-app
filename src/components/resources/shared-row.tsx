@@ -40,7 +40,7 @@ export const SharedRow = memo(function SharedRow({ file, showModule = false, onR
   const Icon = iconFor(file.mime);
   const category = SHARED_CATEGORIES.find((c) => c.key === file.category)?.label ?? 'File';
   const meta = [
-    showModule ? file.module.code : null,
+    showModule ? file.module.name : null,
     file.institution && file.scope === 'national' && !file.mine ? file.institution : null,
     file.paper_year ? String(file.paper_year) : category,
     file.mine ? 'You' : file.published_as === 'rep' ? `${file.uploader_name ?? 'A rep'} (batch rep)` : file.uploader_name,

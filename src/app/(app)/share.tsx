@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { FileArrowUpIcon } from 'phosphor-react-native/src/icons/FileArrowUp';
 
+import { ModuleChip } from '@/components/resources/module-chip';
 import { BackHeader } from '@/components/ui/back-header';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
@@ -21,7 +22,7 @@ import {
   type PickedShare,
   type SharedCategory,
 } from '@/lib/shared';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 const stripExtension = (name: string) => name.replace(/\.[A-Za-z0-9]{2,5}$/, '');
 const asShared = (c: string | undefined): SharedCategory =>
@@ -113,7 +114,7 @@ export default function Share() {
             <Group label="Module">
               <View style={styles.chips}>
                 {modules.map((m) => (
-                  <Chip key={m.id} label={m.code} a11y={`${m.code}, ${m.name}`} active={m.id === moduleId} onPress={() => setModuleId(m.id)} />
+                  <ModuleChip key={m.id} id={m.id} code={m.code} name={m.name} active={m.id === moduleId} onPress={() => setModuleId(m.id)} />
                 ))}
               </View>
             </Group>
@@ -203,9 +204,9 @@ const useStyles = createThemedStyles((t) => ({
     backgroundColor: t.surface,
   },
   // Selected: the accent with Ink text (brand rule).
-  chipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
-  chipTextActive: { color: brand.ink },
+  chipTextActive: { color: t.onAccent },
   done: { flex: 1, padding: space.xl, gap: space.xl, justifyContent: 'center', width: '100%', maxWidth: 560, alignSelf: 'center' },
   doneTitle: { fontFamily: fonts.display, fontSize: 22, lineHeight: 28, color: t.text },
 }));

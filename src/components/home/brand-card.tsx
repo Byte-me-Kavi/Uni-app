@@ -1,15 +1,17 @@
 import { Text, View, useWindowDimensions } from 'react-native';
 
 import { UniEraMark } from '@/components/brand/uni-era-mark';
-import { brand, createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = { assemble: boolean };
 
-// The one bold surface on the home screen: the brand accent with the tagline in Figtree Black and the
-// mark beside it, centred vertically and fully visible. On the accent the tassel turns white (logo system
-// rule). Text on the accent is Ink, never white.
+// The one bold surface on the home screen: the theme's accent with the tagline in Figtree Black and the
+// mark beside it, centred vertically and fully visible. Text and mark take the theme's colour on the
+// accent (Ink on pale accents, white on deep ones); the tassel takes the other one (logo system rule).
 export function BrandCard({ assemble }: Props) {
+  const theme = useTheme();
   const styles = useStyles();
+  const tassel = theme.onAccent === brand.ink ? brand.white : brand.ink;
   // Narrow phones (under ~380pt) get a smaller mark and headline so the headline keeps its two lines.
   const narrow = useWindowDimensions().width < 380;
   return (
@@ -19,15 +21,15 @@ export function BrandCard({ assemble }: Props) {
         <Text style={styles.body}>Notes, kuppi, chats and events with students from every university.</Text>
       </View>
       <View style={styles.mark} pointerEvents="none" importantForAccessibility="no-hide-descendants">
-        <UniEraMark size={narrow ? 84 : 104} color={brand.ink} tasselColor={brand.white} motion={assemble ? 'assemble' : undefined} />
+        <UniEraMark size={narrow ? 84 : 104} color={theme.onAccent} tasselColor={tassel} motion={assemble ? 'assemble' : undefined} />
       </View>
     </View>
   );
 }
 
-const useStyles = createThemedStyles(() => ({
+const useStyles = createThemedStyles((t) => ({
   card: {
-    backgroundColor: brand.accent,
+    backgroundColor: t.accent,
     borderRadius: radius.lg + 6,
     padding: space.xl,
     minHeight: 172,
@@ -37,8 +39,8 @@ const useStyles = createThemedStyles(() => ({
   },
   // Text takes the remaining width; the mark keeps its size, so they never overlap.
   copy: { flex: 1, gap: space.sm },
-  headline: { fontFamily: fonts.wordmark, fontSize: 27, lineHeight: 30, color: brand.ink, letterSpacing: -0.5 },
+  headline: { fontFamily: fonts.wordmark, fontSize: 27, lineHeight: 30, letterSpacing: -0.5, color: t.onAccent },
   headlineNarrow: { fontSize: 23, lineHeight: 26 },
-  body: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: brand.ink },
+  body: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: t.onAccent },
   mark: { flexShrink: 0 },
 }));

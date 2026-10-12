@@ -3,7 +3,7 @@ import { Pressable, Text } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { duration, EASE_OUT } from '@/theme/motion';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = {
   label: string;
@@ -20,10 +20,10 @@ export function CheckRow({ label, checked, onChange }: Props) {
     progress.value = withTiming(checked ? 1 : 0, { duration: duration.state, easing: EASE_OUT });
   }, [checked, progress]);
 
-  const { textMuted } = theme;
+  const { textMuted, accent } = theme;
   const boxStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], ['rgba(56,189,248,0)', brand.accent]),
-    borderColor: interpolateColor(progress.value, [0, 1], [textMuted, brand.accent]),
+    backgroundColor: interpolateColor(progress.value, [0, 1], [`${accent}00`, accent]),
+    borderColor: interpolateColor(progress.value, [0, 1], [textMuted, accent]),
   }));
 
   // The tick grows from 60%, never from nothing, so it reads as the box filling in.
@@ -59,6 +59,6 @@ const useStyles = createThemedStyles((t) => ({
     justifyContent: 'center',
   },
   // Ink on the accent in both themes.
-  tick: { color: brand.ink, fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 18 },
+  tick: { color: t.onAccent, fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 18 },
   label: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: t.text },
 }));

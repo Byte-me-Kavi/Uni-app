@@ -11,7 +11,7 @@ import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
 import { supabase } from '@/lib/supabase';
 import { useHomeData } from '@/providers/home-provider';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Suggestion = {
   email_code: string | null;
@@ -139,7 +139,7 @@ export default function Batch() {
               <Text style={styles.lead}>We matched it from your university email.</Text>
               <View style={styles.batchCard}>
                 <View style={styles.batchIcon}>
-                  <UsersThreeIcon size={26} weight="bold" color={brand.ink} />
+                  <UsersThreeIcon size={26} weight="bold" color={theme.onAccent} />
                 </View>
                 <Text style={styles.batchName}>{suggestion.programme.name}</Text>
                 <Text style={styles.batchMeta}>
@@ -235,7 +235,7 @@ export default function Batch() {
               <Text style={styles.title}>You are in your batch</Text>
               <View style={styles.batchCard}>
                 <View style={styles.batchIcon}>
-                  <UsersThreeIcon size={26} weight="bold" color={brand.ink} />
+                  <UsersThreeIcon size={26} weight="bold" color={theme.onAccent} />
                 </View>
                 {/* The full batch name carries the university, so groups with the same programme at
                     other universities never look alike. */}
@@ -275,7 +275,7 @@ const useStyles = createThemedStyles((t) => ({
     width: 48,
     height: 48,
     borderRadius: radius.md,
-    backgroundColor: brand.accent,
+    backgroundColor: t.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: space.md,
@@ -309,9 +309,9 @@ const useStyles = createThemedStyles((t) => ({
     backgroundColor: t.surface,
   },
   // Selected year: the accent with Ink text (brand rule: text on the accent is Ink).
-  yearActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  yearActive: { backgroundColor: t.accent, borderColor: t.accent },
   yearText: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
-  yearTextActive: { color: brand.ink },
+  yearTextActive: { color: t.onAccent },
   hint: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
 }));
  

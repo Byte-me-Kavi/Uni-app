@@ -9,7 +9,7 @@ import { PressableScale } from '@/components/ui/pressable-scale';
 import { setFavourite, useStickerLibrary } from '@/lib/chat/sticker-library';
 import { stickerSource } from '@/lib/chat/stickers';
 import type { StickerAttachment } from '@/lib/chat/types';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // Tapping a sticker in a chat, as in WhatsApp: the sticker large, and one tap to add it to (or
 // take it out of) your favourites, which then sit in the sticker tray's Favourites tab.
@@ -36,7 +36,7 @@ export function StickerSheet({ sticker, onClose }: { sticker: StickerAttachment 
           accessibilityRole="button"
           accessibilityState={{ selected: favourite }}
           style={[styles.fav, favourite && styles.favOn]}>
-          <StarIcon size={16} weight="fill" color={favourite ? theme.text : brand.ink} />
+          <StarIcon size={16} weight="fill" color={favourite ? theme.text : theme.onAccent} />
           <Text style={[styles.favText, favourite && styles.favTextOn]}>{favourite ? 'Favourite' : 'Add to favourites'}</Text>
         </PressableScale>
         {error ? <Text style={styles.error}>{error}</Text> : (
@@ -49,9 +49,9 @@ export function StickerSheet({ sticker, onClose }: { sticker: StickerAttachment 
 
 const useStyles = createThemedStyles((t) => ({
   // The accent marks the thing to do; what sits on it is Ink. Once added, it turns quiet.
-  fav: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 6, height: 36, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: brand.accent },
+  fav: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 6, height: 36, paddingHorizontal: space.lg, borderRadius: radius.pill, backgroundColor: t.accent },
   favOn: { backgroundColor: t.surface },
-  favText: { fontFamily: fonts.bodyBold, fontSize: 14, color: brand.ink },
+  favText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.onAccent },
   favTextOn: { color: t.text },
   body: { alignItems: 'stretch', gap: space.md, paddingHorizontal: space.xl, paddingBottom: space.xl },
   sticker: { width: 180, height: 180, alignSelf: 'center', marginVertical: space.sm },

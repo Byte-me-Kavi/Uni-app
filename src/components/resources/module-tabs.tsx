@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { KuppiCard } from '@/components/resources/kuppi-card';
-import { KuppiRequests } from '@/components/resources/kuppi-requests';
+import { KuppiActions, KuppiRequests } from '@/components/resources/kuppi-requests';
 import { SharedRow } from '@/components/resources/shared-row';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
@@ -19,11 +19,11 @@ import {
   type SharedCategory,
   type SharedFile,
 } from '@/lib/shared';
-import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // What students shared for one module, by kind, newest first: at the student's university, or (for
 // the same national subject) at other universities when the uploader shared with everyone.
-export function SharedForModule({ moduleId, code, initialCategory = null }: { moduleId: number; code: string; initialCategory?: SharedCategory | null }) {
+export function SharedForModule({ moduleId, initialCategory = null }: { moduleId: number; initialCategory?: SharedCategory | null }) {
   const theme = useTheme();
   const styles = useStyles();
   const [category, setCategory] = useState<SharedCategory | null>(initialCategory);
@@ -126,7 +126,7 @@ export function SharedForModule({ moduleId, code, initialCategory = null }: { mo
         </View>
       ) : (
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>{national ? 'Nothing from other universities yet' : `Nothing shared for ${code} yet`}</Text>
+          <Text style={styles.emptyTitle}>{national ? 'Nothing from other universities yet' : 'Nothing shared for this module yet'}</Text>
           <Text style={styles.muted}>
             {national
               ? `Files students elsewhere share with all universities for ${subject?.subject?.name ?? 'this subject'} show here.`
@@ -134,17 +134,18 @@ export function SharedForModule({ moduleId, code, initialCategory = null }: { mo
           </Text>
         </View>
       )}
-      <Button label={`Share a file to ${code}`} variant="quiet" onPress={() => router.push({ pathname: '/share', params: { module: String(moduleId) } })} />
+      <Button label="Share a file" variant="quiet" onPress={() => router.push({ pathname: '/share', params: { module: String(moduleId) } })} />
     </View>
   );
 }
 
 // Upcoming kuppi for one module, and hosting one.
-export function KuppiForModule({ moduleId, code }: { moduleId: number; code: string }) {
+export function KuppiForModule({ moduleId }: { moduleId: number }) {
   const theme = useTheme();
   const styles = useStyles();
   const [list, setList] = useState<Kuppi[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [asked, setAsked] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -166,12 +167,14 @@ export function KuppiForModule({ moduleId, code }: { moduleId: number; code: str
         list.map((k) => <KuppiCard key={k.id} kuppi={k} />)
       ) : (
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No kuppi for {code} coming up</Text>
-          <Text style={styles.muted}>Know a topic well? Host one: your batchmates RSVP and get the link 15 minutes before.</Text>
+          <Text style={styles.emptyTitle}>No kuppi for this module coming up</Text>
+          <Text style={styles.muted}>
+            Know a topic well? Host one: students RSVP and get the link 15 minutes before. Stuck on one? Ask, and hosts see what is wanted.
+          </Text>
         </View>
       )}
-      <Button label={`Host a kuppi for ${code}`} onPress={() => router.push({ pathname: '/kuppi/new', params: { module: String(moduleId) } })} />
-      <KuppiRequests scope="module" moduleId={moduleId} />
+      <KuppiActions moduleId={moduleId} onAsked={() => setAsked((n) => n + 1)} />
+      <KuppiRequests scope="module" moduleId={moduleId} refreshKey={asked} />
     </View>
   );
 }
@@ -202,9 +205,9 @@ const useStyles = createThemedStyles((t) => ({
     backgroundColor: t.surface,
   },
   // Selected: the accent with Ink text (brand rule).
-  chipActive: { backgroundColor: brand.accent, borderColor: brand.accent },
+  chipActive: { backgroundColor: t.accent, borderColor: t.accent },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.text },
-  chipTextActive: { color: brand.ink },
+  chipTextActive: { color: t.onAccent },
   card: { backgroundColor: t.surface, borderRadius: radius.lg, paddingLeft: space.md, paddingRight: space.xs, paddingVertical: space.xs },
   empty: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.xl, gap: space.sm },
   emptyTitle: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
