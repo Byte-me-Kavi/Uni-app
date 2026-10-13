@@ -47,21 +47,26 @@ export default function SignIn() {
   return (
     <AuthScreen
       title="Welcome back"
-      subtitle="Sign in with your university email."
+      subtitle="Sign in with the email you signed up with."
       footer={
         <Text style={styles.footer}>
           New to Uni Era?{' '}
           <Link href="/sign-up" style={styles.link}>
             Create an account
           </Link>
+          {'\n'}
+          No university email yet?{' '}
+          <Link href="/fresher-sign-up" style={styles.link}>
+            Join as a fresher
+          </Link>
         </Text>
       }>
       <Reveal order={2}>
         <TextField
-          label="University email"
+          label="Email"
           value={email}
           onChangeText={setEmail}
-          placeholder="you@stu.university.ac.lk"
+          placeholder="you@email.com"
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="email"
@@ -96,6 +101,6 @@ export default function SignIn() {
 }
 
 const useStyles = createThemedStyles((t) => ({
-  footer: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: t.textMuted },
+  footer: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 26, color: t.textMuted, textAlign: 'center' },
   link: { fontFamily: fonts.bodyBold, color: t.text },
 }));

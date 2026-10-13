@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { Text, type TextInput } from 'react-native';
 
 import { AuthScreen } from '@/components/auth/auth-screen';
+import { FresherChoice } from '@/components/auth/fresher-choice';
 import { Reveal } from '@/components/motion/reveal';
 import { Button } from '@/components/ui/button';
 import { CheckRow } from '@/components/ui/check-row';
@@ -75,6 +76,11 @@ export default function SignUp() {
           </Link>
         </Text>
       }>
+      {fresherSignUp ? (
+        <Reveal order={2}>
+          <FresherChoice />
+        </Reveal>
+      ) : null}
       <Reveal order={2}>
         <TextField
           label="University email"
@@ -124,16 +130,6 @@ export default function SignUp() {
       <Reveal order={6}>
         <Button label="Create account" onPress={createAccount} loading={loading} />
       </Reveal>
-      {fresherSignUp ? (
-        <Reveal order={7}>
-          <Text style={styles.fresher}>
-            Selected to a university but no university email yet?{' '}
-            <Link href="/fresher-sign-up" style={styles.link}>
-              Join as a fresher
-            </Link>
-          </Text>
-        </Reveal>
-      ) : null}
     </AuthScreen>
   );
 }
@@ -143,6 +139,5 @@ const useStyles = createThemedStyles((t) => ({
   guidelines: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.accentText, paddingLeft: 34, paddingVertical: 2 },
   notice: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: t.textMuted },
   footer: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: t.textMuted },
-  fresher: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: t.textMuted, textAlign: 'center' },
   link: { fontFamily: fonts.bodyBold, color: t.text },
 }));
