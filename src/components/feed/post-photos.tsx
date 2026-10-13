@@ -74,6 +74,6 @@ const useStyles = createThemedStyles((t) => ({
   row: { flexDirection: 'row', gap: GAP, width: '100%' },
   column: { gap: GAP, width: '100%' },
   flex: { flex: 1 },
-  tile: { overflow: 'hidden', borderRadius: radius.md, backgroundColor: t.surface },
+  tile: { overflow: 'hidden', borderRadius: radius.md, backgroundColor: t.background },
   image: { width: '100%', height: '100%' },
 }));

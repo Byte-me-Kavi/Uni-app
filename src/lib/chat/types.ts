@@ -25,6 +25,8 @@ export type Chat = {
   my_role?: 'member' | 'admin' | null;
   /** You pinned this chat to the top of your list (up to 3). */
   list_pinned_at?: string | null;
+  /** Module and kuppi chats: the module, for its colour. */
+  module_id?: number | null;
   /** You moved this chat out of the list, into Archived. */
   archived?: boolean;
   /** Groups: only reps or admins may send. */
@@ -63,14 +65,22 @@ export type ImageAttachment = {
 };
 export type FileAttachment = { path?: string; local_uri?: string; name: string; size: number; mime: string };
 /** A voice note: AAC in .m4a. waveform: up to 64 levels from 0 to 15, drawn as bars. */
-export type VoiceAttachment = { path?: string; local_uri?: string; size: number; mime: string; duration: number; waveform: number[] };
+export type VoiceAttachment = {
+  path?: string;
+  local_uri?: string;
+  size: number;
+  mime: string;
+  duration: number;
+  waveform: number[];
+};
 /** pack 'fluent' (built in) or 'user' (imported or made, id = SHA-256 of the WebP). */
 export type StickerAttachment = { pack: string; id: string; animated?: boolean };
 export type PollAttachment = { question: string; options: string[]; multiple: boolean };
 export type ContactAttachment =
   | { type: 'student'; user_id: string; name: string; avatar_path: string | null; institution: string }
   | { type: 'phone'; name: string; phones: { label: string; number: string }[] };
-export type Attachment = ImageAttachment | FileAttachment | VoiceAttachment | StickerAttachment | PollAttachment | ContactAttachment;
+export type Attachment =
+  ImageAttachment | FileAttachment | VoiceAttachment | StickerAttachment | PollAttachment | ContactAttachment;
 
 /** Live poll results: votes per option, how many voted, and your own choices. */
 export type PollResult = { counts: number[]; voters: number; mine: number[] };

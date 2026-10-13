@@ -10,20 +10,26 @@ type Props = {
   /** Profile photo path in the media bucket; initials show while it loads or when there is none. */
   path?: string | null;
   size?: number;
+  /** Colours for the initials (a person's steady colour); the surface grey when left out. */
+  tone?: { bg: string; fg: string };
 };
 
 // A student's photo, or their initials. Same surface tone as inputs so initials read as part of
 // the UI, not as decoration. The initials sit under the photo, so a slow network never shows an
 // empty circle.
-export function Avatar({ name, path, size = 40 }: Props) {
+export function Avatar({ name, path, size = 40, tone }: Props) {
   const styles = useStyles();
   const uri = mediaUrl(path);
   return (
     <View
-      style={[styles.circle, { width: size, height: size, borderRadius: size / 2 }]}
+      style={[
+        styles.circle,
+        { width: size, height: size, borderRadius: size / 2 },
+        tone && { backgroundColor: tone.bg, borderWidth: 0 },
+      ]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants">
-      <Text style={[styles.text, { fontSize: size * 0.38 }]}>{initials(name)}</Text>
+      <Text style={[styles.text, { fontSize: size * 0.38 }, tone && { color: tone.fg }]}>{initials(name)}</Text>
       {uri ? (
         <Image
           source={{ uri }}

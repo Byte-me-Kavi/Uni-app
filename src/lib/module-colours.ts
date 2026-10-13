@@ -56,7 +56,14 @@ export function swatch(key: ModuleColour, scheme: 'light' | 'dark'): Swatch {
   return { key, label: LABELS[key], ...TONES[scheme][key] };
 }
 
-const hashed = (id: number) => MODULE_COLOURS[Math.imul(id, 2654435761) >>> 0 >>> 29];
+const hashed = (id: number) => MODULE_COLOURS[(Math.imul(id, 2654435761) >>> 0) >>> 29];
+
+/** A steady colour for anything with a text id (a person's initials): the same id, the same colour. */
+export function colourFor(id: string, scheme: 'light' | 'dark'): Swatch {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 2654435761);
+  return swatch(MODULE_COLOURS[(h >>> 0) % MODULE_COLOURS.length], scheme);
+}
 
 // ---------------------------------------------------------------------------------------------
 // The student's choices

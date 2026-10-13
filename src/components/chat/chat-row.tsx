@@ -11,16 +11,31 @@ import { Avatar } from '@/components/ui/avatar';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { listTime } from '@/lib/chat/format';
 import type { Chat } from '@/lib/chat/types';
+import { colourFor, swatch, useModuleColour, type ModuleColour } from '@/lib/module-colours';
+import { useScheme } from '@/theme/appearance';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+
+// Each kind of group chat has its own colour, from the same palette as modules: batch indigo,
+// programme violet, your own groups green, kuppi amber. A course chat takes its module's colour, as
+// on the Resources tab. People without a photo get a steady colour of their own.
+const KIND_COLOUR: Record<Exclude<Chat['kind'], 'direct' | 'module'>, ModuleColour> = {
+  cohort: 'indigo',
+  programme: 'violet',
+  group: 'green',
+  kuppi: 'amber',
+};
 
 // Group chats are told apart from people by a tile, not a face: batch (people), programme
 // (graduation cap, national), course (open book, one module) and kuppi (a teacher at a board).
 export function ChatIcon({ chat, size = 52 }: { chat: Chat; size?: number }) {
-  const theme = useTheme();
+  const scheme = useScheme();
   const styles = useStyles();
+  const module = useModuleColour(chat.module_id ?? 0);
   if (chat.kind === 'direct') {
-    return <Avatar name={chat.title ?? '?'} path={chat.other_avatar_path} size={size} />;
+    const tone = colourFor(chat.other_user_id ?? chat.title ?? '?', scheme);
+    return <Avatar name={chat.title ?? '?'} path={chat.other_avatar_path} size={size} tone={tone} />;
   }
+  const tone = chat.kind === 'module' ? module : swatch(KIND_COLOUR[chat.kind], scheme);
   const Icon =
     chat.kind === 'programme'
       ? GraduationCapIcon
@@ -30,8 +45,8 @@ export function ChatIcon({ chat, size = 52 }: { chat: Chat; size?: number }) {
           ? ChalkboardTeacherIcon
           : UsersThreeIcon;
   return (
-    <View style={[styles.tile, { width: size, height: size, borderRadius: size * 0.32 }]}>
-      <Icon size={size * 0.48} weight="bold" color={theme.text} />
+    <View style={[styles.tile, { width: size, height: size, borderRadius: size * 0.32, backgroundColor: tone.bg }]}>
+      <Icon size={size * 0.48} weight="bold" color={tone.fg} />
     </View>
   );
 }
@@ -111,8 +126,15 @@ export const ChatRow = memo(function ChatRow({ chat, me, onOpen, onWarm, onMenu 
 });
 
 const useStyles = createThemedStyles((t) => ({
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm + 2, paddingHorizontal: space.sm, borderRadius: radius.md },
-  tile: { backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, alignItems: 'center', justifyContent: 'center' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingVertical: space.sm + 2,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.md,
+  },
+  tile: { alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, gap: 3 },
   line: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   title: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 16, color: t.text },

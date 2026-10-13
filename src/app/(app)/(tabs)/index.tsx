@@ -1,10 +1,12 @@
 import { FlashList, type FlashListRef, type ViewToken } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { ImageIcon } from 'phosphor-react-native/src/icons/Image';
 import { ArrowUpIcon } from 'phosphor-react-native/src/icons/ArrowUp';
 import { PlusIcon } from 'phosphor-react-native/src/icons/Plus';
+import { MagnifyingGlassIcon } from 'phosphor-react-native/src/icons/MagnifyingGlass';
+import { XCircleIcon } from 'phosphor-react-native/src/icons/XCircle';
 
 import { FeedAd, FilesShared, KuppiSoon, ShopRow } from '@/components/feed/feed-extras';
 import { FeedSkeleton } from '@/components/feed/feed-skeleton';
@@ -112,7 +114,16 @@ export default function Home() {
       ) : null}
       {state.status === 'ready' ? <HomeContent home={state.home} entrance={entrance} /> : null}
       {state.status === 'ready' && !active ? <QuietFeed waiting={state.home.account_status === 'pending'} /> : null}
-      {active ? <FeedHeader home={state.home} tag={feed.tag} onFilter={feed.filter} canPost={posting && !fresher} /> : null}
+      {active ? (
+        <FeedHeader
+          home={state.home}
+          tag={feed.tag}
+          onFilter={feed.filter}
+          canPost={posting && !fresher}
+          query={feed.query}
+          onSearch={feed.search}
+        />
+      ) : null}
       {active && feed.status === 'switching' ? <FeedSkeleton /> : null}
     </View>
   );
@@ -135,7 +146,14 @@ export default function Home() {
           ListEmptyComponent={
             active && feed.loaded && feed.status !== 'refreshing' ? (
               <View style={styles.item}>
-                <QuietFeed heading={false} tag={feed.tag} canPost={posting && !fresher} onShowAll={() => feed.filter(null)} />
+                <QuietFeed
+                  heading={false}
+                  tag={feed.tag}
+                  canPost={posting && !fresher}
+                  onShowAll={() => feed.filter(null)}
+                  query={feed.searching}
+                  onClearSearch={() => feed.search('')}
+                />
               </View>
             ) : null
           }
@@ -271,25 +289,30 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
 
 const FILTERS: { tag: PostTag | null; label: string }[] = [
   { tag: null, label: 'All' },
-  { tag: 'question', label: 'Questions' },
   { tag: 'lost_found', label: 'Lost & found' },
   { tag: 'bodim', label: 'Bodim' },
-  { tag: 'job', label: 'Jobs' },
+  { tag: 'job', label: 'Part time Jobs' },
+  { tag: 'question', label: 'Questions' },
   { tag: 'notice', label: 'Notices' },
 ];
 
-// "Your feed", the way in to posting (your photo and a prompt that opens the composer, with a photo
-// button straight onto the picker), and the filters, each in its kind's colour.
+// "Your feed", a search box, the way in to posting (your photo and a prompt that opens the composer,
+// with a photo button straight onto the picker; hidden while searching), and the filters, each in
+// its kind's colour.
 function FeedHeader({
   home,
   tag,
   onFilter,
   canPost,
+  query,
+  onSearch,
 }: {
   home: MyHome;
   tag: PostTag | null;
   onFilter: (tag: PostTag | null) => void;
   canPost: boolean;
+  query: string;
+  onSearch: (text: string) => void;
 }) {
   const theme = useTheme();
   const scheme = useScheme();
@@ -301,7 +324,26 @@ function FeedHeader({
       <Text style={styles.heading} accessibilityRole="header">
         Your feed
       </Text>
-      {canPost ? (
+      <View style={styles.search}>
+        <MagnifyingGlassIcon size={19} weight="bold" color={theme.textMuted} />
+        <TextInput
+          value={query}
+          onChangeText={onSearch}
+          placeholder="Search posts, bodims, jobs…"
+          placeholderTextColor={theme.textMuted}
+          accessibilityLabel="Search posts"
+          returnKeyType="search"
+          autoCorrect={false}
+          maxLength={100}
+          style={styles.searchInput}
+        />
+        {query ? (
+          <PressableScale onPress={() => onSearch('')} accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={8}>
+            <XCircleIcon size={20} weight="fill" color={theme.textMuted} />
+          </PressableScale>
+        ) : null}
+      </View>
+      {canPost && !query ? (
         <View style={styles.prompt}>
           <PressableScale
             onPress={() =>
@@ -465,6 +507,16 @@ const useStyles = createThemedStyles((t) => ({
   footer: { paddingVertical: space.xl, gap: space.md },
   switching: { paddingVertical: space.xl },
   filters: { gap: space.sm, paddingRight: space.xl },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    minHeight: 46,
+    paddingHorizontal: space.md,
+    borderRadius: radius.pill,
+    backgroundColor: t.surface,
+  },
+  searchInput: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: t.text, paddingVertical: space.sm },
   filter: {
     flexDirection: 'row',
     alignItems: 'center',

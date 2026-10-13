@@ -35,7 +35,17 @@ type MessageRow = Omit<Message, 'deleted' | 'attachment' | 'reply' | 'forwarded'
   mentions: string | null;
   link: string | null;
 };
-type ChatRow = Omit<Chat, 'muted' | 'other_delivered_at' | 'pinned' | 'my_role' | 'list_pinned_at' | 'archived' | 'announcement_only' | 'slow_mode_seconds'> & {
+type ChatRow = Omit<
+  Chat,
+  | 'muted'
+  | 'other_delivered_at'
+  | 'pinned'
+  | 'my_role'
+  | 'list_pinned_at'
+  | 'archived'
+  | 'announcement_only'
+  | 'slow_mode_seconds'
+> & {
   muted: number;
   extra: string | null;
 };
@@ -61,7 +71,7 @@ CREATE INDEX IF NOT EXISTS messages_conversation_ts ON messages (conversation_id
 CREATE INDEX IF NOT EXISTS messages_pending ON messages (status) WHERE status = 'pending';
 `;
 
-const parse = <T,>(text: string | null): T | null => (text ? (JSON.parse(text) as T) : null);
+const parse = <T>(text: string | null): T | null => (text ? (JSON.parse(text) as T) : null);
 const toMessage = (row: MessageRow): Message => ({
   ...row,
   kind: row.kind ?? 'text',
@@ -125,8 +135,7 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
   }
 
   return {
-    loadChats: () =>
-      serial(async () => (await db.getAllAsync<ChatRow>('SELECT * FROM chats')).map(toChat)),
+    loadChats: () => serial(async () => (await db.getAllAsync<ChatRow>('SELECT * FROM chats')).map(toChat)),
 
     saveChats: (chats) =>
       serial(() =>
@@ -143,11 +152,21 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
           try {
             for (const c of chats) {
               await insert.executeAsync({
-                $conversation_id: c.conversation_id, $kind: c.kind, $title: c.title, $other_user_id: c.other_user_id,
-                $other_avatar_path: c.other_avatar_path, $last_message_at: c.last_message_at,
-                $last_message_preview: c.last_message_preview, $last_sender_id: c.last_sender_id,
-                $last_sender_name: c.last_sender_name, $unread: c.unread, $muted: c.muted ? 1 : 0, $request: c.request,
-                $member_count: c.member_count, $my_last_read_at: c.my_last_read_at, $other_last_read_at: c.other_last_read_at,
+                $conversation_id: c.conversation_id,
+                $kind: c.kind,
+                $title: c.title,
+                $other_user_id: c.other_user_id,
+                $other_avatar_path: c.other_avatar_path,
+                $last_message_at: c.last_message_at,
+                $last_message_preview: c.last_message_preview,
+                $last_sender_id: c.last_sender_id,
+                $last_sender_name: c.last_sender_name,
+                $unread: c.unread,
+                $muted: c.muted ? 1 : 0,
+                $request: c.request,
+                $member_count: c.member_count,
+                $my_last_read_at: c.my_last_read_at,
+                $other_last_read_at: c.other_last_read_at,
                 $created_at: c.created_at,
                 $extra: JSON.stringify({
                   other_delivered_at: c.other_delivered_at ?? null,
@@ -157,6 +176,7 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
                   archived: c.archived ?? false,
                   announcement_only: c.announcement_only ?? false,
                   slow_mode_seconds: c.slow_mode_seconds ?? 0,
+                  module_id: c.module_id ?? null,
                 }),
               });
             }
@@ -171,9 +191,15 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
         const rows = beforeTs
           ? await db.getAllAsync<MessageRow>(
               'SELECT * FROM messages WHERE conversation_id = ? AND ts < ? ORDER BY ts DESC, id DESC LIMIT ?',
-              conversationId, beforeTs, limit)
+              conversationId,
+              beforeTs,
+              limit,
+            )
           : await db.getAllAsync<MessageRow>(
-              'SELECT * FROM messages WHERE conversation_id = ? ORDER BY ts DESC, id DESC LIMIT ?', conversationId, limit);
+              'SELECT * FROM messages WHERE conversation_id = ? ORDER BY ts DESC, id DESC LIMIT ?',
+              conversationId,
+              limit,
+            );
         return rows.map(toMessage);
       }),
 
@@ -200,13 +226,26 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
               try {
                 for (const m of messages) {
                   await upsert.executeAsync({
-                    $id: m.id, $conversation_id: m.conversation_id, $sender_id: m.sender_id, $sender_name: m.sender_name,
-                    $sender_avatar: m.sender_avatar, $body: m.body, $reply_to_id: m.reply_to_id, $created_at: m.created_at,
-                    $ts: m.ts, $status: m.status, $error: m.error, $deleted: m.deleted ? 1 : 0,
-                    $kind: m.kind, $attachment: m.attachment ? JSON.stringify(m.attachment) : null,
-                    $reply: m.reply ? JSON.stringify(m.reply) : null, $forwarded: m.forwarded ? 1 : 0,
-                    $mentions: m.mentions ? JSON.stringify(m.mentions) : null, $link: m.link ? JSON.stringify(m.link) : null,
-                    $edited_at: m.edited_at ?? null, $forward_from: m.forward_from ?? null,
+                    $id: m.id,
+                    $conversation_id: m.conversation_id,
+                    $sender_id: m.sender_id,
+                    $sender_name: m.sender_name,
+                    $sender_avatar: m.sender_avatar,
+                    $body: m.body,
+                    $reply_to_id: m.reply_to_id,
+                    $created_at: m.created_at,
+                    $ts: m.ts,
+                    $status: m.status,
+                    $error: m.error,
+                    $deleted: m.deleted ? 1 : 0,
+                    $kind: m.kind,
+                    $attachment: m.attachment ? JSON.stringify(m.attachment) : null,
+                    $reply: m.reply ? JSON.stringify(m.reply) : null,
+                    $forwarded: m.forwarded ? 1 : 0,
+                    $mentions: m.mentions ? JSON.stringify(m.mentions) : null,
+                    $link: m.link ? JSON.stringify(m.link) : null,
+                    $edited_at: m.edited_at ?? null,
+                    $forward_from: m.forward_from ?? null,
                   });
                 }
               } finally {
@@ -219,7 +258,8 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
       serial(async () => {
         const row = await db.getFirstAsync<{ created_at: string }>(
           "SELECT created_at FROM messages WHERE conversation_id = ? AND status = 'sent' ORDER BY ts DESC LIMIT 1",
-          conversationId);
+          conversationId,
+        );
         return row?.created_at ?? null;
       }),
 
@@ -251,10 +291,15 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
         const rows = conversationId
           ? await db.getAllAsync<MessageRow>(
               `SELECT * FROM messages WHERE conversation_id = ? AND deleted = 0 AND ${where} ORDER BY ts DESC LIMIT ?`,
-              conversationId, ...params, limit)
+              conversationId,
+              ...params,
+              limit,
+            )
           : await db.getAllAsync<MessageRow>(
               `SELECT * FROM messages WHERE deleted = 0 AND ${where} ORDER BY ts DESC LIMIT ?`,
-              ...params, limit);
+              ...params,
+              limit,
+            );
         return rows.map(toMessage);
       }),
 
@@ -263,7 +308,10 @@ export async function openLocalDb(userId: string): Promise<LocalDb> {
         await db.runAsync(
           `DELETE FROM messages WHERE conversation_id = ? AND status = 'sent' AND id NOT IN
              (SELECT id FROM messages WHERE conversation_id = ? ORDER BY ts DESC LIMIT ?)`,
-          conversationId, conversationId, keep);
+          conversationId,
+          conversationId,
+          keep,
+        );
       }),
 
     // Waits for queued work, then closes.

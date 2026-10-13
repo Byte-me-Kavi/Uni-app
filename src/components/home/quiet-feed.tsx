@@ -27,7 +27,7 @@ const COPY: Record<PostTag, Copy> = {
     action: 'List a bodim',
   },
   job: {
-    title: 'No part-time jobs yet',
+    title: 'No part time jobs yet',
     body: 'Hiring students for a few hours a week? Post the job here.',
     action: 'Post a job',
   },
@@ -49,26 +49,43 @@ const WAITING: Copy = {
 };
 
 // Empty state for the feed: a block in the filter's own colour that says what belongs here and opens
-// the composer for it. No invented content.
+// the composer for it. After a search that found nothing, it says so and offers to clear it. No
+// invented content.
 export function QuietFeed({
   waiting = false,
   heading = true,
   tag = null,
   canPost = false,
   onShowAll,
+  query = '',
+  onClearSearch,
 }: {
   waiting?: boolean;
   heading?: boolean;
   tag?: PostTag | null;
   canPost?: boolean;
   onShowAll?: () => void;
+  /** The words searched for, when a search found nothing. */
+  query?: string;
+  onClearSearch?: () => void;
 }) {
   const theme = useTheme();
   const scheme = useScheme();
   const styles = useStyles();
   const look = tag && !waiting ? lookOf({ tag, details: null, notice_from: null }, theme, scheme) : null;
-  const copy = waiting ? WAITING : tag ? COPY[tag] : ALL;
-  const action = canPost && !waiting ? copy.action : undefined;
+  const copy: Copy = query
+    ? {
+        title: `Nothing matches “${query}”`,
+        body: tag
+          ? 'Try other words, or search every kind of post.'
+          : 'Try other words, or fewer of them. Search looks through posts from the last year.',
+      }
+    : waiting
+      ? WAITING
+      : tag
+        ? COPY[tag]
+        : ALL;
+  const action = canPost && !waiting && !query ? copy.action : undefined;
   const ink = look?.text ?? theme.text;
 
   return (
@@ -81,7 +98,7 @@ export function QuietFeed({
       <View style={[styles.block, { backgroundColor: look?.tint ?? theme.surface }]}>
         <Text style={[styles.title, { color: ink }]}>{copy.title}</Text>
         <Text style={[styles.body, look ? { color: ink } : null]}>{copy.body}</Text>
-        {action || (tag && onShowAll) ? (
+        {action || (tag && onShowAll) || (query && onClearSearch) ? (
           <View style={styles.actions}>
             {action ? (
               <PressableScale
@@ -95,7 +112,12 @@ export function QuietFeed({
             ) : null}
             {tag && onShowAll ? (
               <PressableScale onPress={onShowAll} accessibilityRole="button" hitSlop={6} style={styles.showAll}>
-                <Text style={[styles.showAllText, { color: ink }]}>See all posts</Text>
+                <Text style={[styles.showAllText, { color: ink }]}>{query ? 'Search all posts' : 'See all posts'}</Text>
+              </PressableScale>
+            ) : null}
+            {query && onClearSearch ? (
+              <PressableScale onPress={onClearSearch} accessibilityRole="button" hitSlop={6} style={styles.showAll}>
+                <Text style={[styles.showAllText, { color: ink }]}>Clear search</Text>
               </PressableScale>
             ) : null}
           </View>

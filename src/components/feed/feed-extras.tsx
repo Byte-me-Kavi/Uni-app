@@ -120,7 +120,7 @@ function SectionHead({ title, action, onPress }: { title: string; action?: strin
 
 const useStyles = createThemedStyles((t) => ({
   flex: { flex: 1 },
-  card: { borderWidth: 1, borderColor: t.border, borderRadius: radius.lg, padding: space.md, gap: space.sm },
+  card: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.md, gap: space.sm },
   sponsored: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted },
   adFoot: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   title: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
@@ -133,5 +133,5 @@ const useStyles = createThemedStyles((t) => ({
   headAction: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.accentText },
   shopRow: { gap: space.sm },
   listing: { width: 156 },
-  files: { borderWidth: 1, borderColor: t.border, borderRadius: radius.lg, overflow: 'hidden' },
+  files: { backgroundColor: t.surface, borderRadius: radius.lg, overflow: 'hidden' },
 }));

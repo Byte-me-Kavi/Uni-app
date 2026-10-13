@@ -314,6 +314,17 @@ export async function loadFeed(tag: PostTag | null = null) {
   return r;
 }
 
+/** Posts matching the words, best first, shaped like the feed (no ads, shop or kuppi in between). */
+export async function searchPosts(query: string, tag: PostTag | null = null) {
+  const r = await result<{ ids: number[]; posts: Post[] }>(
+    supabase.rpc('search_posts', { p_query: query, ...(tag ? { p_tag: tag } : {}) }),
+  );
+  if (r.error !== null) return r;
+  putPosts(r.data.posts);
+  const start: FeedStart = { ...r.data, notice_as: null, ads: [], shop: [], kuppi: [], files: [] };
+  return { data: start, error: null };
+}
+
 export async function loadPosts(ids: number[]) {
   const seen = takeSeen();
   const r = await result<Post[]>(supabase.rpc('feed_posts', { p_ids: ids, ...(seen.length ? { p_seen: seen } : {}) }));

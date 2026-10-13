@@ -77,9 +77,9 @@ const FACILITY_ICON: Record<Facility, typeof WifiHighIcon> = {
 };
 const LONG = 280;
 
-// One post. Each kind has its own colour, so a student can tell them apart while scrolling: a band
-// across the top with the kind (Question, Lost, Found, Bodim, Notice) and whether it is done, a
-// border in the same colour, and one main button for what people do with it (answer a question,
+// One post, as a filled tile with no borders. Each kind has its own colour, so a student can tell
+// them apart while scrolling: the whole card takes the kind's tint, with a badge on top naming the
+// kind (Question, Lost, Found, Bodim, Job, Notice) and whether it is done, and one main button for what people do with it (answer a question,
 // message the person who lost or found something, message or call about a bodim). A bodim leads
 // with its rent and facts. Plain posts stay quiet. The menu holds Not interested, Mute and Report,
 // or for your own: Edit, Mark as done and Delete. "Not interested" leaves a note with Undo (and
@@ -221,10 +221,10 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
                 : null;
 
   return (
-    <View style={[styles.card, look && { borderColor: look.solid, borderWidth: 1.5 }]}>
-      {look ? <Band look={look} post={post} done={done?.done ?? null} closed={closed} /> : null}
-
+    <View style={[styles.card, look && { backgroundColor: look.tint }]}>
       <View style={styles.inner}>
+        {look ? <Band look={look} post={post} done={done?.done ?? null} closed={closed} /> : null}
+
         <View style={styles.header}>
           <PressableScale
             onPress={() => router.push({ pathname: '/people/[id]', params: { id: post.author.id } })}
@@ -358,7 +358,7 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
               accessibilityRole="button"
               accessibilityLabel={`Call ${name}`}
               hitSlop={4}
-              style={[styles.round, { borderColor: look?.solid }]}>
+              style={[styles.round, { backgroundColor: look ? theme.background : theme.surfaceFocused }]}>
               <PhoneIcon size={18} weight="fill" color={look?.solid} />
             </PressableScale>
           ) : null}
@@ -367,10 +367,7 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
               onPress={main.onPress}
               disabled={opening}
               accessibilityRole="button"
-              style={[
-                styles.cta,
-                main.outline ? { borderWidth: 1.5, borderColor: look.solid } : { backgroundColor: look.solid },
-              ]}>
+              style={[styles.cta, { backgroundColor: main.outline ? theme.background : look.solid }]}>
               <Text style={[styles.ctaText, { color: main.outline ? look.text : look.onSolid }]} numberOfLines={1}>
                 {opening ? 'Opening…' : main.label}
               </Text>
@@ -400,12 +397,12 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
   );
 });
 
-/** The coloured band across the top: the kind, and whether it is done. */
+/** The top row of a coloured card: the kind, and whether it is done. */
 function Band({ look, post, done, closed }: { look: Look; post: Post; done: string | null; closed: boolean }) {
   const styles = useStyles();
   const bodim = post.tag === 'bodim' ? (post.details as BodimDetails) : null;
   return (
-    <View style={[styles.band, { backgroundColor: look.tint }]}>
+    <View style={styles.band}>
       <View style={[styles.badge, { backgroundColor: look.solid }]}>
         <look.Icon size={14} weight="bold" color={look.onSolid} />
         <Text style={[styles.badgeText, { color: look.onSolid }]} numberOfLines={1}>
@@ -529,7 +526,7 @@ function BodimFacts({ details, look, taken }: { details: BodimDetails; look: Loo
           {details.facilities.map((f) => {
             const Icon = FACILITY_ICON[f];
             return (
-              <View key={f} style={[styles.chip, { backgroundColor: look.tint }]}>
+              <View key={f} style={styles.chip}>
                 <Icon size={13} weight="bold" color={look.text} />
                 <Text style={[styles.chipText, { color: look.text }]}>{FACILITY_LABEL[f]}</Text>
               </View>
@@ -543,15 +540,14 @@ function BodimFacts({ details, look, taken }: { details: BodimDetails; look: Loo
 
 const useStyles = createThemedStyles((t) => ({
   flex: { flex: 1 },
+  // No border: plain posts sit on the surface grey, the others on their kind's tint.
   card: {
-    borderWidth: 1,
-    borderColor: t.border,
     borderRadius: radius.lg,
-    backgroundColor: t.background,
+    backgroundColor: t.surface,
     overflow: 'hidden',
   },
-  inner: { padding: space.md, gap: space.sm },
-  band: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.md, paddingVertical: space.sm },
+  inner: { padding: space.md, paddingTop: space.md + 2, gap: space.sm + 2 },
+  band: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: 2 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -599,6 +595,7 @@ const useStyles = createThemedStyles((t) => ({
     borderRadius: radius.pill,
     paddingHorizontal: space.sm + 2,
     paddingVertical: 4,
+    backgroundColor: t.background,
   },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 12 },
   dim: { opacity: 0.55 },
@@ -607,13 +604,10 @@ const useStyles = createThemedStyles((t) => ({
     alignItems: 'center',
     gap: space.lg,
     marginTop: 2,
-    paddingTop: space.sm,
-    borderTopWidth: 1,
-    borderTopColor: t.border,
   },
   action: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, minWidth: 44 },
   count: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: t.textMuted },
-  round: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  round: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   cta: { minHeight: 38, borderRadius: radius.pill, paddingHorizontal: space.lg, justifyContent: 'center', maxWidth: 190 },
   ctaText: { fontFamily: fonts.bodyBold, fontSize: 14 },
   hiddenRow: {

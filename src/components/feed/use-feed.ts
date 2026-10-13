@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 
 import type { AdSlide } from '@/lib/ads';
 import { readCache, writeCache } from '@/lib/cache';
-import { flushSeen, loadFeed, loadPosts, onPosted, PAGE, putPosts, type FeedStart, type PostTag } from '@/lib/feed';
+import { flushSeen, loadFeed, loadPosts, onPosted, PAGE, putPosts, searchPosts, type FeedStart, type PostTag } from '@/lib/feed';
 import type { Kuppi } from '@/lib/kuppi';
 import type { SharedFile } from '@/lib/shared';
 import type { ListingCard } from '@/lib/shop';
@@ -25,14 +25,17 @@ const SHOP_ROW = 5;
 const FILES_AFTER = 11;
 // Coming back to the app after this long refreshes the feed by itself.
 const STALE_MS = 15 * 60 * 1000;
+// Searching waits for a pause in typing.
+const SEARCH_DELAY_MS = 350;
 
-type Loaded = { start: FeedStart; tag: PostTag | null };
+type Loaded = { start: FeedStart; tag: PostTag | null; query: string };
 
 // The feed's state: the last copy on the phone shows at once, then one call refreshes it; more
 // posts load 15 at a time as the student nears the end. Seen posts go to the server with those
 // calls (or when the app goes to the background). A refresh the student did not ask for, while they
 // are reading further down, waits behind a "New posts" button instead of moving the list under
-// their finger. A filter (Questions, Lost & found, Bodim, Notices) shows only that kind.
+// their finger. A filter (Questions, Lost & found, Bodim, Notices) shows only that kind. A search
+// shows the posts matching its words instead (the filter still applies), best match first.
 export function useFeed(enabled: boolean) {
   const session = useSession();
   const cacheKey = session.status === 'signed_in' ? `${session.session.user.id}:feed` : null;
@@ -42,6 +45,8 @@ export function useFeed(enabled: boolean) {
     return cached;
   });
   const [tag, setTag] = useState<PostTag | null>(null);
+  const [query, setQuery] = useState('');
+  const [searched, setSearched] = useState('');
   const [shown, setShown] = useState<number[]>(() => start?.posts.map((p) => p.id) ?? []);
   const [mine, setMine] = useState<number[]>([]);
   const [status, setStatus] = useState<'idle' | 'refreshing' | 'switching' | 'more' | 'error'>('idle');
@@ -50,18 +55,20 @@ export function useFeed(enabled: boolean) {
   const busy = useRef(false);
   const loadedAt = useRef(0);
   const tagNow = useRef<PostTag | null>(null);
+  const queryNow = useRef('');
   const reading = useRef(false);
 
   const apply = useCallback(
-    ({ start: next, tag: nextTag }: Loaded) => {
+    ({ start: next, tag: nextTag, query: nextQuery }: Loaded) => {
       loadedAt.current = Date.now();
       setCursor(PAGE);
       setStart(next);
       setShown(next.posts.map((p) => p.id));
       setMine([]);
+      setSearched(nextQuery);
       setWaiting(null);
       setStatus('idle');
-      if (cacheKey && nextTag === null) writeCache(cacheKey, next);
+      if (cacheKey && nextTag === null && !nextQuery) writeCache(cacheKey, next);
     },
     [cacheKey],
   );
@@ -72,16 +79,18 @@ export function useFeed(enabled: boolean) {
     async (forTag: PostTag | null, quiet: boolean) => {
       if (!enabled || busy.current) return;
       busy.current = true;
-      const r = await loadFeed(forTag);
+      const forQuery = queryNow.current;
+      const r = forQuery ? await searchPosts(forQuery, forTag) : await loadFeed(forTag);
       busy.current = false;
-      if (forTag !== tagNow.current) return; // the student picked another filter meanwhile
+      // The student picked another filter, or typed more, meanwhile.
+      if (forTag !== tagNow.current || forQuery !== queryNow.current) return;
       if (r.error !== null) return setStatus('error');
-      if (quiet && reading.current) {
-        setWaiting({ start: r.data, tag: forTag });
+      if (quiet && reading.current && !forQuery) {
+        setWaiting({ start: r.data, tag: forTag, query: forQuery });
         loadedAt.current = Date.now();
         return;
       }
-      apply({ start: r.data, tag: forTag });
+      apply({ start: r.data, tag: forTag, query: forQuery });
     },
     [enabled, apply],
   );
@@ -108,6 +117,26 @@ export function useFeed(enabled: boolean) {
     },
     [reload],
   );
+
+  /** Searches the feed for these words (empty: back to the feed), after a pause in typing. */
+  const search = useCallback((text: string) => setQuery(text), []);
+
+  useEffect(() => {
+    const words = query.trim().replace(/\s+/g, ' ');
+    const next = words.length >= 2 ? words : '';
+    if (next === queryNow.current) return;
+    const timer = setTimeout(
+      () => {
+        queryNow.current = next;
+        setWaiting(null);
+        setStatus('switching');
+        busy.current = false;
+        reload(tagNow.current, false);
+      },
+      next ? SEARCH_DELAY_MS : 0,
+    );
+    return () => clearTimeout(timer);
+  }, [query, reload]);
 
   /** Shows the refresh that waited behind "New posts". */
   const showWaiting = useCallback(() => {
@@ -187,6 +216,10 @@ export function useFeed(enabled: boolean) {
     items,
     tag,
     filter,
+    query,
+    /** The words the shown posts match, once the search has run ('' for the feed). */
+    searching: searched,
+    search,
     noticeAs: start?.notice_as ?? null,
     loaded: !!start,
     end: !!start && cursor >= start.ids.length,

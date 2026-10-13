@@ -22,20 +22,20 @@ const TONES = {
     lost: { tint: '#FDE3E8', text: '#A11236' },
     found: { tint: '#DDF3E9', text: '#05694C' },
     bodim: { tint: '#E6E8FD', text: '#3730A3' },
-    job: { tint: '#FAE8FF', text: '#86198F' },
+    job: { tint: '#E3F7D4', text: '#2F6A0F' },
   },
   dark: {
     question: { tint: '#33240C', text: '#F7C268' },
     lost: { tint: '#3A1220', text: '#F7A1B6' },
     found: { tint: '#0C2C22', text: '#76DDB7' },
     bodim: { tint: '#1C1C44', text: '#B3B6FA' },
-    job: { tint: '#3A0D3E', text: '#F0ABFC' },
+    job: { tint: '#1A2E0E', text: '#A6E07A' },
   },
 } as const;
 
-// Amber 700, rose 700, emerald 700, indigo 700 and fuchsia 700: deep enough for white labels in
+// Amber 700, rose 700, emerald 700, indigo 700 and a leaf green (jobs, yellower than Found): deep enough for white labels in
 // both modes, and far enough apart to tell at a glance.
-const SOLID = { question: '#B45309', lost: '#BE123C', found: '#047857', bodim: '#4338CA', job: '#A21CAF' } as const;
+const SOLID = { question: '#B45309', lost: '#BE123C', found: '#047857', bodim: '#4338CA', job: '#3F7A12' } as const;
 
 /** The look of a post's kind, or null for a plain post. */
 export function lookOf(

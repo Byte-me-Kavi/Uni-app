@@ -458,6 +458,7 @@ export type Database = {
           last_sender_name: string;
           list_pinned_at: string;
           member_count: number;
+          module_id: number;
           muted: boolean;
           my_last_read_at: string;
           my_role: string;
@@ -733,6 +734,7 @@ export type Database = {
           user_id: string;
         }[];
       };
+      search_posts: { Args: { p_query: string; p_tag?: string }; Returns: Json };
       search_programmes: {
         Args: { p_intake_year?: number; p_query: string };
         Returns: {
