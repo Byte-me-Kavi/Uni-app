@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, Switch, Text, View } from 'react-native';
 
+import { FeedAd } from '@/components/feed/feed-extras';
 import { AdSlideView } from '@/components/home/ad-slide';
 import { ChoiceChip } from '@/components/shop/choice-chip';
 import { ActionSheet } from '@/components/ui/action-sheet';
@@ -11,7 +12,18 @@ import { FormMessage } from '@/components/ui/form-message';
 import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
-import { AD_RATIO, deleteAd, loadAdminAds, pickAdMedia, saveAd, uploadAdFile, type AdminAds, type AdSlide } from '@/lib/ads';
+import {
+  AD_RATIO,
+  deleteAd,
+  loadAdminAds,
+  pickAdMedia,
+  PLACEMENT_LABEL,
+  saveAd,
+  uploadAdFile,
+  type AdminAds,
+  type AdPlacement,
+  type AdSlide,
+} from '@/lib/ads';
 import { weekdayDayMonth } from '@/lib/dates';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
@@ -50,6 +62,7 @@ export default function AdminAdScreen() {
   const [link, setLink] = useState('');
   const [cta, setCta] = useState('');
   const [institution, setInstitution] = useState<number | null | undefined>(undefined);
+  const [placements, setPlacements] = useState<AdPlacement[]>(['home']);
   // null: now (start) / no end date. Otherwise the chosen day (ISO); the time is kept on edits.
   const [startsAt, setStartsAt] = useState<string | null>(null);
   const [endsAt, setEndsAt] = useState<string | null>(null);
@@ -77,6 +90,7 @@ export default function AdminAdScreen() {
         setLink(ad.link_url ?? '');
         setCta(ad.cta_label ?? '');
         setInstitution(ad.institution_id);
+        setPlacements(ad.placements?.length ? ad.placements : ['home']);
         setStartsAt(ad.starts_at);
         setEndsAt(ad.ends_at);
         setPriority(ad.priority);
@@ -152,6 +166,7 @@ export default function AdminAdScreen() {
       ends_at: endsAt,
       priority,
       active,
+      placements,
     });
     setSaving(false);
     if (r.error) return setError(r.error);
@@ -190,9 +205,9 @@ export default function AdminAdScreen() {
         <KeyboardScroll contentContainerStyle={styles.content}>
           <View style={styles.stack}>
             <Group label="Preview">
-              {media ? (
-                <AdSlideView ad={preview} active preview />
-              ) : (
+              {media && placements.includes('home') ? <AdSlideView ad={preview} active preview /> : null}
+              {media && placements.includes('feed') ? <FeedAd ad={preview} active preview /> : null}
+              {media ? null : (
                 <View style={styles.empty}>
                   <Text style={styles.emptyText}>Your photo, GIF or video shows here, as it will on Home.</Text>
                 </View>
@@ -260,7 +275,29 @@ export default function AdminAdScreen() {
               <TextField label="Button" value={cta} onChangeText={setCta} placeholder="Learn more" maxLength={24} />
             ) : null}
 
-            <Group label="Where it shows">
+            <Group label="Shows on">
+              <View style={styles.chips}>
+                {(['home', 'feed'] as const).map((p) => (
+                  <ChoiceChip
+                    key={p}
+                    multi
+                    label={PLACEMENT_LABEL[p]}
+                    active={placements.includes(p)}
+                    onPress={() =>
+                      setPlacements((all) =>
+                        all.includes(p) ? (all.length > 1 ? all.filter((x) => x !== p) : all) : [...all, p].sort(),
+                      )
+                    }
+                  />
+                ))}
+              </View>
+              <Text style={styles.hint}>
+                The Home card is the slideshow at the top of Home. In the feed, the ad shows between posts (never first, at most
+                one in every 12), with its headline, text and button under the image.
+              </Text>
+            </Group>
+
+            <Group label="Universities">
               <View style={styles.chips}>
                 {setup.national ? (
                   <ChoiceChip label="All universities" active={institution === null} onPress={() => setInstitution(null)} />

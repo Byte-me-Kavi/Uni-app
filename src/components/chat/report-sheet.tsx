@@ -17,7 +17,9 @@ export type ReportTarget =
   /** A kuppi (its host) or a shared file (its uploader), from Resources; a shop listing (its seller). */
   | { kind: 'kuppi' | 'resource' | 'listing'; id: string; who: string | null; userId: string | null }
   /** A kuppi request (anonymous) or a comment on a shared file. */
-  | { kind: 'kuppi_request' | 'comment'; id: string; who: string | null; userId: string | null };
+  | { kind: 'kuppi_request' | 'comment'; id: string; who: string | null; userId: string | null }
+  /** A post in the feed, or a comment on one. */
+  | { kind: 'post' | 'post_comment'; id: string; who: string | null; userId: string | null };
 
 type Category = { code: string; label: string };
 const CACHE_KEY = 'report:categories';
@@ -66,7 +68,9 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
           target?.kind === 'kuppi' ||
           target?.kind === 'resource' ||
           target?.kind === 'comment' ||
-          target?.kind === 'listing'
+          target?.kind === 'listing' ||
+          target?.kind === 'post' ||
+          target?.kind === 'post_comment'
         ? target.userId
         : null;
 
@@ -86,13 +90,20 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
               ? await supabase.rpc('report_comment', { p_comment_id: target.id, p_category: category, ...extra })
               : target.kind === 'listing'
                 ? await supabase.rpc('report_listing', { p_listing_id: target.id, p_category: category, ...extra })
-          : await supabase.rpc('report', {
-              p_kind: target.kind,
-              p_target_id: target.id,
-              p_category: category,
-              ...extra,
-              ...(target.kind === 'message' ? { p_conversation_id: target.conversationId } : {}),
-            });
+                : target.kind === 'post' || target.kind === 'post_comment'
+                  ? await supabase.rpc('report_post', {
+                      p_kind: target.kind,
+                      p_id: Number(target.id),
+                      p_category: category,
+                      ...extra,
+                    })
+                  : await supabase.rpc('report', {
+                      p_kind: target.kind,
+                      p_target_id: target.id,
+                      p_category: category,
+                      ...extra,
+                      ...(target.kind === 'message' ? { p_conversation_id: target.conversationId } : {}),
+                    });
     if (!failed && block && blockable) {
       await supabase.rpc('block_user', { p_user_id: blockable });
       refreshChats();
@@ -118,7 +129,11 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
                 ? 'Report this comment'
                 : target?.kind === 'listing'
                   ? 'Report this listing'
-            : 'Report this group';
+                  : target?.kind === 'post'
+                    ? 'Report this post'
+                    : target?.kind === 'post_comment'
+                      ? 'Report this comment'
+                      : 'Report this group';
 
   return (
     <BottomSheet visible={!!target} title={title} onClose={onClose} height={0.8}>

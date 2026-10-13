@@ -21,7 +21,7 @@ export type Database = {
     }
     Functions: {
       ad_event: {
-        Args: { p_ad_id: string; p_tap?: boolean }
+        Args: { p_ad_id: string; p_placement?: string; p_tap?: boolean }
         Returns: undefined
       }
       ad_upload_checked: {
@@ -29,15 +29,20 @@ export type Database = {
         Returns: undefined
       }
       ad_upload_to_check: { Args: { p_path: string }; Returns: Json }
-      add_comment: {
-        Args: {
-          p_body: string
-          p_parent_id?: string
-          p_question?: string
-          p_resource_id: string
-        }
-        Returns: Json
-      }
+      add_comment:
+        | {
+            Args: { p_body: string; p_parent_id?: number; p_post_id: number }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_body: string
+              p_parent_id?: string
+              p_question?: string
+              p_resource_id: string
+            }
+            Returns: Json
+          }
       add_group_members: {
         Args: { p_conversation_id: string; p_member_ids: string[] }
         Returns: Json
@@ -68,6 +73,7 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_post_upload: { Args: { p_photos: Json }; Returns: Json }
       begin_publish: {
         Args: {
           p_category: string
@@ -223,8 +229,21 @@ export type Database = {
         }
         Returns: Json
       }
+      create_post: { Args: { p_post: Json }; Returns: Json }
       delete_ad: { Args: { p_ad_id: string }; Returns: undefined }
-      delete_comment: { Args: { p_comment_id: string }; Returns: undefined }
+      delete_comment:
+        | {
+            Args: { p_comment_id: number }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: api.delete_comment(p_comment_id => int8), api.delete_comment(p_comment_id => uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { p_comment_id: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: api.delete_comment(p_comment_id => int8), api.delete_comment(p_comment_id => uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
       delete_message: {
         Args: {
           p_conversation_id: string
@@ -233,6 +252,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      delete_post: { Args: { p_post_id: number }; Returns: Json }
       drop_push_tokens: { Args: { p_tokens: string[] }; Returns: undefined }
       edit_comment: {
         Args: { p_body: string; p_comment_id: string }
@@ -246,6 +266,7 @@ export type Database = {
         }
         Returns: string
       }
+      edit_post: { Args: { p_post: Json; p_post_id: number }; Returns: Json }
       explore: {
         Args: {
           p_before?: string
@@ -258,6 +279,13 @@ export type Database = {
         Returns: Json
       }
       explore_overview: { Args: never; Returns: Json }
+      feed: { Args: { p_seen?: number[]; p_tag?: string }; Returns: Json }
+      feed_posts: {
+        Args: { p_ids: number[]; p_seen?: number[] }
+        Returns: Json
+      }
+      feed_review: { Args: never; Returns: Json }
+      feed_seen: { Args: { p_ids: number[] }; Returns: undefined }
       find_modules: {
         Args: { p_query: string }
         Returns: {
@@ -284,6 +312,7 @@ export type Database = {
         }
         Returns: Json
       }
+      hide_post: { Args: { p_post_id: number }; Returns: Json }
       home_ads: { Args: never; Returns: Json }
       join_batch: {
         Args: {
@@ -331,6 +360,7 @@ export type Database = {
         Args: { p_before?: string; p_limit?: number }
         Returns: Json
       }
+      like_post: { Args: { p_on: boolean; p_post_id: number }; Returns: Json }
       link_preview_allowed: { Args: never; Returns: boolean }
       listing_interest: { Args: { p_listing_id: string }; Returns: Json }
       listing_orders: { Args: { p_listing_id: string }; Returns: Json }
@@ -355,6 +385,10 @@ export type Database = {
       message_previews: { Args: never; Returns: boolean }
       module_colours: { Args: never; Returns: Json }
       module_subject: { Args: { p_module_id: number }; Returns: Json }
+      mute_author: {
+        Args: { p_on: boolean; p_user_id: string }
+        Returns: undefined
+      }
       my_account: { Args: never; Returns: Json }
       my_chats: {
         Args: never
@@ -463,6 +497,15 @@ export type Database = {
           voted_at: string
         }[]
       }
+      post_comments: {
+        Args: { p_after?: number; p_post_id: number }
+        Returns: Json
+      }
+      post_uploads_checked: {
+        Args: { p_bad: string[]; p_ok: string[] }
+        Returns: undefined
+      }
+      post_uploads_to_check: { Args: { p_ids: string[] }; Returns: Json }
       presence: { Args: { p_user_id: string }; Returns: Json }
       privacy_extras: { Args: never; Returns: Json }
       push_batch: {
@@ -543,6 +586,15 @@ export type Database = {
         Args: { p_category: string; p_details?: string; p_listing_id: string }
         Returns: string
       }
+      report_post: {
+        Args: {
+          p_category: string
+          p_details?: string
+          p_id: number
+          p_kind: string
+        }
+        Returns: string
+      }
       report_resource: {
         Args: { p_category: string; p_details?: string; p_resource_id: string }
         Returns: string
@@ -566,6 +618,10 @@ export type Database = {
       review_account: {
         Args: { p_decision: string; p_reason?: string; p_user_id: string }
         Returns: string
+      }
+      review_post: {
+        Args: { p_action: string; p_post_id: number }
+        Returns: undefined
       }
       rsvp: { Args: { p_session_id: string }; Returns: Json }
       save_ad: { Args: { p_ad: Json; p_ad_id?: string }; Returns: Json }
@@ -678,6 +734,10 @@ export type Database = {
         Args: { p_note?: string; p_order_id: string; p_status: string }
         Returns: Json
       }
+      set_post_resolved: {
+        Args: { p_post_id: number; p_resolved: boolean }
+        Returns: Json
+      }
       set_presence: { Args: { p_active: boolean }; Returns: undefined }
       set_quiet_hours: {
         Args: { p_enabled: boolean; p_end?: number; p_start?: number }
@@ -743,6 +803,7 @@ export type Database = {
         Returns: undefined
       }
       unblock_user: { Args: { p_user_id: string }; Returns: undefined }
+      undo_hide_post: { Args: { p_post_id: number }; Returns: undefined }
       unregister_push_token: { Args: { p_token: string }; Returns: undefined }
       update_bio: { Args: { p_bio: string }; Returns: string }
       update_chat_settings: {

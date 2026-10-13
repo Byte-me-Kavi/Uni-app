@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
-import { AD_STATUS, adMedia, loadAdminAds, type AdminAd, type AdminAds } from '@/lib/ads';
+import { AD_STATUS, adMedia, loadAdminAds, PLACEMENT_LABEL, type AdminAd, type AdminAds } from '@/lib/ads';
 import { dayMonth } from '@/lib/dates';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
@@ -40,7 +40,7 @@ export default function AdminAdsScreen() {
     <View style={styles.header}>
       <Text style={styles.intro}>
         {
-          'Sponsored slides after the “you’re in your uni era” card on Home. They move on by themselves; students always see who each is from.'
+          'Sponsored slides on the Home card (after “you’re in your uni era”) and between posts in the feed. Students always see who each is from.'
         }
       </Text>
       <Button label="New ad" onPress={() => router.push('/admin/ad')} />
@@ -51,7 +51,7 @@ export default function AdminAdsScreen() {
   if (!data) {
     return (
       <Screen style={styles.screen}>
-        <BackHeader title="Ads on Home" />
+        <BackHeader title="Ads" />
         <View style={styles.center}>
           {error ? <FormMessage message={error} /> : <ActivityIndicator color={theme.accentText} />}
         </View>
@@ -61,7 +61,7 @@ export default function AdminAdsScreen() {
 
   return (
     <Screen style={styles.screen}>
-      <BackHeader title="Ads on Home" />
+      <BackHeader title="Ads" />
       <FlatList
         style={styles.list}
         contentContainerStyle={styles.content}
@@ -102,7 +102,8 @@ function AdRow({ ad }: { ad: AdminAd }) {
           </View>
         </View>
         <Text style={styles.muted} numberOfLines={1}>
-          {ad.sponsor} · {ad.university ?? 'All universities'} · {ad.media_kind === 'video' ? 'Video' : 'Photo'}
+          {ad.sponsor} · {ad.university ?? 'All universities'} ·{' '}
+          {(ad.placements ?? ['home']).map((p) => PLACEMENT_LABEL[p]).join(' + ')}
         </Text>
         <Text style={styles.muted} numberOfLines={1}>
           {dayMonth(ad.starts_at)} to {ad.ends_at ? dayMonth(ad.ends_at) : 'no end date'}
@@ -111,6 +112,14 @@ function AdRow({ ad }: { ad: AdminAd }) {
         <Text style={styles.numbers}>
           {NUMBER.format(ad.viewers)} viewers · {NUMBER.format(ad.taps)} taps · {rate}
         </Text>
+        {(ad.placements ?? []).length > 1
+          ? (['home', 'feed'] as const).map((p) => (
+              <Text key={p} style={styles.muted}>
+                {PLACEMENT_LABEL[p]}: {NUMBER.format(ad.by_placement?.[p]?.viewers ?? 0)} viewers,{' '}
+                {NUMBER.format(ad.by_placement?.[p]?.taps ?? 0)} taps
+              </Text>
+            ))
+          : null}
       </View>
     </PressableScale>
   );

@@ -4,21 +4,37 @@ import { SparkleIcon } from 'phosphor-react-native/src/icons/Sparkle';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // Empty state for the feed. Says what will appear and what unlocks it; no invented content.
-export function QuietFeed() {
+export function QuietFeed({
+  waiting = false,
+  heading = true,
+  filtered = false,
+}: {
+  waiting?: boolean;
+  heading?: boolean;
+  filtered?: boolean;
+}) {
   const theme = useTheme();
   const styles = useStyles();
   return (
     <View style={styles.section}>
-      <Text style={styles.heading} accessibilityRole="header">
-        Your feed
-      </Text>
+      {heading ? (
+        <Text style={styles.heading} accessibilityRole="header">
+          Your feed
+        </Text>
+      ) : null}
       <View style={styles.card}>
         <View style={styles.icon}>
           <SparkleIcon size={22} weight="bold" color={theme.text} />
         </View>
-        <Text style={styles.title}>Quiet for now</Text>
+        <Text style={styles.title}>
+          {waiting ? 'Opens once you are approved' : filtered ? 'None of these yet' : 'Quiet for now'}
+        </Text>
         <Text style={styles.body}>
-          New notes, kuppi and events from your university and from students across the country will show up here.
+          {waiting
+            ? 'Posts, questions and lost and found from students at your university show up here once the Uni Era team approves your account.'
+            : filtered
+              ? 'Nothing of this kind at your university lately. Post the first one with the Post button.'
+              : 'Nobody has posted yet. Ask a question, share something you found, or tell your uni what is on.'}
         </Text>
       </View>
     </View>

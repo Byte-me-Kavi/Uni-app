@@ -27,10 +27,15 @@ export type AdSlide = {
 
 export type AdStatus = 'live' | 'scheduled' | 'paused' | 'ended';
 
+/** Where an ad shows: the Home card carousel, the feed, or both. */
+export type AdPlacement = 'home' | 'feed';
+export const PLACEMENT_LABEL: Record<AdPlacement, string> = { home: 'Home card', feed: 'Feed' };
+
 export type AdminAd = AdSlide & {
   name: string;
   status: AdStatus;
   active: boolean;
+  placements: AdPlacement[];
   institution_id: number | null;
   university: string | null;
   starts_at: string;
@@ -41,6 +46,7 @@ export type AdminAd = AdSlide & {
   viewers: number;
   views: number;
   taps: number;
+  by_placement: Partial<Record<AdPlacement, { viewers: number; taps: number }>>;
 };
 
 export type AdminAds = {
@@ -64,6 +70,7 @@ export type AdDraft = {
   ends_at: string | null;
   priority: number;
   active: boolean;
+  placements: AdPlacement[];
 };
 
 /** Ads are 1.91:1 (1200 × 628), the usual landscape size for Google and Facebook ads, so ready-made
@@ -98,16 +105,16 @@ export async function loadHomeAds() {
 
 const seen = new Set<string>();
 
-/** Counts a slide as seen (once per app session; the server counts once a day). */
-export function adSeen(id: string) {
-  if (seen.has(id)) return;
-  seen.add(id);
-  supabase.rpc('ad_event', { p_ad_id: id }).then(() => {});
+/** Counts an ad as seen (once per app session and placement; the server counts once a day). */
+export function adSeen(id: string, placement: AdPlacement = 'home') {
+  if (seen.has(`${placement}:${id}`)) return;
+  seen.add(`${placement}:${id}`);
+  supabase.rpc('ad_event', { p_ad_id: id, p_placement: placement }).then(() => {});
 }
 
 /** Opens the ad's link (https only) and counts the tap. */
-export async function openAd(ad: AdSlide) {
-  supabase.rpc('ad_event', { p_ad_id: ad.id, p_tap: true }).then(() => {});
+export async function openAd(ad: AdSlide, placement: AdPlacement = 'home') {
+  supabase.rpc('ad_event', { p_ad_id: ad.id, p_tap: true, p_placement: placement }).then(() => {});
   if (ad.link_url && /^https:\/\//.test(ad.link_url)) await Linking.openURL(ad.link_url).catch(() => {});
 }
 

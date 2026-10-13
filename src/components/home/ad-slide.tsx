@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { PlayIcon } from 'phosphor-react-native/src/icons/Play';
 
 import { PressableScale } from '@/components/ui/pressable-scale';
-import { AD_RATIO, adMedia, onWifi, openAd, type AdSlide as Ad } from '@/lib/ads';
+import { AD_RATIO, adMedia, onWifi, openAd, type AdPlacement, type AdSlide as Ad } from '@/lib/ads';
 import { hasNative } from '@/lib/native';
 import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
@@ -30,9 +30,14 @@ export const AdSlideView = memo(function AdSlideView({
   ad,
   active,
   preview = false,
+  bare = false,
+  placement = 'home',
 }: {
   ad: Ad;
   active: boolean;
+  /** The feed: the media only (the feed card shows who it is from and the text around it). */
+  bare?: boolean;
+  placement?: AdPlacement;
   /** The admin's preview: no link, no counting. */
   preview?: boolean;
 }) {
@@ -58,7 +63,7 @@ export const AdSlideView = memo(function AdSlideView({
 
   return (
     <PressableScale
-      onPress={() => (preview ? undefined : openAd(ad))}
+      onPress={() => (preview ? undefined : openAd(ad, placement))}
       disabled={preview || !ad.link_url}
       accessibilityRole={ad.link_url ? 'link' : 'image'}
       accessibilityLabel={label}
@@ -75,11 +80,13 @@ export const AdSlideView = memo(function AdSlideView({
       />
       {Player && video && playing ? createElement(Player, { uri: adMedia(ad.media_path) ?? '', playing }) : null}
 
-      <View style={styles.sponsor}>
-        <Text style={styles.sponsorText} numberOfLines={1}>
-          Sponsored · {ad.sponsor}
-        </Text>
-      </View>
+      {bare ? null : (
+        <View style={styles.sponsor}>
+          <Text style={styles.sponsorText} numberOfLines={1}>
+            Sponsored · {ad.sponsor}
+          </Text>
+        </View>
+      )}
 
       {video && Player && !playing ? (
         <PressableScale
@@ -92,7 +99,7 @@ export const AdSlideView = memo(function AdSlideView({
         </PressableScale>
       ) : null}
 
-      {hasText ? (
+      {bare ? null : hasText ? (
         <View style={styles.band}>
           <View style={styles.copy}>
             {ad.headline ? (

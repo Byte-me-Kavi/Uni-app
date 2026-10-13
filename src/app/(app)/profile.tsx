@@ -10,6 +10,7 @@ import { EnvelopeSimpleIcon } from 'phosphor-react-native/src/icons/EnvelopeSimp
 import { GraduationCapIcon } from 'phosphor-react-native/src/icons/GraduationCap';
 import { IdentificationBadgeIcon } from 'phosphor-react-native/src/icons/IdentificationBadge';
 import { MagnifyingGlassIcon } from 'phosphor-react-native/src/icons/MagnifyingGlass';
+import { FlagIcon } from 'phosphor-react-native/src/icons/Flag';
 import { MegaphoneIcon } from 'phosphor-react-native/src/icons/Megaphone';
 import { MoonIcon } from 'phosphor-react-native/src/icons/Moon';
 import { PaletteIcon } from 'phosphor-react-native/src/icons/Palette';
@@ -197,15 +198,23 @@ export default function Profile() {
           <SettingsRow Icon={ShieldCheckIcon} label="Verified student" value="Checked and approved by the Uni Era team" />
         </SettingsGroup>
 
-        {account?.staff_role === 'admin' ? (
-          <SettingsGroup title="Admin">
+        {account?.staff_role ? (
+          <SettingsGroup title={account.staff_role === 'admin' ? 'Admin' : 'Moderation'}>
             <SettingsRow
               first
-              Icon={MegaphoneIcon}
-              label="Ads on Home"
-              value="Sponsored slides after the brand card"
-              onPress={() => router.push('/admin/ads')}
+              Icon={FlagIcon}
+              label="Reported posts"
+              value="Feed posts students reported, to restore or remove"
+              onPress={() => router.push('/admin/posts')}
             />
+            {account.staff_role === 'admin' ? (
+              <SettingsRow
+                Icon={MegaphoneIcon}
+                label="Ads"
+                value="Sponsored slides on the Home card and in the feed"
+                onPress={() => router.push('/admin/ads')}
+              />
+            ) : null}
           </SettingsGroup>
         ) : null}
 

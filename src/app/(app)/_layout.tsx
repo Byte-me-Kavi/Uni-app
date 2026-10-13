@@ -54,6 +54,9 @@ export default function AppLayout() {
             <Stack.Screen name="shop/leads" />
             <Stack.Screen name="admin/ads" />
             <Stack.Screen name="admin/ad" />
+            <Stack.Screen name="admin/posts" />
+            <Stack.Screen name="post/[id]" />
+            <Stack.Screen name="post/new" />
             <Stack.Screen name="shop/order/[id]" />
             <Stack.Screen name="shop/orders/[id]" />
           </Stack>

@@ -46,6 +46,8 @@ insert into identity.staff_roles (user_id, role, institution_id) values
   ('00000000-0000-0000-0000-0000000f6001', 'admin', null),
   ('00000000-0000-0000-0000-0000000f6002', 'admin', 9761),
   ('00000000-0000-0000-0000-0000000f6003', 'moderator', 9761);
+-- Real ads on the database would change the counts; paused here (rolled back).
+update ads.campaigns set active = false;
 create temp table ids (everywhere uuid, nu uuid, later uuid, raw text);
 insert into ids default values;
 grant all on pg_temp.ids to public;

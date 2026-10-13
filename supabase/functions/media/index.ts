@@ -19,6 +19,12 @@
 //                   admin, type and size).
 //   ad_commit       checks the upload's first bytes match its type (JPEG, PNG, WebP, GIF, MP4/MOV)
 //                   and its size; only then can an ad use it. Anything else is deleted.
+//   post_sign       up to 4 photos for a feed post, in one call: two upload URLs each (the 1080 px
+//                   feed copy and the full copy) to the PUBLIC bucket (posts/<id>.jpg and
+//                   posts/<id>.full.jpg; api.begin_post_upload checks the student and the sizes).
+//   post_commit     checks both copies of each photo are JPEGs of the sizes reserved; only then can
+//                   a post use them. Anything else is deleted.
+//   post_delete     deletes the student's own post (api.delete_post) and its photos from the bucket.
 //   sticker_sign    stickers are public and stored once per unique file (stickers/<sha256>.webp).
 //                   If the sticker already exists it is just added to the student's library.
 //   sticker_commit  checks the uploaded sticker really is a WebP whose SHA-256 is its name, then
@@ -53,16 +59,40 @@ function json(body: unknown, status = 200) {
 
 function fromDatabase(error: PostgrestError) {
   const status =
-    error.code === '42501' ? 403 : error.code === 'PT429' ? 429 : error.code === '22023' ? 400 : error.code?.startsWith('PGRST3') ? 401 : 500;
+    error.code === '42501'
+      ? 403
+      : error.code === 'PT429'
+        ? 429
+        : error.code === '22023'
+          ? 400
+          : error.code?.startsWith('PGRST3')
+            ? 401
+            : 500;
   return json({ error: status === 500 ? 'Something went wrong. Try again.' : error.message }, status);
 }
 
 const env = (name: string) => Deno.env.get(name) ?? '';
-const ready = ['R2_ACCOUNT_ID', 'R2_BUCKET', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_CHAT_BUCKET', 'R2_CHAT_ACCESS_KEY_ID', 'R2_CHAT_SECRET_ACCESS_KEY'].every(
-  (n) => env(n),
-);
-const publicR2 = new AwsClient({ accessKeyId: env('R2_ACCESS_KEY_ID'), secretAccessKey: env('R2_SECRET_ACCESS_KEY'), service: 's3', region: 'auto' });
-const chatR2 = new AwsClient({ accessKeyId: env('R2_CHAT_ACCESS_KEY_ID'), secretAccessKey: env('R2_CHAT_SECRET_ACCESS_KEY'), service: 's3', region: 'auto' });
+const ready = [
+  'R2_ACCOUNT_ID',
+  'R2_BUCKET',
+  'R2_ACCESS_KEY_ID',
+  'R2_SECRET_ACCESS_KEY',
+  'R2_CHAT_BUCKET',
+  'R2_CHAT_ACCESS_KEY_ID',
+  'R2_CHAT_SECRET_ACCESS_KEY',
+].every((n) => env(n));
+const publicR2 = new AwsClient({
+  accessKeyId: env('R2_ACCESS_KEY_ID'),
+  secretAccessKey: env('R2_SECRET_ACCESS_KEY'),
+  service: 's3',
+  region: 'auto',
+});
+const chatR2 = new AwsClient({
+  accessKeyId: env('R2_CHAT_ACCESS_KEY_ID'),
+  secretAccessKey: env('R2_CHAT_SECRET_ACCESS_KEY'),
+  service: 's3',
+  region: 'auto',
+});
 const endpoint = () => `https://${env('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com`;
 const publicUrl = (path: string) => `${endpoint()}/${env('R2_BUCKET')}/${path}`;
 const chatUrl = (path: string) => `${endpoint()}/${env('R2_CHAT_BUCKET')}/${path}`;
@@ -218,9 +248,94 @@ Deno.serve(async (req) => {
     if (saveError) return fromDatabase(saveError);
     if (!ok) {
       await publicR2.fetch(publicUrl(upload.path), { method: 'DELETE' });
-      return json({ error: bytes ? 'That file is not the photo or video it says it is.' : 'The file did not finish uploading. Try again.' }, 400);
+      return json(
+        { error: bytes ? 'That file is not the photo or video it says it is.' : 'The file did not finish uploading. Try again.' },
+        400,
+      );
     }
     return json({ path: upload.path });
+  }
+
+  if (action === 'post_sign') {
+    const photos = Array.isArray(body.photos) ? body.photos.slice(0, 4) : [];
+    const { data, error } = await db.rpc('begin_post_upload', {
+      p_photos: photos.map((p: Record<string, unknown>) => ({
+        size: Number(p?.size),
+        full_size: Number(p?.full_size),
+        width: Number(p?.width),
+        height: Number(p?.height),
+      })),
+    });
+    if (error) return fromDatabase(error);
+    const reserved = data as { id: string; size: number; full_size: number }[];
+    const sign = (path: string, size: number) =>
+      signPut(
+        publicR2,
+        publicUrl(path),
+        { 'Content-Type': 'image/jpeg', 'Content-Length': String(size), 'Cache-Control': CACHE_CONTROL, ...ONCE },
+        600,
+      );
+    return json({
+      photos: await Promise.all(
+        reserved.map(async (r) => ({
+          id: r.id,
+          url: await sign(`posts/${r.id}.jpg`, r.size),
+          full_url: await sign(`posts/${r.id}.full.jpg`, r.full_size),
+        })),
+      ),
+      headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': CACHE_CONTROL, ...ONCE },
+    });
+  }
+
+  if (action === 'post_commit') {
+    const ids = Array.isArray(body.ids) ? body.ids.filter((i: unknown) => typeof i === 'string').slice(0, 4) : [];
+    const { data, error } = await db.rpc('post_uploads_to_check', { p_ids: ids });
+    if (error) return fromDatabase(error);
+    const uploads = (data ?? []) as { id: string; size: number; full_size: number }[];
+    if (uploads.length !== ids.length) return json({ error: 'Add the photos again.' }, 400);
+    const isJpeg = async (path: string, size: number) => {
+      const head = await publicR2.fetch(publicUrl(path), { headers: { Range: 'bytes=0-15' } });
+      const bytes = head.ok ? new Uint8Array(await head.arrayBuffer()) : null;
+      const total = Number(head.headers.get('content-range')?.split('/')[1] ?? head.headers.get('content-length'));
+      return !!bytes && total === size && matchesType(bytes, 'image/jpeg');
+    };
+    const verdicts = await Promise.all(
+      uploads.map(async (u) => ({
+        id: u.id,
+        ok: (await isJpeg(`posts/${u.id}.jpg`, u.size)) && (await isJpeg(`posts/${u.id}.full.jpg`, u.full_size)),
+      })),
+    );
+    const ok = verdicts.filter((v) => v.ok).map((v) => v.id);
+    const bad = verdicts.filter((v) => !v.ok).map((v) => v.id);
+    const service = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
+      db: { schema: 'api' },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { error: saveError } = await service.rpc('post_uploads_checked', { p_ok: ok, p_bad: bad });
+    if (saveError) return fromDatabase(saveError);
+    if (bad.length > 0) {
+      await Promise.all(
+        bad.flatMap((id) =>
+          [`posts/${id}.jpg`, `posts/${id}.full.jpg`].map((path) => publicR2.fetch(publicUrl(path), { method: 'DELETE' })),
+        ),
+      );
+      return json({ error: 'A photo did not finish uploading. Try again.' }, 400);
+    }
+    return json({ ok: true });
+  }
+
+  if (action === 'post_delete') {
+    const postId = Number(body.post_id);
+    if (!Number.isSafeInteger(postId) || postId <= 0) return json({ error: 'Unknown post.' }, 400);
+    const { data, error } = await db.rpc('delete_post', { p_post_id: postId });
+    if (error) return fromDatabase(error);
+    const photos = ((data ?? []) as unknown[]).filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/.test(id));
+    await Promise.all(
+      photos.flatMap((id) =>
+        [`posts/${id}.jpg`, `posts/${id}.full.jpg`].map((path) => publicR2.fetch(publicUrl(path), { method: 'DELETE' })),
+      ),
+    );
+    return json({ ok: true });
   }
 
   if (action === 'sticker_sign') {
@@ -256,7 +371,8 @@ Deno.serve(async (req) => {
       return json({ error: 'That file is not a sticker we can use.' }, 400);
     }
     // Animated WebP files carry an ANIM chunk near the start.
-    const animated = text(0, Math.min(bytes.length, 64)).includes('ANIM') || text(0, Math.min(bytes.length, 4096)).includes('ANMF');
+    const animated =
+      text(0, Math.min(bytes.length, 64)).includes('ANIM') || text(0, Math.min(bytes.length, 4096)).includes('ANMF');
 
     const service = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
       db: { schema: 'api' },
