@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { CheckRow } from '@/components/ui/check-row';
 import { FormMessage } from '@/components/ui/form-message';
 import { TextField } from '@/components/ui/text-field';
+import { useFeature } from '@/lib/app-config';
 import { authErrorMessage } from '@/lib/auth-errors';
 import { supabase } from '@/lib/supabase';
 import { emailError, newPasswordError, normaliseEmail } from '@/lib/validation';
@@ -25,6 +26,7 @@ export default function SignUp() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const passwordRef = useRef<TextInput>(null);
+  const fresherSignUp = useFeature('fresher_signup');
 
   async function createAccount() {
     const address = normaliseEmail(email);
@@ -108,29 +110,39 @@ export default function SignUp() {
       </Reveal>
       <Reveal order={4} style={styles.checks}>
         <CheckRow label="I am 18 or older" checked={ageConfirmed} onChange={setAgeConfirmed} />
-        <CheckRow
-          label="I accept the community guidelines"
-          checked={guidelinesAccepted}
-          onChange={setGuidelinesAccepted}
-        />
+        <CheckRow label="I accept the community guidelines" checked={guidelinesAccepted} onChange={setGuidelinesAccepted} />
+        <Text style={styles.guidelines} onPress={() => router.push('/guidelines')} accessibilityRole="link">
+          Read the community guidelines
+        </Text>
       </Reveal>
       <Reveal order={5}>
         <Text style={styles.notice}>
-          We only use your email to check you are a student and to sign you in. See the privacy notice for
-          what we store and why.
+          We only use your email to check you are a student and to sign you in. See the privacy notice for what we store and why.
         </Text>
       </Reveal>
       <FormMessage message={error} />
       <Reveal order={6}>
         <Button label="Create account" onPress={createAccount} loading={loading} />
       </Reveal>
+      {fresherSignUp ? (
+        <Reveal order={7}>
+          <Text style={styles.fresher}>
+            Selected to a university but no university email yet?{' '}
+            <Link href="/fresher-sign-up" style={styles.link}>
+              Join as a fresher
+            </Link>
+          </Text>
+        </Reveal>
+      ) : null}
     </AuthScreen>
   );
 }
 
 const useStyles = createThemedStyles((t) => ({
   checks: { gap: space.xs },
+  guidelines: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.accentText, paddingLeft: 34, paddingVertical: 2 },
   notice: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: t.textMuted },
   footer: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: t.textMuted },
+  fresher: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: t.textMuted, textAlign: 'center' },
   link: { fontFamily: fonts.bodyBold, color: t.text },
 }));

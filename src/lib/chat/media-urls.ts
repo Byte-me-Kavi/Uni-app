@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { forgetCache, readCache, readCacheByPrefix, writeCache } from '@/lib/cache';
+import { onSignOut } from '@/lib/resets';
 import { supabase } from '@/lib/supabase';
 
 // Photos, documents and voice notes sent in chats live in a private bucket. Each is read through
@@ -19,6 +20,16 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 const key = (path: string) => `media:${path}`;
 let warmed = false; // once true, memory holds everything saved and storage is not read per photo
 let warming = false;
+
+// Links to the last account's photos and files go with it.
+onSignOut(() => {
+  memory.clear();
+  waiting.clear();
+  if (timer) clearTimeout(timer);
+  timer = null;
+  warmed = false;
+  warming = false;
+});
 
 /** At startup: every saved link goes into memory in one background pass, so photos in a chat
  * find their link without reading the phone's storage while the chat draws. Expired ones go. */

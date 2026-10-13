@@ -7,8 +7,8 @@ export function normaliseEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
-export function emailError(value: string): string | null {
-  return EMAIL.test(normaliseEmail(value)) ? null : 'Enter your university email address.';
+export function emailError(value: string, what = 'your university email address'): string | null {
+  return EMAIL.test(normaliseEmail(value)) ? null : `Enter ${what}.`;
 }
 
 export function newPasswordError(value: string): string | null {

@@ -8,6 +8,7 @@ import type { ModuleFolder } from '@/lib/library';
 import { hasNative } from '@/lib/native';
 import { sharedFileName, type SharedFile } from '@/lib/shared';
 import { supabase } from '@/lib/supabase';
+import { onSignOut } from '@/lib/resets';
 import { useSession } from '@/providers/session-provider';
 
 // A whole module on the phone before exams: every document and photo in the student's library for
@@ -27,6 +28,8 @@ export function readPack(userId: string, moduleId: number) {
 // in step with downloads and removals.
 const onPhone = new Map<string, boolean>();
 const phoneListeners = new Set<() => void>();
+// Sign-out deletes the downloaded files, so nothing is on the phone any more.
+onSignOut(() => onPhone.clear());
 
 function notePack(userId: string, moduleId: number, has: boolean) {
   onPhone.set(packKey(userId, moduleId), has);
@@ -68,7 +71,11 @@ async function moduleFiles(moduleId: number) {
   const files = new Map<string, { path: string; name: string }>();
   let before: string | undefined;
   for (let page = 0; page < 20; page++) {
-    const { data } = await supabase.rpc('library', { p_module_id: moduleId, p_limit: 100, ...(before ? { p_before: before } : {}) });
+    const { data } = await supabase.rpc('library', {
+      p_module_id: moduleId,
+      p_limit: 100,
+      ...(before ? { p_before: before } : {}),
+    });
     const folder = data as ModuleFolder | null;
     if (!folder) break;
     for (const item of folder.items) if (item.path) files.set(item.path, { path: item.path, name: item.title });

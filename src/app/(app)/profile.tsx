@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { BellIcon } from 'phosphor-react-native/src/icons/Bell';
 import { EyeIcon } from 'phosphor-react-native/src/icons/Eye';
@@ -17,6 +17,18 @@ import { PaletteIcon } from 'phosphor-react-native/src/icons/Palette';
 import { ProhibitIcon } from 'phosphor-react-native/src/icons/Prohibit';
 import { QuotesIcon } from 'phosphor-react-native/src/icons/Quotes';
 import { ShieldCheckIcon } from 'phosphor-react-native/src/icons/ShieldCheck';
+import { ToggleRightIcon } from 'phosphor-react-native/src/icons/ToggleRight';
+import { PhoneCallIcon } from 'phosphor-react-native/src/icons/PhoneCall';
+import { ScalesIcon } from 'phosphor-react-native/src/icons/Scales';
+import { IdentificationCardIcon } from 'phosphor-react-native/src/icons/IdentificationCard';
+import { HandshakeIcon } from 'phosphor-react-native/src/icons/Handshake';
+import { DatabaseIcon } from 'phosphor-react-native/src/icons/Database';
+import { LifebuoyIcon } from 'phosphor-react-native/src/icons/Lifebuoy';
+import { BookOpenTextIcon } from 'phosphor-react-native/src/icons/BookOpenText';
+import { ArticleIcon } from 'phosphor-react-native/src/icons/Article';
+import { ChatsCircleIcon } from 'phosphor-react-native/src/icons/ChatsCircle';
+import { UserCheckIcon } from 'phosphor-react-native/src/icons/UserCheck';
+import { EnvelopeOpenIcon } from 'phosphor-react-native/src/icons/EnvelopeOpen';
 
 import { SettingsGroup, SettingsRow } from '@/components/settings/settings-group';
 import { ThemeSheet } from '@/components/settings/theme-sheet';
@@ -28,13 +40,14 @@ import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { changePhoto, removePhoto } from '@/lib/avatar-upload';
-import { clearCache } from '@/lib/cache';
-import { setAppBadge, unregisterPush } from '@/lib/push';
+import { signOut } from '@/lib/sign-out';
 import { supabase } from '@/lib/supabase';
 import { FINDABLE, labelFor, useAccount, WHO_CAN_MESSAGE } from '@/lib/use-account';
 import { useHomeData } from '@/providers/home-provider';
 import { APPEARANCE_OPTIONS, setAppearance, useAppearance, useThemeName } from '@/theme/appearance';
 import { brand, createThemedStyles, fonts, radius, space, THEMES, useTheme } from '@/theme/tokens';
+import { useIsFresher } from '@/providers/session-provider';
+import { loadFreshersBadge } from '@/lib/freshers';
 
 const ROLE_LABEL = { admin: 'Admin', moderator: 'Moderator' } as const;
 const PHOTO = 104;
@@ -43,7 +56,14 @@ const PHOTO = 104;
 export default function Profile() {
   const theme = useTheme();
   const styles = useStyles();
+  const fresher = useIsFresher();
   const { account, failed, reload, setAccount } = useAccount();
+  // Ambassadors and moderators answer freshers' questions; the row shows how many wait.
+  const [freshers, setFreshers] = useState<{ role: string; waiting: number } | null>(null);
+  useEffect(() => {
+    if (fresher) return;
+    loadFreshersBadge().then((r) => setFreshers(r.data));
+  }, [fresher]);
   const { refresh: refreshHome } = useHomeData();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -61,7 +81,10 @@ export default function Profile() {
   async function updatePhoto(run: () => ReturnType<typeof removePhoto>) {
     setPhotoError(null);
     setUploading(true);
-    const result = await run().catch(() => ({ status: 'error' as const, message: 'Could not update your photo. Try again.' }));
+    const result = await run().catch(() => ({
+      status: 'error' as const,
+      message: 'Could not update your photo. Try again.',
+    }));
     setUploading(false);
     if (result.status === 'error') setPhotoError(result.message);
     if (result.status === 'done') {
@@ -71,19 +94,29 @@ export default function Profile() {
   }
 
   const photoActions: SheetAction[] = [
-    { label: 'Choose from library', onPress: () => updatePhoto(() => changePhoto('library')) },
-    { label: 'Take a photo', onPress: () => updatePhoto(() => changePhoto('camera')) },
-    ...(account?.avatar_path ? [{ label: 'Remove photo', destructive: true, onPress: () => updatePhoto(removePhoto) }] : []),
+    {
+      label: 'Choose from library',
+      onPress: () => updatePhoto(() => changePhoto('library')),
+    },
+    {
+      label: 'Take a photo',
+      onPress: () => updatePhoto(() => changePhoto('camera')),
+    },
+    ...(account?.avatar_path
+      ? [
+          {
+            label: 'Remove photo',
+            destructive: true,
+            onPress: () => updatePhoto(removePhoto),
+          },
+        ]
+      : []),
   ];
 
-  async function signOut() {
+  async function leave() {
     setSigningOut(true);
-    // This phone stops getting the account's notifications first (that needs the session).
-    await unregisterPush().catch(() => undefined);
-    setAppBadge(0);
-    clearCache();
-    // Signs out this device only; other devices stay signed in.
-    await supabase.auth.signOut({ scope: 'local' });
+    // Signs out this phone only and deletes this account's data from it.
+    await signOut();
   }
 
   return (
@@ -144,7 +177,9 @@ export default function Profile() {
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Privacy" footer="Search and cards show your name, photo, university and batch. Never your email.">
+        <SettingsGroup
+          title="Privacy"
+          footer="Cards show your name and university to anyone who can find you; you choose who sees the rest. Never your email.">
           <SettingsRow
             first
             Icon={MagnifyingGlassIcon}
@@ -169,6 +204,24 @@ export default function Profile() {
             label="Blocked students"
             value={account ? (account.blocked_count === 0 ? 'None' : `${account.blocked_count}`) : undefined}
             onPress={() => router.push('/settings/blocked')}
+          />
+          <SettingsRow
+            Icon={IdentificationCardIcon}
+            label="Who sees your details"
+            value="Photo, about and batch"
+            onPress={() => router.push('/settings/visibility')}
+          />
+          <SettingsRow
+            Icon={HandshakeIcon}
+            label="Privacy and consent"
+            value="What you agreed to, and your choices"
+            onPress={() => router.push('/settings/consent')}
+          />
+          <SettingsRow
+            Icon={DatabaseIcon}
+            label="Your data"
+            value="Download a copy, or delete your account"
+            onPress={() => router.push('/settings/your-data')}
           />
         </SettingsGroup>
 
@@ -195,14 +248,71 @@ export default function Profile() {
             label="Email"
             value={account ? `${account.email} (only you see this)` : undefined}
           />
-          <SettingsRow Icon={ShieldCheckIcon} label="Verified student" value="Checked and approved by the Uni Era team" />
+          {fresher ? (
+            <SettingsRow
+              Icon={EnvelopeOpenIcon}
+              label="Fresher"
+              value="Add your university email to post, use the Shop and host kuppi"
+              onPress={() => router.push('/university-email')}
+            />
+          ) : (
+            <SettingsRow Icon={ShieldCheckIcon} label="Verified student" value="Checked and approved by the Uni Era team" />
+          )}
+          <SettingsRow
+            Icon={ScalesIcon}
+            label="Your standing"
+            value="Warnings and appeals"
+            onPress={() => router.push('/standing')}
+          />
         </SettingsGroup>
+
+        <SettingsGroup title="Help and safety">
+          <SettingsRow
+            first
+            Icon={LifebuoyIcon}
+            label="Get help"
+            value="Ragging, threats or how you feel: who to call"
+            onPress={() => router.push('/help')}
+          />
+          <SettingsRow
+            Icon={BookOpenTextIcon}
+            label="Community guidelines"
+            value="What is and is not allowed on Uni Era"
+            onPress={() => router.push('/guidelines')}
+          />
+        </SettingsGroup>
+
+        {freshers && freshers.role !== 'fresher' ? (
+          <SettingsGroup title="Freshers">
+            <SettingsRow
+              first
+              Icon={ChatsCircleIcon}
+              label="Answer freshers"
+              value={
+                freshers.waiting > 0 ? `${freshers.waiting} waiting for an answer` : 'Questions from freshers at your university'
+              }
+              onPress={() => router.push('/freshers')}
+            />
+          </SettingsGroup>
+        ) : null}
 
         {account?.staff_role ? (
           <SettingsGroup title={account.staff_role === 'admin' ? 'Admin' : 'Moderation'}>
             <SettingsRow
               first
+              Icon={UserCheckIcon}
+              label="Approvals"
+              value="New students and freshers waiting to join"
+              onPress={() => router.push('/admin/approvals')}
+            />
+            <SettingsRow
               Icon={FlagIcon}
+              label="Reports"
+              value="Everything students reported, ragging and threats first"
+              onPress={() => router.push('/admin/reports')}
+            />
+            <SettingsRow
+              Icon={ArticleIcon}
               label="Reported posts"
               value="Feed posts students reported, to restore or remove"
               onPress={() => router.push('/admin/posts')}
@@ -213,6 +323,22 @@ export default function Profile() {
                 label="Ads"
                 value="Sponsored slides on the Home card and in the feed"
                 onPress={() => router.push('/admin/ads')}
+              />
+            ) : null}
+            {account.staff_role === 'admin' ? (
+              <SettingsRow
+                Icon={ToggleRightIcon}
+                label="App switches"
+                value="Pause a feature, set the oldest app allowed, post a notice"
+                onPress={() => router.push('/admin/switches')}
+              />
+            ) : null}
+            {account.staff_role === 'admin' ? (
+              <SettingsRow
+                Icon={PhoneCallIcon}
+                label="Help contacts"
+                value="Ragging, security and helpline numbers in Get help"
+                onPress={() => router.push('/admin/help-contacts')}
               />
             ) : null}
           </SettingsGroup>
@@ -229,7 +355,7 @@ export default function Profile() {
           <SettingsRow Icon={PaletteIcon} label="Theme" value={THEMES[themeName].label} onPress={() => setThemeOpen(true)} />
         </SettingsGroup>
 
-        <Button label="Sign out" variant="quiet" onPress={signOut} loading={signingOut} />
+        <Button label="Sign out" variant="quiet" onPress={leave} loading={signingOut} />
       </ScrollView>
 
       <ActionSheet
@@ -288,8 +414,21 @@ const useStyles = createThemedStyles((t) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  name: { fontFamily: fonts.display, fontSize: 26, lineHeight: 32, color: t.text, textAlign: 'center', letterSpacing: -0.2 },
-  where: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: t.textMuted, textAlign: 'center' },
+  name: {
+    fontFamily: fonts.display,
+    fontSize: 26,
+    lineHeight: 32,
+    color: t.text,
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+  where: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: t.textMuted,
+    textAlign: 'center',
+  },
   bio: {
     fontFamily: fonts.body,
     fontSize: 15,
@@ -310,6 +449,17 @@ const useStyles = createThemedStyles((t) => ({
     borderRadius: radius.pill,
     overflow: 'hidden',
   },
-  skeletonPhoto: { width: PHOTO, height: PHOTO, borderRadius: PHOTO / 2, backgroundColor: t.surface, marginBottom: space.md },
-  skeletonLine: { height: 16, borderRadius: radius.sm, backgroundColor: t.surface, marginTop: space.xs },
+  skeletonPhoto: {
+    width: PHOTO,
+    height: PHOTO,
+    borderRadius: PHOTO / 2,
+    backgroundColor: t.surface,
+    marginBottom: space.md,
+  },
+  skeletonLine: {
+    height: 16,
+    borderRadius: radius.sm,
+    backgroundColor: t.surface,
+    marginTop: space.xs,
+  },
 }));

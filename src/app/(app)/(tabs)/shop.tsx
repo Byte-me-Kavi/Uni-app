@@ -22,6 +22,7 @@ import {
   type ShopFilter,
   type ShopScope,
 } from '@/lib/shop';
+import { useIsFresher } from '@/providers/session-provider';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 const FILTERS: { key: ShopFilter; label: string }[] = [
@@ -45,6 +46,7 @@ const pair = (list: Card[]): Cell[] => (list.length % 2 ? [...list, { id: 'space
 // transfer and slip).
 export default function Shop() {
   const theme = useTheme();
+  const fresher = useIsFresher();
   const styles = useStyles();
   const [filter, setFilter] = useState<ShopFilter>('all');
   const [scope, setScope] = useState<ShopScope>('mine');
@@ -105,11 +107,20 @@ export default function Shop() {
     if (end || loadingMore || list.length === 0) return;
     setLoadingMore(true);
     const mine = generation.current;
-    const r = await loadFeed({ filter, scope, category, query, before: list[list.length - 1].created_at });
+    const r = await loadFeed({
+      filter,
+      scope,
+      category,
+      query,
+      before: list[list.length - 1].created_at,
+    });
     setLoadingMore(false);
     if (mine !== generation.current || !r.data) return;
     const known = new Set(list.map((l) => l.id));
-    setFeed({ ...r.data, listings: [...list, ...r.data.listings.filter((l) => !known.has(l.id))] });
+    setFeed({
+      ...r.data,
+      listings: [...list, ...r.data.listings.filter((l) => !known.has(l.id))],
+    });
     setEnd(r.data.listings.length < 30);
   }
 
@@ -127,15 +138,17 @@ export default function Shop() {
         <Text style={styles.title} accessibilityRole="header">
           Shop
         </Text>
-        <PressableScale
-          onPress={sell}
-          accessibilityRole="button"
-          accessibilityLabel={feed?.can_post_merch ? 'Sell or publish merch' : 'Sell something'}
-          hitSlop={6}
-          style={styles.sell}>
-          <PlusIcon size={18} weight="bold" color={theme.onAccent} />
-          <Text style={styles.sellText}>Sell</Text>
-        </PressableScale>
+        {fresher ? null : (
+          <PressableScale
+            onPress={sell}
+            accessibilityRole="button"
+            accessibilityLabel={feed?.can_post_merch ? 'Sell or publish merch' : 'Sell something'}
+            hitSlop={6}
+            style={styles.sell}>
+            <PlusIcon size={18} weight="bold" color={theme.onAccent} />
+            <Text style={styles.sellText}>Sell</Text>
+          </PressableScale>
+        )}
       </View>
 
       <ShopHub summary={hub} />
@@ -191,7 +204,11 @@ export default function Shop() {
           ? [
               {
                 label: 'Publish merch for your batch',
-                onPress: () => router.push({ pathname: '/shop/new', params: { kind: 'merch', as: 'batch' } }),
+                onPress: () =>
+                  router.push({
+                    pathname: '/shop/new',
+                    params: { kind: 'merch', as: 'batch' },
+                  }),
               },
             ]
           : []),
@@ -200,18 +217,43 @@ export default function Shop() {
               {
                 label: `Publish merch for ${feed.merch_club}`,
                 onPress: () =>
-                  router.push({ pathname: '/shop/new', params: { kind: 'merch', as: 'club', club: feed.merch_club! } }),
+                  router.push({
+                    pathname: '/shop/new',
+                    params: {
+                      kind: 'merch',
+                      as: 'club',
+                      club: feed.merch_club!,
+                    },
+                  }),
               },
             ]
           : []),
-        { label: 'Sell something you own', onPress: () => router.push({ pathname: '/shop/new', params: { kind: 'item' } }) },
+        {
+          label: 'Sell something you own',
+          onPress: () => router.push({ pathname: '/shop/new', params: { kind: 'item' } }),
+        },
         ...(feed?.is_rep
           ? [
-              { label: 'Add a merch lead', onPress: () => router.push({ pathname: '/shop/leads', params: { add: '1' } }) },
-              { label: 'See merch leads', onPress: () => router.push('/shop/leads') },
+              {
+                label: 'Add a merch lead',
+                onPress: () =>
+                  router.push({
+                    pathname: '/shop/leads',
+                    params: { add: '1' },
+                  }),
+              },
+              {
+                label: 'See merch leads',
+                onPress: () => router.push('/shop/leads'),
+              },
             ]
           : feed?.merch_club
-            ? [{ label: 'Your merch lead role', onPress: () => router.push('/shop/leads') }]
+            ? [
+                {
+                  label: 'Your merch lead role',
+                  onPress: () => router.push('/shop/leads'),
+                },
+              ]
             : []),
       ]}
     />
@@ -280,10 +322,25 @@ export default function Shop() {
 
 const useStyles = createThemedStyles((t) => ({
   list: { flex: 1, width: '100%', maxWidth: 600, alignSelf: 'center' },
-  content: { paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.xxxl },
+  content: {
+    paddingHorizontal: space.xl,
+    paddingTop: space.sm,
+    paddingBottom: space.xxxl,
+  },
   header: { gap: space.lg, marginBottom: space.lg },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
-  title: { fontFamily: fonts.display, fontSize: 32, lineHeight: 38, color: t.text, letterSpacing: -0.3 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.md,
+  },
+  title: {
+    fontFamily: fonts.display,
+    fontSize: 32,
+    lineHeight: 38,
+    color: t.text,
+    letterSpacing: -0.3,
+  },
   sell: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -295,13 +352,29 @@ const useStyles = createThemedStyles((t) => ({
     minHeight: 44,
   },
   sellText: { fontFamily: fonts.bodyBold, fontSize: 16, color: t.onAccent },
-  segments: { flexDirection: 'row', backgroundColor: t.surface, borderRadius: radius.pill, padding: 4 },
-  segment: { flex: 1, minHeight: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  segments: {
+    flexDirection: 'row',
+    backgroundColor: t.surface,
+    borderRadius: radius.pill,
+    padding: 4,
+  },
+  segment: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   segmentActive: { backgroundColor: t.accent },
   segmentText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.textMuted },
   segmentTextActive: { color: t.onAccent },
   chips: { gap: space.sm, paddingRight: space.xl, alignItems: 'center' },
-  divider: { width: 1, height: 24, backgroundColor: t.border, marginHorizontal: space.xs },
+  divider: {
+    width: 1,
+    height: 24,
+    backgroundColor: t.border,
+    marginHorizontal: space.xs,
+  },
   columns: { gap: space.md, marginBottom: space.md },
   spacer: { flex: 1 },
   loading: { marginTop: space.xxl },
@@ -314,7 +387,18 @@ const useStyles = createThemedStyles((t) => ({
     gap: space.xs,
   },
   emptyTitle: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
-  emptyBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted },
+  emptyBody: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: t.textMuted,
+  },
   footer: { gap: space.md, alignItems: 'center', paddingTop: space.md },
-  safety: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: t.textMuted, textAlign: 'center' },
+  safety: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 19,
+    color: t.textMuted,
+    textAlign: 'center',
+  },
 }));

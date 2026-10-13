@@ -7,6 +7,7 @@ import { react } from '@/lib/chat/engine';
 import { useChatState } from '@/lib/chat/store';
 import type { Reaction } from '@/lib/chat/types';
 import { supabase } from '@/lib/supabase';
+import { onSignOut } from '@/lib/resets';
 import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
 
 // The reactions under a bubble: each emoji with its count; yours outlined. Tap to see who.
@@ -35,6 +36,7 @@ type Who = { user_id: string; full_name: string; avatar_path: string | null; emo
 // The last list seen for each message: opening the same reactions again shows them at once and
 // refreshes behind. Kept for the app session.
 const seen = new Map<string, Who[]>();
+onSignOut(() => seen.clear());
 
 // Who reacted with what, in a sheet over the lower half of the chat (as in WhatsApp): "All" and a
 // tab for each emoji. Tap your own to take it back.
@@ -123,7 +125,9 @@ export function ReactionDetails({
                     onClose();
                   }}
                   accessibilityRole={isMe ? 'button' : undefined}
-                  accessibilityLabel={isMe ? `Your reaction ${item.emoji}. Tap to remove` : `${item.full_name} reacted ${item.emoji}`}
+                  accessibilityLabel={
+                    isMe ? `Your reaction ${item.emoji}. Tap to remove` : `${item.full_name} reacted ${item.emoji}`
+                  }
                   style={({ pressed }) => [styles.person, pressed && styles.pressed]}>
                   <Avatar name={item.full_name} path={item.avatar_path} size={40} />
                   <View style={styles.text}>

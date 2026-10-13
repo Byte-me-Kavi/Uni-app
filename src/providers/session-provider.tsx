@@ -33,3 +33,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 export function useSession() {
   return use(SessionContext);
 }
+
+/** True for a fresher (personal email, not yet a verified student): the app hides what they cannot
+ * do yet. The database enforces the same limits. */
+export function useIsFresher() {
+  const session = useSession();
+  return session.status === 'signed_in' && session.claims.accountKind === 'fresher';
+}

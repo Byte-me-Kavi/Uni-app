@@ -7,6 +7,7 @@ import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { Button } from '@/components/ui/button';
 import { readCache, writeCache } from '@/lib/cache';
 import { refreshChats } from '@/lib/chat/engine';
+import { HelpList } from '@/components/safety/help-list';
 import { supabase } from '@/lib/supabase';
 import { brand, createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
@@ -19,7 +20,9 @@ export type ReportTarget =
   /** A kuppi request (anonymous) or a comment on a shared file. */
   | { kind: 'kuppi_request' | 'comment'; id: string; who: string | null; userId: string | null }
   /** A post in the feed, or a comment on one. */
-  | { kind: 'post' | 'post_comment'; id: string; who: string | null; userId: string | null };
+  | { kind: 'post' | 'post_comment'; id: string; who: string | null; userId: string | null }
+  /** A freshers' question (shown without a name) or an ambassador's answer. */
+  | { kind: 'fresher_question' | 'fresher_answer'; id: string; who: string | null; userId: null };
 
 type Category = { code: string; label: string };
 const CACHE_KEY = 'report:categories';
@@ -97,13 +100,20 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
                       p_category: category,
                       ...extra,
                     })
-                  : await supabase.rpc('report', {
-                      p_kind: target.kind,
-                      p_target_id: target.id,
-                      p_category: category,
-                      ...extra,
-                      ...(target.kind === 'message' ? { p_conversation_id: target.conversationId } : {}),
-                    });
+                  : target.kind === 'fresher_question' || target.kind === 'fresher_answer'
+                    ? await supabase.rpc('report_fresher_item', {
+                        p_kind: target.kind === 'fresher_question' ? 'question' : 'answer',
+                        p_id: Number(target.id),
+                        p_category: category,
+                        ...extra,
+                      })
+                    : await supabase.rpc('report', {
+                        p_kind: target.kind,
+                        p_target_id: target.id,
+                        p_category: category,
+                        ...extra,
+                        ...(target.kind === 'message' ? { p_conversation_id: target.conversationId } : {}),
+                      });
     if (!failed && block && blockable) {
       await supabase.rpc('block_user', { p_user_id: blockable });
       refreshChats();
@@ -143,9 +153,20 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
             The Uni Era team will look at it. {target?.who ? `${target.who.split(' ')[0]} is` : 'They are'} not told who reported
             them.{block && blockable ? ' You have also blocked them.' : ''}
           </Text>
-          <Text style={styles.urgent}>
-            If someone is in danger right now, call 119 (police) or 1926 (mental health helpline).
-          </Text>
+          {category === 'ragging_or_threats' || category === 'self_harm' ? (
+            <ScrollView style={styles.help} contentContainerStyle={styles.helpContent}>
+              <Text style={styles.urgent}>
+                {category === 'self_harm'
+                  ? 'If you or someone else might be in danger, talk to someone now:'
+                  : 'You can also go straight to the people who deal with ragging:'}
+              </Text>
+              <HelpList kinds={category === 'self_harm' ? ['emergency', 'wellbeing'] : ['emergency', 'ragging', 'security']} />
+            </ScrollView>
+          ) : (
+            <Text style={styles.urgent}>
+              If someone is in danger right now, call 119 (police) or 1926 (mental health helpline).
+            </Text>
+          )}
           <Button label="Done" onPress={onClose} />
         </View>
       ) : (
@@ -207,6 +228,8 @@ export function ReportSheet({ target, onClose }: { target: ReportTarget | null; 
 }
 
 const useStyles = createThemedStyles((t) => ({
+  help: { maxHeight: 360 },
+  helpContent: { gap: space.md },
   body: { paddingHorizontal: space.lg, paddingBottom: space.xl, gap: space.md },
   lead: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
   options: { gap: 2 },

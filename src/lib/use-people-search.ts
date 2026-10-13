@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { onSignOut } from '@/lib/resets';
 import { supabase } from '@/lib/supabase';
 
 export type PersonResult = {
@@ -33,6 +34,9 @@ const cache = new Map<string, PersonResult[]>();
 export function clearSearchCache() {
   cache.clear();
 }
+
+// Another account may not see the same people (freshers are shielded), so its searches start fresh.
+onSignOut(clearSearchCache);
 
 function remember(key: string, results: PersonResult[]) {
   cache.delete(key);
@@ -96,9 +100,7 @@ export function usePeopleSearch(query: string): SearchState {
     setState((s) => ({ status: 'loading', results: s.results }));
     const controller = new AbortController();
     const timer = setTimeout(async () => {
-      const { data, error } = await supabase
-        .rpc('search_people', { p_query: key })
-        .abortSignal(controller.signal);
+      const { data, error } = await supabase.rpc('search_people', { p_query: key }).abortSignal(controller.signal);
       if (controller.signal.aborted) return;
       if (error) {
         const message =

@@ -5,6 +5,7 @@ import { BedIcon } from 'phosphor-react-native/src/icons/Bed';
 import { CalendarBlankIcon } from 'phosphor-react-native/src/icons/CalendarBlank';
 import { ChatCircleIcon } from 'phosphor-react-native/src/icons/ChatCircle';
 import { CheckCircleIcon } from 'phosphor-react-native/src/icons/CheckCircle';
+import { ClockIcon } from 'phosphor-react-native/src/icons/Clock';
 import { DotsThreeIcon } from 'phosphor-react-native/src/icons/DotsThree';
 import { GlobeIcon } from 'phosphor-react-native/src/icons/Globe';
 import { HeartIcon } from 'phosphor-react-native/src/icons/Heart';
@@ -21,6 +22,7 @@ import { ShowerIcon } from 'phosphor-react-native/src/icons/Shower';
 import { SnowflakeIcon } from 'phosphor-react-native/src/icons/Snowflake';
 import { TShirtIcon } from 'phosphor-react-native/src/icons/TShirt';
 import { WifiHighIcon } from 'phosphor-react-native/src/icons/WifiHigh';
+import { ShieldWarningIcon } from 'phosphor-react-native/src/icons/ShieldWarning';
 
 import { ReportSheet, type ReportTarget } from '@/components/chat/report-sheet';
 import { lookOf, type Look } from '@/components/feed/post-look';
@@ -48,6 +50,9 @@ import {
   undoHide,
   usePost,
   type BodimDetails,
+  type JobDetails,
+  jobClosed,
+  PER_LABEL,
   type Facility,
   type LostFoundDetails,
   type Post,
@@ -131,6 +136,10 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
   const done = doneLabel(post);
   const bodim = post.tag === 'bodim' ? (post.details as BodimDetails) : null;
   const lostFound = post.tag === 'lost_found' ? (post.details as LostFoundDetails) : null;
+  const job = post.tag === 'job' ? (post.details as JobDetails) : null;
+  // Past its closing day: shown as closed, no way to apply.
+  const closed = job ? jobClosed(job) : false;
+  const phone = (bodim ?? job)?.phone;
   const open = (reply = false) =>
     router.push({ pathname: '/post/[id]', params: reply ? { id: String(id), reply: '1' } : { id: String(id) } });
   const long = !full && !expanded && (post.body.length > LONG || post.body.split('\n').length > 6);
@@ -207,13 +216,13 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
               : { label: 'Answer', onPress: () => open(true) }
             : post.tag === 'lost_found'
               ? { label: lostFound?.kind === 'found' ? "It's mine" : 'I found it', onPress: message }
-              : post.tag === 'bodim'
+              : post.tag === 'bodim' || (post.tag === 'job' && !closed)
                 ? { label: `Message ${name}`, onPress: message }
                 : null;
 
   return (
     <View style={[styles.card, look && { borderColor: look.solid, borderWidth: 1.5 }]}>
-      {look ? <Band look={look} post={post} done={done?.done ?? null} /> : null}
+      {look ? <Band look={look} post={post} done={done?.done ?? null} closed={closed} /> : null}
 
       <View style={styles.inner}>
         <View style={styles.header}>
@@ -271,6 +280,7 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
           scale={0.995}>
           <View style={styles.content}>
             {bodim ? <BodimFacts details={bodim} look={look!} taken={post.resolved} /> : null}
+            {job ? <JobFacts details={job} look={look!} over={post.resolved || closed} /> : null}
             {lostFound?.where ? (
               <View style={styles.factRow}>
                 <MapPinIcon size={16} weight="fill" color={look?.solid} />
@@ -305,7 +315,7 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
         </PressableScale>
 
         {post.photos.length > 0 ? (
-          <View style={bodim && post.resolved ? styles.dim : null}>
+          <View style={(bodim || job) && (post.resolved || closed) ? styles.dim : null}>
             <PostPhotos photos={post.photos} onOpen={setPhoto} />
           </View>
         ) : null}
@@ -342,9 +352,9 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
             ) : null}
           </PressableScale>
           <View style={styles.flex} />
-          {bodim?.phone && !post.mine && !post.resolved ? (
+          {phone && !post.mine && !post.resolved && !closed ? (
             <PressableScale
-              onPress={() => Linking.openURL(`tel:${bodim.phone}`).catch(() => {})}
+              onPress={() => Linking.openURL(`tel:${phone}`).catch(() => {})}
               accessibilityRole="button"
               accessibilityLabel={`Call ${name}`}
               hitSlop={4}
@@ -391,7 +401,7 @@ export const PostCard = memo(function PostCard({ id, full = false }: { id: numbe
 });
 
 /** The coloured band across the top: the kind, and whether it is done. */
-function Band({ look, post, done }: { look: Look; post: Post; done: string | null }) {
+function Band({ look, post, done, closed }: { look: Look; post: Post; done: string | null; closed: boolean }) {
   const styles = useStyles();
   const bodim = post.tag === 'bodim' ? (post.details as BodimDetails) : null;
   return (
@@ -421,7 +431,61 @@ function Band({ look, post, done }: { look: Look; post: Post; done: string | nul
         <Text style={[styles.bandText, { color: look.text }]}>Be the first to answer</Text>
       ) : post.tag === 'bodim' ? (
         <Text style={[styles.bandText, { color: look.text }]}>Available</Text>
+      ) : post.tag === 'job' ? (
+        <Text style={[styles.bandText, { color: look.text }]}>{closed ? 'Closed' : 'Hiring'}</Text>
       ) : null}
+    </View>
+  );
+}
+
+/** A job: what it is in large type, the pay, where and when, the closing day, and the one rule that
+ * stops most scams. */
+function JobFacts({ details, look, over }: { details: JobDetails; look: Look; over: boolean }) {
+  const theme = useTheme();
+  const styles = useStyles();
+  return (
+    <View style={styles.bodim}>
+      <View style={[styles.bodim, over && styles.dim]}>
+        <Text style={[styles.role, over && styles.struck]}>{details.role}</Text>
+        <View style={styles.rentRow}>
+          {details.pay ? (
+            <>
+              <Text style={styles.pay}>{rupees(details.pay)}</Text>
+              <Text style={styles.perMonth}>{PER_LABEL[details.per ?? 'task']}</Text>
+            </>
+          ) : (
+            <Text style={styles.perMonth}>Pay to discuss</Text>
+          )}
+        </View>
+        <View style={styles.factLine}>
+          <View style={styles.factRow}>
+            {details.remote ? (
+              <GlobeIcon size={16} weight="bold" color={look.solid} />
+            ) : (
+              <MapPinIcon size={16} weight="fill" color={look.solid} />
+            )}
+            <Text style={styles.factStrong} numberOfLines={1}>
+              {details.remote ? (details.area ? `Remote or ${details.area}` : 'Remote') : details.area}
+            </Text>
+          </View>
+          {details.hours ? (
+            <View style={styles.factRow}>
+              <ClockIcon size={16} color={theme.textMuted} />
+              <Text style={styles.fact}>{details.hours}</Text>
+            </View>
+          ) : null}
+          {details.closes_on ? (
+            <View style={styles.factRow}>
+              <CalendarBlankIcon size={16} color={theme.textMuted} />
+              <Text style={styles.fact}>Apply by {dayMonth(details.closes_on)}</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+      <View style={styles.warn}>
+        <ShieldWarningIcon size={15} weight="fill" color={theme.textMuted} />
+        <Text style={styles.warnText}>Never pay to get a job. Report anyone who asks you for money.</Text>
+      </View>
     </View>
   );
 }
@@ -519,6 +583,10 @@ const useStyles = createThemedStyles((t) => ({
   rent: { fontFamily: fonts.wordmark, fontSize: 26, lineHeight: 30, color: t.text, letterSpacing: -0.4 },
   perMonth: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: t.textMuted },
   struck: { textDecorationLine: 'line-through' },
+  role: { fontFamily: fonts.bodyBold, fontSize: 19, lineHeight: 25, color: t.text },
+  pay: { fontFamily: fonts.wordmark, fontSize: 22, lineHeight: 27, color: t.text, letterSpacing: -0.3 },
+  warn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  warnText: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 13, lineHeight: 18, color: t.textMuted },
   factLine: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.lg, rowGap: 4 },
   factRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   factStrong: { flexShrink: 1, fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },

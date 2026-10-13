@@ -28,7 +28,11 @@ export async function fileSize(uri: string) {
 
 export async function exists(uri: string | undefined) {
   if (!uri || !hasNative('ExponentFileSystem')) return false;
-  return (await fs().getInfoAsync(uri).catch(() => ({ exists: false }))).exists;
+  return (
+    await fs()
+      .getInfoAsync(uri)
+      .catch(() => ({ exists: false }))
+  ).exists;
 }
 
 /** PUTs a file to a signed URL. Resolves with the HTTP status (0 when the network failed). */
@@ -48,7 +52,12 @@ export async function putFile(url: string, headers: Record<string, string>, uri:
   return result?.status === 412 ? 200 : (result?.status ?? 0);
 }
 
-const safeName = (name: string) => name.replace(/[\\/:*?"<>|]+/g, '_').slice(0, 120) || 'file';
+// Leading dots go too: "." or ".." would name the folder itself or its parent.
+const safeName = (name: string) =>
+  name
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .replace(/^\.+/, '')
+    .slice(0, 120) || 'file';
 
 // Files kept for offline (a whole module before exams) live in the documents folder, which the
 // phone never clears, unlike the cache.
@@ -81,7 +90,9 @@ export async function keepOffline(file: { url: string; path: string; name: strin
 export async function dropOffline(file: { path: string; name: string }) {
   if (!hasNative('ExponentFileSystem')) return;
   const target = offlineTarget(file);
-  await fs().deleteAsync(target.slice(0, target.lastIndexOf('/') + 1), { idempotent: true }).catch(() => {});
+  await fs()
+    .deleteAsync(target.slice(0, target.lastIndexOf('/') + 1), { idempotent: true })
+    .catch(() => {});
 }
 
 /** The file on the phone: your own sent copy, an offline copy, else a cached download. */

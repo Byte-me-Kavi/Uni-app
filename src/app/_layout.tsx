@@ -9,6 +9,8 @@ import { Platform, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SheetHost } from '@/components/ui/sheet-layer';
+import { UpdateRequired } from '@/components/update-required';
+import { useAppConfigSync, useUpdateRequired } from '@/lib/app-config';
 import { SessionProvider, useSession } from '@/providers/session-provider';
 import { useScheme } from '@/theme/appearance';
 import { useTheme } from '@/theme/tokens';
@@ -18,8 +20,7 @@ SplashScreen.preventAutoHideAsync();
 // Release and development builds embed the fonts natively (expo-font config plugin in app.json), so
 // they are ready at launch with no loading step. Expo Go cannot embed fonts and config plugins do not
 // run on web, so only those load them at runtime.
-const needsRuntimeFonts =
-  Platform.OS === 'web' || Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+const needsRuntimeFonts = Platform.OS === 'web' || Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 const runtimeFonts: Record<string, FontSource> = needsRuntimeFonts
   ? {
       'Figtree-Black': require('../../assets/fonts/Figtree-Black.ttf'),
@@ -54,6 +55,8 @@ function RootNavigator() {
   const theme = useTheme();
   const dark = useScheme() === 'dark';
   const ready = session.status !== 'loading';
+  useAppConfigSync();
+  const outdated = useUpdateRequired();
 
   // Two backgrounds sit behind every screen: the native root view and the navigator. Both default
   // to white. During a crossfade both screens are partly transparent, so in dark mode that white
@@ -80,8 +83,22 @@ function RootNavigator() {
   }, [ready]);
 
   const signedIn = session.status === 'signed_in';
-  const active = signedIn && session.claims.accountStatus === 'active';
-  const named = active && session.claims.nameConfirmed;
+  // Waiting to be deleted: only the screen that offers to keep the account.
+  const deleting = signedIn && session.claims.deletingAt !== null;
+  const active = signedIn && !deleting && session.claims.accountStatus === 'active';
+  // A fresher past their 120 days: only the university email screen until they add it.
+  const expired = active && session.claims.fresherExpired;
+  const named = active && !expired && session.claims.nameConfirmed;
+
+  // Too old to work with the current database: nothing else is shown until it is updated.
+  if (outdated) {
+    return (
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style={theme.statusBar} />
+        <UpdateRequired />
+      </ThemeProvider>
+    );
+  }
 
   // Client-side guards only decide which screens to show. Data access is enforced by the database.
   return (
@@ -96,10 +113,16 @@ function RootNavigator() {
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
-        <Stack.Protected guard={signedIn && !active}>
+        <Stack.Protected guard={deleting}>
+          <Stack.Screen name="account-deleting" />
+        </Stack.Protected>
+        <Stack.Protected guard={signedIn && !deleting && !active}>
           <Stack.Screen name="account-status" />
         </Stack.Protected>
-        <Stack.Protected guard={active && !named}>
+        <Stack.Protected guard={expired}>
+          <Stack.Screen name="fresher-expired" />
+        </Stack.Protected>
+        <Stack.Protected guard={active && !expired && !named}>
           <Stack.Screen name="welcome" />
         </Stack.Protected>
         <Stack.Protected guard={named}>

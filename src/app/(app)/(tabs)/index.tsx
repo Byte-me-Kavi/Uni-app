@@ -14,6 +14,9 @@ import { useFeed, type FeedItem } from '@/components/feed/use-feed';
 import { HomeCarousel } from '@/components/home/home-carousel';
 import { ExamStrip } from '@/components/resources/exam-strip';
 import { HomeSkeleton } from '@/components/home/home-skeleton';
+import { NoticeBanner } from '@/components/home/notice-banner';
+import { PolicyCard } from '@/components/home/policy-card';
+import { FresherCard } from '@/components/freshers/fresher-card';
 import { QuietFeed } from '@/components/home/quiet-feed';
 import { SetupList, type SetupStep } from '@/components/home/setup-list';
 import { StaffCard } from '@/components/home/staff-card';
@@ -23,10 +26,12 @@ import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { PressableScale } from '@/components/ui/pressable-scale';
 import { adSeen } from '@/lib/ads';
+import { useFeature } from '@/lib/app-config';
 import { markSeen, type PostTag } from '@/lib/feed';
 import { useModulesSnapshot } from '@/lib/modules';
 import { firstName, type MyHome } from '@/lib/use-home';
 import { useHomeData } from '@/providers/home-provider';
+import { useIsFresher } from '@/providers/session-provider';
 import { useScheme } from '@/theme/appearance';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
@@ -45,6 +50,10 @@ export default function Home() {
   const { state, refreshing, refresh, retry } = useHomeData();
   const active = state.status === 'ready' && state.home.account_status === 'active';
   const feed = useFeed(active);
+  // Posting paused by the Uni Era team: no Post button (the server refuses new posts anyway).
+  const posting = useFeature('posting');
+  // Freshers read and like; posting opens with their university email.
+  const fresher = useIsFresher();
   const [visibleAds, setVisibleAds] = useState<string[]>([]);
   const list = useRef<FlashListRef<FeedItem>>(null);
   const [entrance] = useState(() => {
@@ -103,7 +112,7 @@ export default function Home() {
       ) : null}
       {state.status === 'ready' ? <HomeContent home={state.home} entrance={entrance} /> : null}
       {state.status === 'ready' && !active ? <QuietFeed waiting={state.home.account_status === 'pending'} /> : null}
-      {active ? <FeedHeader home={state.home} tag={feed.tag} onFilter={feed.filter} /> : null}
+      {active ? <FeedHeader home={state.home} tag={feed.tag} onFilter={feed.filter} canPost={posting && !fresher} /> : null}
       {active && feed.status === 'switching' ? <FeedSkeleton /> : null}
     </View>
   );
@@ -126,7 +135,7 @@ export default function Home() {
           ListEmptyComponent={
             active && feed.loaded && feed.status !== 'refreshing' ? (
               <View style={styles.item}>
-                <QuietFeed heading={false} filtered={feed.tag !== null} />
+                <QuietFeed heading={false} tag={feed.tag} canPost={posting && !fresher} onShowAll={() => feed.filter(null)} />
               </View>
             ) : null
           }
@@ -163,9 +172,13 @@ export default function Home() {
             <Text style={[styles.newPillText, { color: theme.onAccent }]}>New posts</Text>
           </PressableScale>
         ) : null}
-        {active ? (
+        {active && posting && !fresher ? (
           <PressableScale
-            onPress={() => router.push(feed.tag === 'bodim' ? { pathname: '/post/new', params: { type: 'bodim' } } : '/post/new')}
+            onPress={() =>
+              router.push(
+                feed.tag === 'bodim' || feed.tag === 'job' ? { pathname: '/post/new', params: { type: feed.tag } } : '/post/new',
+              )
+            }
             accessibilityRole="button"
             accessibilityLabel="New post"
             style={[styles.fab, { backgroundColor: theme.accent }]}>
@@ -180,14 +193,26 @@ export default function Home() {
 
 function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
   const styles = useStyles();
+  const fresher = useIsFresher();
   // Modules set up since Home last loaded count straight away.
   const modules = useModulesSnapshot();
   const hasModules = home.module_count > 0 || (!!modules?.batch && modules.current.length > 0);
 
   // Real account state only. Steps that are not built yet say so instead of linking nowhere.
   const steps: SetupStep[] = [
-    { key: 'email', label: 'Confirm your university email', done: true },
-    { key: 'approved', label: 'Get approved by the Uni Era team', done: home.account_status === 'active' },
+    fresher
+      ? {
+          key: 'email',
+          label: 'Add your university email',
+          done: false,
+          onPress: () => router.push('/university-email'),
+        }
+      : { key: 'email', label: 'Confirm your university email', done: true },
+    {
+      key: 'approved',
+      label: 'Get approved by the Uni Era team',
+      done: home.account_status === 'active',
+    },
     {
       key: 'batch',
       label: home.batch ? 'Joined your batch' : 'Join your batch group',
@@ -211,6 +236,12 @@ function HomeContent({ home, entrance }: { home: MyHome; entrance: boolean }) {
         </Text>
         <Text style={styles.institution}>{home.institution.name}</Text>
       </Reveal>
+
+      <NoticeBanner />
+
+      <PolicyCard />
+
+      {fresher ? <FresherCard /> : null}
 
       <Reveal order={1}>
         <HomeCarousel assemble={entrance} />
@@ -243,46 +274,64 @@ const FILTERS: { tag: PostTag | null; label: string }[] = [
   { tag: 'question', label: 'Questions' },
   { tag: 'lost_found', label: 'Lost & found' },
   { tag: 'bodim', label: 'Bodim' },
+  { tag: 'job', label: 'Jobs' },
   { tag: 'notice', label: 'Notices' },
 ];
 
 // "Your feed", the way in to posting (your photo and a prompt that opens the composer, with a photo
 // button straight onto the picker), and the filters, each in its kind's colour.
-function FeedHeader({ home, tag, onFilter }: { home: MyHome; tag: PostTag | null; onFilter: (tag: PostTag | null) => void }) {
+function FeedHeader({
+  home,
+  tag,
+  onFilter,
+  canPost,
+}: {
+  home: MyHome;
+  tag: PostTag | null;
+  onFilter: (tag: PostTag | null) => void;
+  canPost: boolean;
+}) {
   const theme = useTheme();
   const scheme = useScheme();
   const styles = useStyles();
   const bodim = tag === 'bodim';
+  const job = tag === 'job';
   return (
     <View style={styles.feedHead}>
       <Text style={styles.heading} accessibilityRole="header">
         Your feed
       </Text>
-      <View style={styles.prompt}>
-        <PressableScale
-          onPress={() => router.push(bodim ? { pathname: '/post/new', params: { type: 'bodim' } } : '/post/new')}
-          accessibilityRole="button"
-          accessibilityLabel={bodim ? 'List your bodim' : 'Write a post'}
-          scale={0.99}
-          style={styles.promptMain}>
-          <Avatar name={home.full_name} path={home.avatar_path} size={36} />
-          <Text style={styles.promptText} numberOfLines={1}>
-            {bodim
-              ? 'Have a room to rent? List your bodim'
-              : tag === 'question'
-                ? 'Ask your uni something…'
-                : 'Ask, share or tell your uni…'}
-          </Text>
-        </PressableScale>
-        <PressableScale
-          onPress={() => router.push({ pathname: '/post/new', params: { photos: '1' } })}
-          accessibilityRole="button"
-          accessibilityLabel="Post photos"
-          hitSlop={6}
-          style={styles.promptPhoto}>
-          <ImageIcon size={22} color={theme.accentText} />
-        </PressableScale>
-      </View>
+      {canPost ? (
+        <View style={styles.prompt}>
+          <PressableScale
+            onPress={() =>
+              router.push(bodim || job ? { pathname: '/post/new', params: { type: bodim ? 'bodim' : 'job' } } : '/post/new')
+            }
+            accessibilityRole="button"
+            accessibilityLabel={bodim ? 'List your bodim' : job ? 'Post a job' : 'Write a post'}
+            scale={0.99}
+            style={styles.promptMain}>
+            <Avatar name={home.full_name} path={home.avatar_path} size={36} />
+            <Text style={styles.promptText} numberOfLines={1}>
+              {bodim
+                ? 'Have a room to rent? List your bodim'
+                : job
+                  ? 'Hiring students? Post a part-time job'
+                  : tag === 'question'
+                    ? 'Ask your uni something…'
+                    : 'Ask, share or tell your uni…'}
+            </Text>
+          </PressableScale>
+          <PressableScale
+            onPress={() => router.push({ pathname: '/post/new', params: { photos: '1' } })}
+            accessibilityRole="button"
+            accessibilityLabel="Post photos"
+            hitSlop={6}
+            style={styles.promptPhoto}>
+            <ImageIcon size={22} color={theme.accentText} />
+          </PressableScale>
+        </View>
+      ) : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
         {FILTERS.map((f) => {
           const look = f.tag ? lookOf({ tag: f.tag, details: null, notice_from: null }, theme, scheme) : null;
@@ -297,7 +346,13 @@ function FeedHeader({ home, tag, onFilter }: { home: MyHome; tag: PostTag | null
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
               accessibilityLabel={`Show ${f.label.toLowerCase()}`}
-              style={[styles.filter, { backgroundColor: on ? solid : tint, borderColor: on ? solid : tint }]}>
+              style={[
+                styles.filter,
+                {
+                  backgroundColor: on ? solid : tint,
+                  borderColor: on ? solid : tint,
+                },
+              ]}>
               {look ? <look.Icon size={15} weight="bold" color={ink} /> : null}
               <Text style={[styles.filterText, { color: ink }]}>{f.label}</Text>
             </PressableScale>
@@ -355,10 +410,28 @@ const useStyles = createThemedStyles((t) => ({
     alignSelf: 'center',
     paddingBottom: space.md,
   },
-  item: { paddingHorizontal: space.xl, paddingBottom: space.md, width: '100%', maxWidth: 608, alignSelf: 'center' },
+  item: {
+    paddingHorizontal: space.xl,
+    paddingBottom: space.md,
+    width: '100%',
+    maxWidth: 608,
+    alignSelf: 'center',
+  },
   stack: { gap: space.xl },
-  greeting: { fontFamily: fonts.display, fontSize: 32, lineHeight: 38, color: t.text, letterSpacing: -0.3 },
-  institution: { fontFamily: fonts.bodySemiBold, fontSize: 15, lineHeight: 21, color: t.textMuted, marginTop: 2 },
+  greeting: {
+    fontFamily: fonts.display,
+    fontSize: 32,
+    lineHeight: 38,
+    color: t.text,
+    letterSpacing: -0.3,
+  },
+  institution: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    lineHeight: 21,
+    color: t.textMuted,
+    marginTop: 2,
+  },
   error: { gap: space.lg },
   feedHead: { gap: space.md },
   heading: { fontFamily: fonts.display, fontSize: 21, color: t.text },
@@ -370,9 +443,25 @@ const useStyles = createThemedStyles((t) => ({
     borderRadius: radius.lg,
     paddingLeft: space.sm,
   },
-  promptMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm },
-  promptText: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: t.textMuted },
-  promptPhoto: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  promptMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingVertical: space.sm,
+  },
+  promptText: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: t.textMuted,
+  },
+  promptPhoto: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   footer: { paddingVertical: space.xl, gap: space.md },
   switching: { paddingVertical: space.xl },
   filters: { gap: space.sm, paddingRight: space.xl },
@@ -404,5 +493,11 @@ const useStyles = createThemedStyles((t) => ({
     elevation: 4,
   },
   newPillText: { fontFamily: fonts.bodyBold, fontSize: 14 },
-  caughtUp: { fontFamily: fonts.body, fontSize: 14, color: t.textMuted, textAlign: 'center', paddingHorizontal: space.xl },
+  caughtUp: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: t.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: space.xl,
+  },
 }));

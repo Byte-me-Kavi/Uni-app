@@ -15,6 +15,7 @@ import { TextField } from '@/components/ui/text-field';
 import { weekdayDayMonth } from '@/lib/dates';
 import { closeRequest, listRequests, requestKuppi, voteRequest, type KuppiRequest } from '@/lib/kuppi';
 import { useMyModules } from '@/lib/modules';
+import { useIsFresher } from '@/providers/session-provider';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // "You asked · Wanted at 3 universities"
@@ -23,7 +24,11 @@ const footnote = (r: KuppiRequest) =>
     .filter(Boolean)
     .join(' · ');
 
-type Props = { scope: 'my_modules' | 'module'; moduleId?: number; refreshKey?: number };
+type Props = {
+  scope: 'my_modules' | 'module';
+  moduleId?: number;
+  refreshKey?: number;
+};
 
 // "Students are asking for": kuppi requests, most wanted first, with a vote each and "Host this".
 // Who asked is never shown. Asking a similar question adds a vote instead of a duplicate. Requests
@@ -56,7 +61,12 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
     r.host_module_id &&
     router.push({
       pathname: '/kuppi/new',
-      params: { module: String(r.host_module_id), request: r.id, title: r.topic, ...(r.other ? { national: '1' } : {}) },
+      params: {
+        module: String(r.host_module_id),
+        request: r.id,
+        title: r.topic,
+        ...(r.other ? { national: '1' } : {}),
+      },
     });
 
   const actions: SheetAction[] = menu
@@ -92,7 +102,13 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
               {
                 label: 'Report',
                 destructive: true,
-                onPress: () => setReporting({ kind: 'kuppi_request', id: menu.id, who: null, userId: null }),
+                onPress: () =>
+                  setReporting({
+                    kind: 'kuppi_request',
+                    id: menu.id,
+                    who: null,
+                    userId: null,
+                  }),
               },
             ]
           : []),
@@ -110,7 +126,14 @@ export function KuppiRequests({ scope, moduleId, refreshKey = 0 }: Props) {
           {list.map((r) => (
             <View key={r.id} style={styles.row}>
               <PressableScale
-                onPress={() => (r.session ? router.push({ pathname: '/kuppi/[id]', params: { id: r.session.id } }) : setMenu(r))}
+                onPress={() =>
+                  r.session
+                    ? router.push({
+                        pathname: '/kuppi/[id]',
+                        params: { id: r.session.id },
+                      })
+                    : setMenu(r)
+                }
                 onLongPress={() => setMenu(r)}
                 accessibilityRole="button"
                 style={styles.rowMain}>
@@ -170,15 +193,24 @@ export function KuppiActions({ moduleId, onAsked }: { moduleId?: number; onAsked
   const styles = useStyles();
   const [asking, setAsking] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Freshers can join and ask for kuppi; hosting opens with their university email.
+  const fresher = useIsFresher();
   return (
     <View style={styles.gap}>
       <View style={styles.actions}>
-        <View style={styles.action}>
-          <Button
-            label="Host a kuppi"
-            onPress={() => router.push({ pathname: '/kuppi/new', params: moduleId ? { module: String(moduleId) } : {} })}
-          />
-        </View>
+        {fresher ? null : (
+          <View style={styles.action}>
+            <Button
+              label="Host a kuppi"
+              onPress={() =>
+                router.push({
+                  pathname: '/kuppi/new',
+                  params: moduleId ? { module: String(moduleId) } : {},
+                })
+              }
+            />
+          </View>
+        )}
         <View style={styles.action}>
           <Button
             label="Ask for a kuppi"
@@ -318,18 +350,45 @@ const useStyles = createThemedStyles((t) => ({
   // Side by side when both labels fit, else one under the other (never cut off).
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   action: { flexGrow: 1, flexBasis: 200 },
-  title: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.textMuted, paddingHorizontal: space.xs },
+  title: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: t.textMuted,
+    paddingHorizontal: space.xs,
+  },
   label: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
-  card: { backgroundColor: t.surface, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.xs },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, minHeight: 56 },
+  card: {
+    backgroundColor: t.surface,
+    borderRadius: radius.lg,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.xs,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingVertical: space.sm,
+    minHeight: 56,
+  },
   rowMain: { flex: 1, gap: 2 },
   moduleLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   shrink: { flexShrink: 1 },
   code: { fontFamily: fonts.bodyBold, fontSize: 12, color: t.accentText },
-  topic: { fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 20, color: t.text },
+  topic: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    lineHeight: 20,
+    color: t.text,
+  },
   meta: { fontFamily: fonts.body, fontSize: 13, color: t.textMuted },
   answered: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.accentText },
-  muted: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: t.textMuted, paddingHorizontal: space.xs },
+  muted: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: t.textMuted,
+    paddingHorizontal: space.xs,
+  },
   vote: {
     flexDirection: 'row',
     alignItems: 'center',

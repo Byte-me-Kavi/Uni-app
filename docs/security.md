@@ -48,6 +48,22 @@ Last full review: 12 October 2026. It covered what ships inside the app, the hos
 - **Feed:** every read and write goes through `api` functions (no table grants). A post shows only to its university, or everywhere when its author chose that; blocks hide posts and comments both ways; students waiting for approval see nothing. Notices only from reps, merch leads and staff (checked on the server). Limits: 10 posts, 150 comments and 60 photo uploads a day. Three students reporting a post hide it until a moderator restores or removes it (audited, the author told); three reporting a comment remove it (the report keeps a copy). Photos are two JPEGs per photo in the public bucket under random names (`posts/<id>.jpg`, `.full.jpg`), one new file per link, and a post may use them only after the media function checked both are JPEGs of the sizes reserved. They are public to anyone with the address (like Instagram's), by choice: fast and free to serve. Deleting a post deletes its photos; a post a moderator removed keeps them for appeals.
 - **CSV export:** cells starting with `= + - @` are prefixed with `'`, so a buyer's note cannot run as a formula in the reps' spreadsheet.
 
+## Freshers, moderation and account rights (added 13 October 2026)
+
+- Selection letters show NIC numbers and addresses. They live in their own private R2 bucket with an API token for that bucket only, held only by the letters function. Only national admins get a link (5 minutes, `no-store`), and `api.fresher_letter` audits every view. A letter is deleted when the fresher verifies, is turned down or runs out of time (queue `identity.letter_deletions`, emptied by the letters function on a cron call carrying `LETTERS_SECRET`). The letter number is stored only as a SHA-256 hash.
+- Fresher limits and mutes are triggers on the tables (posts, comments, listings, orders, interest, shared files, kuppi, groups, messages), so no function can be called around them. Kill switches work the same way.
+- A fresher's search keys carry institution 0, so only the batch search finds them; cards, direct messages and group adds treat freshers outside the caller's batch as strangers.
+- Becoming a student is a trigger on `auth.users` email changes, and only a domain of the fresher's own university counts. `api.check_university_email` checks before the change.
+- Moderators act only in their universities, never on their own batchmates or on staff (national admins only), and never decide appeals against their own actions. Every action, appeal, setting change, letter view and help-contact change is in the audit log. Help contacts, national and per university, are changed only by national admins.
+- Deleting an account deletes the `auth.users` row; every foreign key to a profile cascades or sets null. Group messages and moderation records lose the link but stay. Files are queued in `ops.file_deletions` and deleted by the media function (`MEDIA_SECRET`). Downloads are built on the phone, so no copy of anyone's data sits on a server.
+
+## On the phone (added 13 October 2026)
+
+- Every sign-out goes through `src/lib/sign-out.ts`: it unregisters push, closes and deletes the chat database (`chats-<user>.db`), deletes downloaded and cached files (offline modules, chat files, the selection letter, data downloads), clears expo-image's caches and the key-value cache, and runs every module's in-memory reset (`src/lib/resets.ts`: feed posts, people search, signed media links, chat folders, voters, help contacts, report hand-off). The next account on a shared phone starts clean. Unsent messages in the outbox are lost on sign-out.
+- File names from other students are stripped of path characters and leading dots before they touch the file system.
+- Known limit: `link-preview` checks that a host resolves to public addresses, then `fetch` resolves it again, so a DNS-rebinding host could in principle reach a private address between the two. The function returns only a page's title, description and image from `text/html`, follows at most 4 redirects (each checked), and runs on Supabase's functions with no metadata service, so the impact is low. Pinning the checked address would need a custom HTTP client in Deno.
+- Cloudflare keys are function secrets only. Keep them out of `.env.local` (only `EXPO_PUBLIC_` values are needed to run the app).
+
 ## Still to do
 
 - **Before regional launch: the ClamAV scanner** (see `clamav-before-regional-launch`). Today, files are checked by their structure (magic bytes, macros, PDF scripts), not by a virus scanner.

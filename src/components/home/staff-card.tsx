@@ -1,19 +1,28 @@
+import { router } from 'expo-router';
 import { Text, View } from 'react-native';
+import { CaretRightIcon } from 'phosphor-react-native/src/icons/CaretRight';
 import { ShieldCheckIcon } from 'phosphor-react-native/src/icons/ShieldCheck';
 
+import { PressableScale } from '@/components/ui/pressable-scale';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Props = { count: number; role: 'admin' | 'moderator' };
 
-// Only for moderators and admins. A real count from the approval queue; the accent only when there is
-// something to do (brand rule: the accent means something to do).
+// Only for moderators and admins. A real count from the approval queue (students, and freshers for
+// national admins); the accent only when there is something to do (brand rule: the accent means
+// something to do). Opens Approvals.
 export function StaffCard({ count, role }: Props) {
   const theme = useTheme();
   const styles = useStyles();
   const waiting = count > 0;
 
   return (
-    <View style={styles.card} accessible accessibilityLabel={`${count} accounts waiting for approval`}>
+    <PressableScale
+      onPress={() => router.push('/admin/approvals')}
+      accessibilityRole="button"
+      accessibilityLabel={`${count} accounts waiting for approval. Open approvals`}
+      scale={0.99}
+      style={styles.card}>
       <View style={[styles.icon, waiting && styles.iconWaiting]}>
         <ShieldCheckIcon size={22} weight="bold" color={waiting ? theme.onAccent : theme.textMuted} />
       </View>
@@ -21,14 +30,15 @@ export function StaffCard({ count, role }: Props) {
         <Text style={styles.title}>{waiting ? 'Accounts waiting' : 'All caught up'}</Text>
         <Text style={styles.body}>
           {waiting
-            ? 'Review them on the admin dashboard.'
+            ? 'Tap to review them.'
             : role === 'admin'
               ? 'No sign-ups are waiting for approval.'
               : 'No sign-ups at your university are waiting.'}
         </Text>
       </View>
       <Text style={[styles.count, !waiting && styles.countQuiet]}>{count}</Text>
-    </View>
+      <CaretRightIcon size={18} weight="bold" color={theme.textMuted} />
+    </PressableScale>
   );
 }
 

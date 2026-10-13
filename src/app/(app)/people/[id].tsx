@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
@@ -14,6 +14,8 @@ import { openChat } from '@/lib/chat/open-chat';
 import { supabase } from '@/lib/supabase';
 import { clearSearchCache } from '@/lib/use-people-search';
 import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
+import { setAmbassador } from '@/lib/freshers';
+import { openReport } from '@/lib/moderation';
 
 type Person = {
   user_id: string;
@@ -23,19 +25,31 @@ type Person = {
   institution: { name: string; short_name: string | null };
   batch: { name: string; programme: string; intake_year: number } | null;
   relation: 'you' | 'batchmate' | 'university' | null;
+  /** Selected by UGC, not yet verified by university email. */
+  fresher?: boolean;
+  /** Answers freshers' questions at their university. */
+  ambassador?: boolean;
+  /** The viewer moderates the student's university and may make them an ambassador. */
+  can_appoint?: boolean;
   blocked: false;
 };
 
 // What api.person returns for a student you blocked: just enough to recognise them and unblock.
-type BlockedPerson = { user_id: string; full_name: string; avatar_path: string | null; blocked: true };
+type BlockedPerson = {
+  user_id: string;
+  full_name: string;
+  avatar_path: string | null;
+  blocked: true;
+};
 
 type State =
-  | { status: 'loading' }
-  | { status: 'missing' }
-  | { status: 'error' }
-  | { status: 'ready'; person: Person | BlockedPerson };
+  { status: 'loading' } | { status: 'missing' } | { status: 'error' } | { status: 'ready'; person: Person | BlockedPerson };
 
-const RELATION = { you: 'This is you', batchmate: 'Your batchmate', university: 'At your university' } as const;
+const RELATION = {
+  you: 'This is you',
+  batchmate: 'Your batchmate',
+  university: 'At your university',
+} as const;
 
 // A student's card, opened from search: name, university and batch. Messaging opens with Chats.
 export default function PersonScreen() {
@@ -88,12 +102,28 @@ export default function PersonScreen() {
 
 function PersonCard({ person, onChange }: { person: Person; onChange: () => void }) {
   const styles = useStyles();
-  const relation = person.relation ? RELATION[person.relation] : null;
+  const relation = [
+    person.relation ? RELATION[person.relation] : null,
+    person.fresher ? 'Fresher' : null,
+    person.ambassador ? 'Ambassador' : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
   const firstName = person.full_name.split(' ')[0];
   const [confirmBlock, setConfirmBlock] = useState(false);
   const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
+  const [appointing, setAppointing] = useState(false);
+
+  async function appoint() {
+    setError(null);
+    setAppointing(true);
+    const r = await setAmbassador(person.user_id, !person.ambassador);
+    setAppointing(false);
+    if (r.error) setError(r.error);
+    else onChange();
+  }
 
   // Opens (or creates) the direct chat. The server applies their "who can message me" setting.
   async function message() {
@@ -107,7 +137,9 @@ function PersonCard({ person, onChange }: { person: Person; onChange: () => void
 
   async function block() {
     setError(null);
-    const { error: blockError } = await supabase.rpc('block_user', { p_user_id: person.user_id });
+    const { error: blockError } = await supabase.rpc('block_user', {
+      p_user_id: person.user_id,
+    });
     if (blockError) {
       setError('Could not block. Check your connection and try again.');
       return;
@@ -143,12 +175,56 @@ function PersonCard({ person, onChange }: { person: Person; onChange: () => void
             <Text style={styles.blockText}>Block {firstName}</Text>
           </PressableScale>
           <PressableScale
-            onPress={() => setReporting({ kind: 'profile', id: person.user_id, who: person.full_name })}
+            onPress={() =>
+              setReporting({
+                kind: 'profile',
+                id: person.user_id,
+                who: person.full_name,
+              })
+            }
             accessibilityRole="button"
             accessibilityLabel={`Report ${person.full_name}`}
             style={styles.block}>
             <Text style={styles.blockText}>Report {firstName}</Text>
           </PressableScale>
+          {person.can_appoint ? (
+            <Button
+              label="Warn, mute or suspend"
+              variant="quiet"
+              onPress={() => {
+                openReport({
+                  target_kind: 'profile',
+                  target_id: person.user_id,
+                  institution: person.institution.name,
+                  priority: 3,
+                  categories: ['Staff action'],
+                  reports: 0,
+                  first_at: new Date().toISOString(),
+                  due_at: new Date().toISOString(),
+                  details: [],
+                  snapshot: {},
+                  subject: {
+                    user_id: person.user_id,
+                    name: person.full_name,
+                    avatar_path: person.avatar_path,
+                    status: 'active',
+                    strikes: 0,
+                    muted_until: null,
+                    staff: false,
+                  },
+                });
+                router.push('/admin/report');
+              }}
+            />
+          ) : null}
+          {person.can_appoint ? (
+            <Button
+              label={person.ambassador ? 'Remove as ambassador' : 'Make ambassador'}
+              variant="quiet"
+              loading={appointing}
+              onPress={appoint}
+            />
+          ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       ) : null}
@@ -182,7 +258,9 @@ function BlockedCard({ person, onChange }: { person: BlockedPerson; onChange: ()
   async function unblock() {
     setError(null);
     setUnblocking(true);
-    const { error: unblockError } = await supabase.rpc('unblock_user', { p_user_id: person.user_id });
+    const { error: unblockError } = await supabase.rpc('unblock_user', {
+      p_user_id: person.user_id,
+    });
     setUnblocking(false);
     if (unblockError) {
       setError(`Could not unblock ${firstName}. Check your connection and try again.`);
@@ -236,7 +314,13 @@ function Row({ label, value }: { label: string; value: string }) {
 
 const useStyles = createThemedStyles((t) => ({
   screen: { backgroundColor: t.background },
-  content: { padding: space.xl, paddingTop: space.sm, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  content: {
+    padding: space.xl,
+    paddingTop: space.sm,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
   stack: { gap: space.xl },
   identity: { alignItems: 'center', gap: space.sm, paddingBottom: space.sm },
   name: {
@@ -249,20 +333,75 @@ const useStyles = createThemedStyles((t) => ({
     letterSpacing: -0.2,
   },
   relation: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.textMuted },
-  blockedLine: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.dangerText },
-  blockedBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: t.text },
-  list: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.lg, gap: space.lg },
+  blockedLine: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: t.dangerText,
+  },
+  blockedBody: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: t.text,
+  },
+  list: {
+    backgroundColor: t.surface,
+    borderRadius: radius.lg,
+    padding: space.lg,
+    gap: space.lg,
+  },
   row: { gap: 2 },
   rowLabel: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted },
-  rowValue: { fontFamily: fonts.bodySemiBold, fontSize: 16, lineHeight: 22, color: t.text },
+  rowValue: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: t.text,
+  },
   actions: { gap: space.sm },
-  soon: { fontFamily: fonts.body, fontSize: 14, color: t.textMuted, textAlign: 'center' },
-  block: { alignSelf: 'center', paddingHorizontal: space.lg, paddingVertical: space.md, marginTop: space.lg },
+  soon: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: t.textMuted,
+    textAlign: 'center',
+  },
+  block: {
+    alignSelf: 'center',
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    marginTop: space.lg,
+  },
   blockText: { fontFamily: fonts.bodyBold, fontSize: 15, color: t.dangerText },
-  error: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.dangerText, textAlign: 'center' },
+  error: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: t.dangerText,
+    textAlign: 'center',
+  },
   note: { paddingTop: space.xxl, gap: space.xs, alignItems: 'center' },
-  noteTitle: { fontFamily: fonts.bodyBold, fontSize: 18, color: t.text, textAlign: 'center' },
-  noteBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted, textAlign: 'center' },
-  skeletonAvatar: { width: 96, height: 96, borderRadius: 48, backgroundColor: t.surface },
-  skeletonLine: { height: 16, borderRadius: radius.sm, backgroundColor: t.surface, marginTop: space.sm },
+  noteTitle: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 18,
+    color: t.text,
+    textAlign: 'center',
+  },
+  noteBody: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: t.textMuted,
+    textAlign: 'center',
+  },
+  skeletonAvatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: t.surface,
+  },
+  skeletonLine: {
+    height: 16,
+    borderRadius: radius.sm,
+    backgroundColor: t.surface,
+    marginTop: space.sm,
+  },
 }));

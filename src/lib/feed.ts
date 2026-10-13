@@ -10,6 +10,7 @@ import { mediaUrl } from '@/lib/media';
 import { hasNative, UPDATE_APP } from '@/lib/native';
 import type { SharedFile } from '@/lib/shared';
 import type { ListingCard } from '@/lib/shop';
+import { onSignOut } from '@/lib/resets';
 import { supabase } from '@/lib/supabase';
 
 // The home feed (see the home feed migration). Built to cost little: a refresh is one call (the
@@ -17,12 +18,13 @@ import { supabase } from '@/lib/supabase';
 // posts seen since; likes wait 400 ms so quick taps send one call. Posts live in one store, so the
 // feed and the post screen show the same likes and counts without fetching again.
 
-export type PostTag = 'question' | 'lost_found' | 'notice' | 'bodim';
+export type PostTag = 'question' | 'lost_found' | 'notice' | 'bodim' | 'job';
 export const TAG_LABEL: Record<PostTag, string> = {
   question: 'Question',
   lost_found: 'Lost & found',
   notice: 'Notice',
   bodim: 'Bodim',
+  job: 'Part-time job',
 };
 
 export type LostFoundDetails = { kind: 'lost' | 'found'; where?: string };
@@ -42,6 +44,35 @@ export type BodimDetails = {
 };
 
 export const GENDER_LABEL: Record<BodimGender, string> = { girls: 'For girls', boys: 'For boys', anyone: 'For anyone' };
+/** A part-time job. Pay is optional ("to discuss"); remote work needs no area. */
+export type JobPer = 'hour' | 'day' | 'week' | 'month' | 'task';
+export type JobDetails = {
+  role: string;
+  pay?: number;
+  per?: JobPer;
+  remote?: boolean;
+  area?: string;
+  /** "Weekends, 4 hours" */
+  hours?: string;
+  phone?: string;
+  /** "2026-11-30" */
+  closes_on?: string;
+};
+export const PER_LABEL: Record<JobPer, string> = {
+  hour: 'an hour',
+  day: 'a day',
+  week: 'a week',
+  month: 'a month',
+  task: 'for the task',
+};
+
+/** True when a job's closing day has passed (Sri Lanka time). */
+export function jobClosed(details: JobDetails | null | undefined, now = Date.now()) {
+  if (!details?.closes_on) return false;
+  const today = new Date(now + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+  return details.closes_on < today;
+}
+
 export const ROOM_LABEL: Record<BodimRoom, string> = {
   single: 'Single room',
   shared: 'Shared room',
@@ -70,6 +101,7 @@ export const rupees = (n: number) => `Rs ${n.toLocaleString('en-US')}`;
 export function doneLabel(post: Pick<Post, 'tag' | 'details'>) {
   if (post.tag === 'question') return { done: 'Answered', mark: 'Mark as answered' };
   if (post.tag === 'bodim') return { done: 'Taken', mark: 'Mark as taken' };
+  if (post.tag === 'job') return { done: 'Filled', mark: 'Mark as filled' };
   if (post.tag === 'lost_found') {
     return (post.details as LostFoundDetails | null)?.kind === 'found'
       ? { done: 'Back with its owner', mark: 'Mark as returned' }
@@ -85,7 +117,7 @@ export type Post = {
   body: string;
   tag: PostTag | null;
   notice_from: string | null;
-  details: LostFoundDetails | BodimDetails | null;
+  details: LostFoundDetails | BodimDetails | JobDetails | null;
   /** Answered, returned or taken. */
   resolved: boolean;
   edited: boolean;
@@ -234,6 +266,15 @@ export function toggleLike(id: number) {
 const seenWaiting = new Set<number>();
 const seenSent = new Set<number>();
 
+// The next account starts with no posts, likes or seen marks from this one.
+onSignOut(() => {
+  for (const p of pendingLikes.values()) clearTimeout(p.timer);
+  pendingLikes.clear();
+  posts.clear();
+  seenWaiting.clear();
+  seenSent.clear();
+});
+
 export function markSeen(id: number) {
   if (!seenSent.has(id)) seenWaiting.add(id);
 }
@@ -335,7 +376,7 @@ export async function setResolved(id: number, resolved: boolean) {
 export type PostInput = {
   body: string;
   tag: PostTag | null;
-  details: LostFoundDetails | BodimDetails | null;
+  details: LostFoundDetails | BodimDetails | JobDetails | null;
   audience: 'university' | 'everyone';
 };
 

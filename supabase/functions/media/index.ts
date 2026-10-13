@@ -29,10 +29,12 @@
 //                   If the sticker already exists it is just added to the student's library.
 //   sticker_commit  checks the uploaded sticker really is a WebP whose SHA-256 is its name, then
 //                   records it (api.commit_sticker, service role). Anything else is deleted.
+//   cleanup         called by the database (pg_net, x-media-secret): deletes files of deleted
+//                   accounts queued in ops.file_deletions, from either bucket.
 //
 // Secrets: R2_ACCOUNT_ID, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY (public bucket:
 // avatars and stickers) and R2_CHAT_BUCKET, R2_CHAT_ACCESS_KEY_ID, R2_CHAT_SECRET_ACCESS_KEY (the
-// private chat bucket).
+// private chat bucket), and MEDIA_SECRET (the same value as the Vault secret media_function_secret).
 
 import { createClient, type PostgrestError } from 'npm:@supabase/supabase-js@2.117.3';
 import { AwsClient } from 'npm:aws4fetch@1.0.20';
@@ -117,12 +119,53 @@ function matchesType(b: Uint8Array, mime: string) {
   return false;
 }
 
+// Constant-time comparison for the database's shared secret.
+function sameSecret(a: string, b: string) {
+  const x = new TextEncoder().encode(a);
+  const y = new TextEncoder().encode(b);
+  if (x.length !== y.length || x.length === 0) return false;
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
+
 const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Use POST.' }, 405);
   if (!ready) return json({ error: 'File sharing is not set up yet.' }, 503);
+
+  const body = await req.json().catch(() => null);
+  const action = body?.action;
+
+  if (action === 'cleanup') {
+    if (!sameSecret(req.headers.get('x-media-secret') ?? '', env('MEDIA_SECRET'))) return json({ error: 'Not allowed.' }, 403);
+    const service = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
+      db: { schema: 'api' },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await service.rpc('files_to_delete', { p_limit: 200 });
+    if (error) return fromDatabase(error);
+    const files = (data ?? []) as { bucket: 'public' | 'chat'; path: string }[];
+    const gone = (
+      await Promise.all(
+        files.map(async (f) => {
+          const res =
+            f.bucket === 'public'
+              ? await publicR2.fetch(publicUrl(f.path), { method: 'DELETE' })
+              : await chatR2.fetch(chatUrl(f.path), { method: 'DELETE' });
+          // 404: already gone.
+          return res.ok || res.status === 404 ? f : null;
+        }),
+      )
+    ).filter((f): f is { bucket: 'public' | 'chat'; path: string } => f !== null);
+    if (gone.length > 0) {
+      const { error: doneError } = await service.rpc('files_deleted', { p_files: gone });
+      if (doneError) return fromDatabase(doneError);
+    }
+    return json({ deleted: gone.length, left: files.length - gone.length });
+  }
 
   const authorization = req.headers.get('Authorization');
   if (!authorization) return json({ error: 'Sign in first.' }, 401);
@@ -131,9 +174,6 @@ Deno.serve(async (req) => {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-
-  const body = await req.json().catch(() => null);
-  const action = body?.action;
 
   if (action === 'sign') {
     const size = Number(body.size);

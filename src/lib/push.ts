@@ -169,7 +169,7 @@ export function conversationOf(response: NotificationsModule.NotificationRespons
 
 // Screens a notification may open (its data carries the link). Anything else is ignored.
 const SCREENS =
-  /^\/(kuppi\/[0-9a-f-]{36}|shop\/(orders\/)?[0-9a-f-]{36}|shop\/leads|resource\/[0-9a-f-]{36}|module\/\d{1,12}|post\/\d{1,15}|exams)?$/;
+  /^\/(kuppi\/[0-9a-f-]{36}|shop\/(orders\/)?[0-9a-f-]{36}|shop\/leads|resource\/[0-9a-f-]{36}|module\/\d{1,12}|post\/\d{1,15}|freshers(\/\d{1,15})?|exams)?$/;
 
 /** The screen a tapped notification opens ("/kuppi/<id>", "/exams", "/" for Home). */
 export function hrefOf(response: NotificationsModule.NotificationResponse | null): string | null {

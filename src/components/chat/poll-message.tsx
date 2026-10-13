@@ -11,6 +11,7 @@ import { listTime } from '@/lib/chat/format';
 import { useChatState } from '@/lib/chat/store';
 import type { Message, PollAttachment } from '@/lib/chat/types';
 import { supabase } from '@/lib/supabase';
+import { onSignOut } from '@/lib/resets';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 // A poll: tap an option to vote, tap it again to take the vote back. Bars show each option's
@@ -103,6 +104,7 @@ type Voter = { option: number; user_id: string; full_name: string; avatar_path: 
 
 // The last list seen for each poll: "View votes" again shows it at once and refreshes behind.
 const seen = new Map<string, Voter[]>();
+onSignOut(() => seen.clear());
 
 // Who voted for each option, newest vote first, in a sheet over the lower part of the chat. A plain
 // ScrollView, not a SectionList: the poll lives inside the chat's message list, and a list opened
@@ -117,13 +119,15 @@ function PollVotes({ message, poll, onClose }: { message: Message; poll: PollAtt
   // Loads again whenever the counts change, so the list matches the bars.
   useEffect(() => {
     let live = true;
-    supabase.rpc('poll_voters', { p_conversation_id: message.conversation_id, p_message_id: message.id }).then(({ data, error }) => {
-      if (!live) return;
-      setFailed(!!error);
-      if (error) return;
-      seen.set(message.id, (data ?? []) as Voter[]);
-      setRows((data ?? []) as Voter[]);
-    });
+    supabase
+      .rpc('poll_voters', { p_conversation_id: message.conversation_id, p_message_id: message.id })
+      .then(({ data, error }) => {
+        if (!live) return;
+        setFailed(!!error);
+        if (error) return;
+        seen.set(message.id, (data ?? []) as Voter[]);
+        setRows((data ?? []) as Voter[]);
+      });
     return () => {
       live = false;
     };

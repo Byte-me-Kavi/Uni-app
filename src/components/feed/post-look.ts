@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { BriefcaseIcon } from 'phosphor-react-native/src/icons/Briefcase';
 import { HouseIcon } from 'phosphor-react-native/src/icons/House';
 import { MagnifyingGlassIcon } from 'phosphor-react-native/src/icons/MagnifyingGlass';
 import { HandHeartIcon } from 'phosphor-react-native/src/icons/HandHeart';
@@ -21,17 +22,20 @@ const TONES = {
     lost: { tint: '#FDE3E8', text: '#A11236' },
     found: { tint: '#DDF3E9', text: '#05694C' },
     bodim: { tint: '#E6E8FD', text: '#3730A3' },
+    job: { tint: '#FAE8FF', text: '#86198F' },
   },
   dark: {
     question: { tint: '#33240C', text: '#F7C268' },
     lost: { tint: '#3A1220', text: '#F7A1B6' },
     found: { tint: '#0C2C22', text: '#76DDB7' },
     bodim: { tint: '#1C1C44', text: '#B3B6FA' },
+    job: { tint: '#3A0D3E', text: '#F0ABFC' },
   },
 } as const;
 
-// Amber 700, rose 700, emerald 700 and indigo 700: deep enough for white labels in both modes.
-const SOLID = { question: '#B45309', lost: '#BE123C', found: '#047857', bodim: '#4338CA' } as const;
+// Amber 700, rose 700, emerald 700, indigo 700 and fuchsia 700: deep enough for white labels in
+// both modes, and far enough apart to tell at a glance.
+const SOLID = { question: '#B45309', lost: '#BE123C', found: '#047857', bodim: '#4338CA', job: '#A21CAF' } as const;
 
 /** The look of a post's kind, or null for a plain post. */
 export function lookOf(
@@ -56,6 +60,8 @@ export function lookOf(
         : { key: 'lost', label: 'Lost', Icon: MagnifyingGlassIcon, solid: SOLID.lost, onSolid: '#FFFFFF', ...tone.lost };
     case 'bodim':
       return { key: 'bodim', label: 'Bodim', Icon: HouseIcon, solid: SOLID.bodim, onSolid: '#FFFFFF', ...tone.bodim };
+    case 'job':
+      return { key: 'job', label: 'Part-time job', Icon: BriefcaseIcon, solid: SOLID.job, onSolid: '#FFFFFF', ...tone.job };
     case 'notice':
       // The theme's own accent: a notice is "from us".
       return {

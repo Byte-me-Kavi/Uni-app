@@ -13,6 +13,7 @@ import { KeyboardFrame, KeyboardScroll } from '@/components/ui/keyboard';
 import { supabase } from '@/lib/supabase';
 import { useHomeData } from '@/providers/home-provider';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
+import { DirectoryPrompt } from '@/components/settings/directory-prompt';
 
 type Suggestion = {
   email_code: string | null;
@@ -245,6 +246,7 @@ export default function Batch() {
               <Text style={styles.lead}>
                 Your batch group chat opens with Chats. Need to change your batch? Contact the Uni Era team.
               </Text>
+              <DirectoryPrompt />
               <Button label="Done" onPress={() => router.back()} />
             </View>
           ) : null}

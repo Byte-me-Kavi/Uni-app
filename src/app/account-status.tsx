@@ -3,10 +3,13 @@ import { AppState, Text } from 'react-native';
 
 import { AuthChrome } from '@/components/auth/auth-chrome';
 import { AuthScreen } from '@/components/auth/auth-screen';
+import { FresherWaiting } from '@/components/freshers/fresher-waiting';
 import { Reveal } from '@/components/motion/reveal';
+import { StandingView } from '@/components/safety/standing-view';
 import { Button } from '@/components/ui/button';
 import { FormMessage } from '@/components/ui/form-message';
 import { enablePush, pushStatus, pushSupported, registerPush, type PushStatus } from '@/lib/push';
+import { signOut } from '@/lib/sign-out';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/providers/session-provider';
 import { createThemedStyles, fonts, radius, space } from '@/theme/tokens';
@@ -19,6 +22,16 @@ type Account = {
 };
 
 export default function AccountStatus() {
+  const session = useSession();
+  const claims = session.status === 'signed_in' ? session.claims : null;
+  // A fresher waiting for approval uploads their letter here instead.
+  if (claims?.accountKind === 'fresher' && (claims.accountStatus === 'pending' || claims.accountStatus === 'rejected')) {
+    return <FresherWaiting />;
+  }
+  return <StudentStatus />;
+}
+
+function StudentStatus() {
   const styles = useStyles();
   const session = useSession();
   const status = session.status === 'signed_in' ? session.claims.accountStatus : 'pending';
@@ -83,7 +96,7 @@ export default function AccountStatus() {
     },
     suspended: {
       title: 'This account is suspended',
-      body: 'The Uni Era team suspended this account for breaking the community guidelines.',
+      body: 'The Uni Era team suspended this account for breaking the community guidelines. Below is why, when it ends, and how to appeal.',
     },
     active: { title: 'You are in', body: 'Opening Uni Era...' },
   }[status];
@@ -93,8 +106,8 @@ export default function AccountStatus() {
       <AuthScreen
         title={copy.title}
         subtitle={copy.body}
-        footer={<Button label="Sign out" variant="quiet" onPress={() => supabase.auth.signOut()} />}>
-        {reason && status !== 'pending' ? (
+        footer={<Button label="Sign out" variant="quiet" onPress={() => signOut()} />}>
+        {reason && status === 'rejected' ? (
           <Reveal order={2} style={styles.reason}>
             <Text style={styles.reasonLabel}>Reason</Text>
             <Text style={styles.reasonText}>{reason}</Text>
@@ -119,6 +132,10 @@ export default function AccountStatus() {
               />
             </Reveal>
           </>
+        ) : status === 'suspended' ? (
+          <Reveal order={2}>
+            <StandingView />
+          </Reveal>
         ) : (
           <Reveal order={3}>
             <Text style={styles.help}>If you think this is a mistake, contact the Uni Era team from your university email.</Text>

@@ -17,6 +17,7 @@ import { openChat } from '@/lib/chat/open-chat';
 import { useChatState } from '@/lib/chat/store';
 import type { Chat, Message } from '@/lib/chat/types';
 import { useHomeData } from '@/providers/home-provider';
+import { useIsFresher } from '@/providers/session-provider';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 type Section = 'chats' | 'requests' | 'archived';
@@ -29,6 +30,7 @@ type Row = { type: 'chat'; chat: Chat } | { type: 'message'; message: Message; t
 // Search finds chats by name and messages already on this phone.
 export default function Chats() {
   const theme = useTheme();
+  const fresher = useIsFresher();
   const styles = useStyles();
   const chats = useChatState((s) => s.chats);
   const loaded = useChatState((s) => s.chatsLoaded);
@@ -82,7 +84,11 @@ export default function Chats() {
           .filter((c) => words.every((w) => (c.title ?? '').toLowerCase().includes(w)))
           .map((chat) => ({ type: 'chat' as const, chat })),
         ...(found.length ? [{ type: 'label' as const, text: 'Messages' }] : []),
-        ...found.map((message) => ({ type: 'message' as const, message, title: titleOf(message.conversation_id) })),
+        ...found.map((message) => ({
+          type: 'message' as const,
+          message,
+          title: titleOf(message.conversation_id),
+        })),
       ]
     : visible.map((chat) => ({ type: 'chat' as const, chat }));
 
@@ -104,24 +110,46 @@ export default function Chats() {
     if (!chat.archived && !chat.request) {
       actions.push(
         chat.list_pinned_at
-          ? { label: 'Unpin chat', onPress: () => setChatListState(chat.conversation_id, { pinned: false }).then(done) }
-          : { label: 'Pin to top', onPress: () => setChatListState(chat.conversation_id, { pinned: true }).then(done) },
+          ? {
+              label: 'Unpin chat',
+              onPress: () => setChatListState(chat.conversation_id, { pinned: false }).then(done),
+            }
+          : {
+              label: 'Pin to top',
+              onPress: () => setChatListState(chat.conversation_id, { pinned: true }).then(done),
+            },
       );
     }
     actions.push(
       chat.archived
-        ? { label: 'Unarchive', onPress: () => setChatListState(chat.conversation_id, { archived: false }).then(done) }
-        : { label: 'Archive', onPress: () => setChatListState(chat.conversation_id, { archived: true }).then(done) },
+        ? {
+            label: 'Unarchive',
+            onPress: () => setChatListState(chat.conversation_id, { archived: false }).then(done),
+          }
+        : {
+            label: 'Archive',
+            onPress: () => setChatListState(chat.conversation_id, { archived: true }).then(done),
+          },
     );
     actions.push(
       chat.muted
-        ? { label: 'Unmute', onPress: () => setMuted(chat.conversation_id, false).then(done) }
-        : { label: 'Mute', onPress: () => setMuted(chat.conversation_id, true).then(done) },
+        ? {
+            label: 'Unmute',
+            onPress: () => setMuted(chat.conversation_id, false).then(done),
+          }
+        : {
+            label: 'Mute',
+            onPress: () => setMuted(chat.conversation_id, true).then(done),
+          },
     );
     return actions;
   }
 
-  const segments: Section[] = ['chats', ...(requests.length ? (['requests'] as const) : []), ...(archived.length ? (['archived'] as const) : [])];
+  const segments: Section[] = [
+    'chats',
+    ...(requests.length ? (['requests'] as const) : []),
+    ...(archived.length ? (['archived'] as const) : []),
+  ];
   const segmentLabel = (key: Section) =>
     key === 'chats' ? 'Chats' : key === 'requests' ? `Requests (${requests.length})` : `Archived (${archived.length})`;
 
@@ -132,14 +160,16 @@ export default function Chats() {
           <Text style={styles.heading} accessibilityRole="header">
             Chats
           </Text>
-          <PressableScale
-            onPress={() => router.push('/new-group')}
-            accessibilityRole="button"
-            accessibilityLabel="New group"
-            style={styles.newGroup}>
-            <PlusIcon size={16} color={theme.onAccent} weight="bold" />
-            <Text style={styles.newGroupText}>New group</Text>
-          </PressableScale>
+          {fresher ? null : (
+            <PressableScale
+              onPress={() => router.push('/new-group')}
+              accessibilityRole="button"
+              accessibilityLabel="New group"
+              style={styles.newGroup}>
+              <PlusIcon size={16} color={theme.onAccent} weight="bold" />
+              <Text style={styles.newGroupText}>New group</Text>
+            </PressableScale>
+          )}
         </View>
         <View style={styles.search}>
           <MagnifyingGlassIcon size={18} color={theme.textMuted} weight="bold" />
@@ -203,7 +233,11 @@ export default function Chats() {
                 <Text style={styles.resultTime}>{listTime(item.message.created_at)}</Text>
               </View>
               <Text style={styles.resultBody} numberOfLines={2}>
-                {item.message.sender_id === me ? 'You: ' : item.message.sender_name ? `${item.message.sender_name.split(' ')[0]}: ` : ''}
+                {item.message.sender_id === me
+                  ? 'You: '
+                  : item.message.sender_name
+                    ? `${item.message.sender_name.split(' ')[0]}: `
+                    : ''}
                 {item.message.body}
               </Text>
             </Pressable>
@@ -228,7 +262,9 @@ export default function Chats() {
               <Button label="Find my batch" onPress={() => router.push('/batch')} />
             </View>
           ) : section === 'archived' ? (
-            <Text style={styles.archivedNote}>Archived chats stay here when new messages arrive. Long press one to unarchive it.</Text>
+            <Text style={styles.archivedNote}>
+              Archived chats stay here when new messages arrive. Long press one to unarchive it.
+            </Text>
           ) : null
         }
         ListEmptyComponent={
@@ -261,27 +297,39 @@ export default function Chats() {
         }
         ListFooterComponent={
           !searching && section === 'chats' && visible.length > 0 ? (
-            <Text style={[styles.footer, { color: theme.textMuted }]}>
-              Long press a chat to pin, archive or mute it.
-            </Text>
+            <Text style={[styles.footer, { color: theme.textMuted }]}>Long press a chat to pin, archive or mute it.</Text>
           ) : null
         }
       />
 
-      <ActionSheet
-        visible={!!menuFor}
-        actions={menuFor ? actionsFor(menuFor) : []}
-        onClose={() => setMenuFor(null)}
-      />
+      <ActionSheet visible={!!menuFor} actions={menuFor ? actionsFor(menuFor) : []} onClose={() => setMenuFor(null)} />
     </View>
   );
 }
 
 const useStyles = createThemedStyles((t) => ({
   screen: { flex: 1 },
-  header: { paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.sm, gap: space.md, width: '100%', maxWidth: 560, alignSelf: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heading: { fontFamily: fonts.display, fontSize: 28, lineHeight: 34, color: t.text, letterSpacing: -0.3 },
+  header: {
+    paddingHorizontal: space.xl,
+    paddingTop: space.sm,
+    paddingBottom: space.sm,
+    gap: space.md,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heading: {
+    fontFamily: fonts.display,
+    fontSize: 28,
+    lineHeight: 34,
+    color: t.text,
+    letterSpacing: -0.3,
+  },
   newGroup: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -302,32 +350,123 @@ const useStyles = createThemedStyles((t) => ({
     borderRadius: radius.pill,
     backgroundColor: t.surface,
   },
-  searchInput: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: t.text, paddingVertical: 0 },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: t.text,
+    paddingVertical: 0,
+  },
   segments: { flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' },
-  segment: { paddingHorizontal: space.lg, paddingVertical: space.sm, borderRadius: radius.pill, backgroundColor: t.surface },
+  segment: {
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
+    borderRadius: radius.pill,
+    backgroundColor: t.surface,
+  },
   segmentActive: { backgroundColor: t.focus },
   segmentText: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
   segmentTextActive: { color: t.background },
   note: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.dangerText },
-  list: { paddingHorizontal: space.xl - space.sm, paddingBottom: space.xxxl, width: '100%', maxWidth: 560, alignSelf: 'center' },
-  label: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted, paddingHorizontal: space.sm, paddingTop: space.lg, paddingBottom: space.xs },
-  result: { paddingHorizontal: space.sm, paddingVertical: space.sm + 2, borderRadius: radius.md, gap: 2 },
+  list: {
+    paddingHorizontal: space.xl - space.sm,
+    paddingBottom: space.xxxl,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+  },
+  label: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 13,
+    color: t.textMuted,
+    paddingHorizontal: space.sm,
+    paddingTop: space.lg,
+    paddingBottom: space.xs,
+  },
+  result: {
+    paddingHorizontal: space.sm,
+    paddingVertical: space.sm + 2,
+    borderRadius: radius.md,
+    gap: 2,
+  },
   pressed: { backgroundColor: t.surface },
   resultTop: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  resultTitle: { flex: 1, fontFamily: fonts.bodyBold, fontSize: 15, color: t.text },
+  resultTitle: {
+    flex: 1,
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: t.text,
+  },
   resultTime: { fontFamily: fonts.body, fontSize: 12.5, color: t.textMuted },
-  resultBody: { fontFamily: fonts.body, fontSize: 14, lineHeight: 19, color: t.textMuted },
-  archivedNote: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: t.textMuted, paddingHorizontal: space.sm, paddingBottom: space.sm },
-  joinCard: { backgroundColor: t.surface, borderRadius: radius.lg, padding: space.lg, gap: space.sm, margin: space.sm, marginBottom: space.md },
-  joinIcon: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' },
+  resultBody: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 19,
+    color: t.textMuted,
+  },
+  archivedNote: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 18,
+    color: t.textMuted,
+    paddingHorizontal: space.sm,
+    paddingBottom: space.sm,
+  },
+  joinCard: {
+    backgroundColor: t.surface,
+    borderRadius: radius.lg,
+    padding: space.lg,
+    gap: space.sm,
+    margin: space.sm,
+    marginBottom: space.md,
+  },
+  joinIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: t.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   joinTitle: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
-  joinBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted, marginBottom: space.xs },
+  joinBody: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: t.textMuted,
+    marginBottom: space.xs,
+  },
   empty: { paddingHorizontal: space.sm, paddingTop: space.xl, gap: space.xs },
   emptyTitle: { fontFamily: fonts.bodyBold, fontSize: 17, color: t.text },
-  emptyBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.textMuted, paddingHorizontal: space.sm },
-  footer: { fontFamily: fonts.body, fontSize: 13, textAlign: 'center', paddingTop: space.xl },
-  skeletonRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.sm },
-  skeletonIcon: { width: 52, height: 52, borderRadius: 17, backgroundColor: t.surface },
+  emptyBody: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: t.textMuted,
+    paddingHorizontal: space.sm,
+  },
+  footer: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    textAlign: 'center',
+    paddingTop: space.xl,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    padding: space.sm,
+  },
+  skeletonIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 17,
+    backgroundColor: t.surface,
+  },
   skeletonText: { flex: 1, gap: space.sm },
-  skeletonLine: { height: 14, borderRadius: radius.sm, backgroundColor: t.surface },
+  skeletonLine: {
+    height: 14,
+    borderRadius: radius.sm,
+    backgroundColor: t.surface,
+  },
 }));

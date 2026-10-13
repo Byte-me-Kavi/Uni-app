@@ -15,6 +15,7 @@ import { PressableScale } from '@/components/ui/pressable-scale';
 import { Screen } from '@/components/ui/screen';
 import { addComment, ago, deleteComment, loadPost, peekPost, type FeedComment } from '@/lib/feed';
 import { firstName } from '@/lib/use-home';
+import { useIsFresher } from '@/providers/session-provider';
 import { createThemedStyles, fonts, radius, space, useTheme } from '@/theme/tokens';
 
 const thread = (c: FeedComment) => c.parent_id ?? c.id;
@@ -25,7 +26,10 @@ const ordered = (list: FeedComment[]) => [...list].sort((a, b) => thread(a) - th
 export default function PostScreen() {
   const theme = useTheme();
   const styles = useStyles();
-  const { id: raw, reply: replyParam } = useLocalSearchParams<{ id: string; reply?: string }>();
+  const { id: raw, reply: replyParam } = useLocalSearchParams<{
+    id: string;
+    reply?: string;
+  }>();
   const id = Number(raw);
   const [comments, setComments] = useState<FeedComment[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>(() => (peekPost(id) ? 'ready' : 'loading'));
@@ -36,6 +40,7 @@ export default function PostScreen() {
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const input = useRef<TextInput>(null);
+  const fresher = useIsFresher();
   const list = useRef<FlatList<FeedComment>>(null);
 
   useEffect(() => {
@@ -153,32 +158,36 @@ export default function PostScreen() {
             </View>
           ) : null}
           {sendError ? <FormMessage message={sendError} /> : null}
-          <View style={styles.inputRow}>
-            <TextInput
-              ref={input}
-              value={text}
-              onChangeText={setText}
-              placeholder={replyTo ? 'Write a reply' : peekPost(id)?.tag === 'question' ? 'Write an answer' : 'Write a comment'}
-              placeholderTextColor={theme.textMuted}
-              multiline
-              maxLength={500}
-              style={styles.input}
-              accessibilityLabel={replyTo ? 'Reply' : 'Comment'}
-            />
-            <PressableScale
-              onPress={send}
-              disabled={!text.trim() || sending}
-              accessibilityRole="button"
-              accessibilityLabel="Send"
-              hitSlop={6}
-              style={[styles.send, { backgroundColor: theme.accent }, (!text.trim() || sending) && styles.disabled]}>
-              {sending ? (
-                <ActivityIndicator size="small" color={theme.onAccent} />
-              ) : (
-                <PaperPlaneRightIcon size={20} weight="fill" color={theme.onAccent} />
-              )}
-            </PressableScale>
-          </View>
+          {fresher ? (
+            <Text style={styles.fresherNote}>Freshers can comment once they add their university email.</Text>
+          ) : (
+            <View style={styles.inputRow}>
+              <TextInput
+                ref={input}
+                value={text}
+                onChangeText={setText}
+                placeholder={replyTo ? 'Write a reply' : peekPost(id)?.tag === 'question' ? 'Write an answer' : 'Write a comment'}
+                placeholderTextColor={theme.textMuted}
+                multiline
+                maxLength={500}
+                style={styles.input}
+                accessibilityLabel={replyTo ? 'Reply' : 'Comment'}
+              />
+              <PressableScale
+                onPress={send}
+                disabled={!text.trim() || sending}
+                accessibilityRole="button"
+                accessibilityLabel="Send"
+                hitSlop={6}
+                style={[styles.send, { backgroundColor: theme.accent }, (!text.trim() || sending) && styles.disabled]}>
+                {sending ? (
+                  <ActivityIndicator size="small" color={theme.onAccent} />
+                ) : (
+                  <PaperPlaneRightIcon size={20} weight="fill" color={theme.onAccent} />
+                )}
+              </PressableScale>
+            </View>
+          )}
         </View>
       </KeyboardFrame>
     </Screen>
@@ -199,14 +208,27 @@ const CommentRow = memo(function CommentRow({
   const [reporting, setReporting] = useState<ReportTarget | null>(null);
   const actions: SheetAction[] = [
     { label: 'Reply', onPress: () => onReply(comment) },
-    ...(comment.can_delete ? [{ label: 'Delete comment', destructive: true, onPress: () => onDelete(comment) }] : []),
+    ...(comment.can_delete
+      ? [
+          {
+            label: 'Delete comment',
+            destructive: true,
+            onPress: () => onDelete(comment),
+          },
+        ]
+      : []),
     ...(!comment.mine
       ? [
           {
             label: 'Report comment',
             destructive: true,
             onPress: () =>
-              setReporting({ kind: 'post_comment', id: String(comment.id), who: comment.author.name, userId: comment.author.id }),
+              setReporting({
+                kind: 'post_comment',
+                id: String(comment.id),
+                who: comment.author.name,
+                userId: comment.author.id,
+              }),
           },
         ]
       : []),
@@ -214,7 +236,12 @@ const CommentRow = memo(function CommentRow({
   return (
     <View style={[styles.comment, comment.parent_id !== null && styles.replyRow]}>
       <PressableScale
-        onPress={() => router.push({ pathname: '/people/[id]', params: { id: comment.author.id } })}
+        onPress={() =>
+          router.push({
+            pathname: '/people/[id]',
+            params: { id: comment.author.id },
+          })
+        }
         accessibilityRole="button"
         accessibilityLabel={comment.author.name}>
         <Avatar name={comment.author.name} path={comment.author.avatar_path} size={comment.parent_id ? 28 : 34} />
@@ -251,9 +278,22 @@ function Gap() {
 }
 
 const useStyles = createThemedStyles((t) => ({
+  fresherNote: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: t.textMuted,
+    textAlign: 'center',
+    paddingVertical: space.sm,
+  },
   screen: { backgroundColor: t.background },
   flex: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: space.xl,
+  },
   content: {
     padding: space.xl,
     paddingTop: space.sm,
@@ -274,8 +314,18 @@ const useStyles = createThemedStyles((t) => ({
     paddingVertical: space.sm,
   },
   commentName: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.text },
-  commentBody: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: t.text },
-  commentActions: { flexDirection: 'row', gap: space.lg, paddingLeft: space.md, paddingTop: 4 },
+  commentBody: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 21,
+    color: t.text,
+  },
+  commentActions: {
+    flexDirection: 'row',
+    gap: space.lg,
+    paddingLeft: space.md,
+    paddingTop: 4,
+  },
   time: { fontFamily: fonts.body, fontSize: 13, color: t.textMuted },
   small: { fontFamily: fonts.bodyBold, fontSize: 13, color: t.textMuted },
   link: { fontFamily: fonts.bodyBold, fontSize: 14, color: t.accentText },
@@ -288,8 +338,18 @@ const useStyles = createThemedStyles((t) => ({
     borderTopColor: t.border,
     backgroundColor: t.background,
   },
-  replying: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xs },
-  replyingText: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 13, color: t.textMuted },
+  replying: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.xs,
+  },
+  replyingText: {
+    flex: 1,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: t.textMuted,
+  },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
   input: {
     flex: 1,
@@ -304,6 +364,12 @@ const useStyles = createThemedStyles((t) => ({
     fontSize: 15,
     color: t.text,
   },
-  send: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  send: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   disabled: { opacity: 0.45 },
 }));

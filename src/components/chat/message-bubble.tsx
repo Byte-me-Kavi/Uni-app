@@ -120,12 +120,13 @@ function Content(props: Props) {
   const fetched = useLinkPreview(message.kind === 'text' && !message.link && !message.deleted ? firstLink(message.body) : null);
   const link = message.link ?? fetched;
   // Documents, photos and links the server recorded can carry a folder tag (see FolderTag).
-  const filed = message.status === 'sent' && !message.deleted && (message.kind === 'file' || message.kind === 'image' || !!message.link);
+  const filed =
+    message.status === 'sent' && !message.deleted && (message.kind === 'file' || message.kind === 'image' || !!message.link);
   const theme = useTheme();
   const name =
     group && !mine && showName ? (
       <Text style={styles.name} numberOfLines={1}>
-        {message.sender_name ?? 'Student'}
+        {message.sender_name ?? (message.sender_id ? 'Student' : 'Deleted account')}
       </Text>
     ) : null;
   const meta = <Meta {...props} />;
@@ -153,7 +154,10 @@ function Content(props: Props) {
     const source = attachment ? stickerSource(attachment) : null;
     const label = attachment?.pack === 'fluent' ? (STICKERS as Record<string, { label: string }>)[attachment.id]?.label : null;
     return (
-      <View style={[styles.free, mine && styles.columnMine]} accessible accessibilityLabel={`Sticker${label ? `: ${label}` : ''}`}>
+      <View
+        style={[styles.free, mine && styles.columnMine]}
+        accessible
+        accessibilityLabel={`Sticker${label ? `: ${label}` : ''}`}>
         {name}
         {reply ? <View style={[styles.freeReply, mine ? styles.mine : styles.theirs]}>{reply}</View> : null}
         {source ? (
@@ -235,7 +239,8 @@ function Content(props: Props) {
   return (
     // A preview card makes the bubble a fixed width, so the card (and its picture) has a size to
     // fill; left to size itself it could grow taller than the screen.
-    <View style={[styles.bubble, mine ? styles.mine : styles.theirs, (inner || (link && message.kind === 'text')) && styles.wide]}>
+    <View
+      style={[styles.bubble, mine ? styles.mine : styles.theirs, (inner || (link && message.kind === 'text')) && styles.wide]}>
       {name}
       {forwarded}
       {reply}
@@ -291,12 +296,22 @@ function Meta({ message, mine, read, delivered, starred }: Props) {
   const styles = useStyles();
   const time = message.status === 'pending' ? '' : clockTime(message.created_at);
   const state =
-    message.status === 'pending' ? 'Sending' : message.status === 'sent' ? (read ? 'Read' : delivered ? 'Delivered' : 'Sent') : '';
+    message.status === 'pending'
+      ? 'Sending'
+      : message.status === 'sent'
+        ? read
+          ? 'Read'
+          : delivered
+            ? 'Delivered'
+            : 'Sent'
+        : '';
   return (
     <View
       style={styles.meta}
       accessible
-      accessibilityLabel={[starred ? 'Starred' : '', message.edited_at ? 'Edited' : '', time, mine ? state : ''].filter(Boolean).join(', ')}>
+      accessibilityLabel={[starred ? 'Starred' : '', message.edited_at ? 'Edited' : '', time, mine ? state : '']
+        .filter(Boolean)
+        .join(', ')}>
       {starred ? <StarIcon size={12} color={theme.textMuted} weight="fill" /> : null}
       {message.edited_at && !message.deleted ? <Text style={styles.time}>Edited</Text> : null}
       {time ? <Text style={styles.time}>{time}</Text> : null}

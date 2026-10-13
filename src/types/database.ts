@@ -1,969 +1,1073 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.18"
-  }
+    PostgrestVersion: '14.18';
+  };
   api: {
     Tables: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
+      accept_policies: { Args: never; Returns: Json };
       ad_event: {
-        Args: { p_ad_id: string; p_placement?: string; p_tap?: boolean }
-        Returns: undefined
-      }
+        Args: { p_ad_id: string; p_placement?: string; p_tap?: boolean };
+        Returns: undefined;
+      };
       ad_upload_checked: {
-        Args: { p_ok: boolean; p_path: string }
-        Returns: undefined
-      }
-      ad_upload_to_check: { Args: { p_path: string }; Returns: Json }
+        Args: { p_ok: boolean; p_path: string };
+        Returns: undefined;
+      };
+      ad_upload_to_check: { Args: { p_path: string }; Returns: Json };
       add_comment:
         | {
-            Args: { p_body: string; p_parent_id?: number; p_post_id: number }
-            Returns: Json
+            Args: { p_body: string; p_parent_id?: number; p_post_id: number };
+            Returns: Json;
           }
         | {
             Args: {
-              p_body: string
-              p_parent_id?: string
-              p_question?: string
-              p_resource_id: string
-            }
-            Returns: Json
-          }
+              p_body: string;
+              p_parent_id?: string;
+              p_question?: string;
+              p_resource_id: string;
+            };
+            Returns: Json;
+          };
       add_group_members: {
-        Args: { p_conversation_id: string; p_member_ids: string[] }
-        Returns: Json
-      }
-      admin_ads: { Args: never; Returns: Json }
-      app_config: { Args: never; Returns: Json }
-      app_push_batch: { Args: { p_batch_id: string }; Returns: Json }
+        Args: { p_conversation_id: string; p_member_ids: string[] };
+        Returns: Json;
+      };
+      admin_ads: { Args: never; Returns: Json };
+      admin_help_contacts: { Args: never; Returns: Json };
+      admin_programmes: {
+        Args: { p_institution_id?: number; p_query?: string };
+        Returns: Json;
+      };
+      admin_settings: { Args: never; Returns: Json };
+      answer_fresher: {
+        Args: { p_body: string; p_question_id: number };
+        Returns: number;
+      };
+      app_config: { Args: never; Returns: Json };
+      app_push_batch: { Args: { p_batch_id: string }; Returns: Json };
+      appeal: {
+        Args: { p_action_id: string; p_statement: string };
+        Returns: string;
+      };
+      appeals_queue: { Args: never; Returns: Json };
       appoint_merch_lead: {
-        Args: { p_club: string; p_user_id: string }
-        Returns: Json
-      }
+        Args: { p_club: string; p_user_id: string };
+        Returns: Json;
+      };
+      ask_freshers: { Args: { p_body: string }; Returns: Json };
       ban_uploader: {
-        Args: { p_days?: number; p_reason: string; p_user_id: string }
-        Returns: undefined
-      }
-      batch_suggestion: { Args: never; Returns: Json }
+        Args: { p_days?: number; p_reason: string; p_user_id: string };
+        Returns: undefined;
+      };
+      batch_directory: { Args: never; Returns: Json };
+      batch_suggestion: { Args: never; Returns: Json };
       begin_ad_upload: {
-        Args: { p_kind: string; p_mime: string; p_size: number }
-        Returns: Json
-      }
-      begin_avatar_upload: { Args: never; Returns: string }
+        Args: { p_kind: string; p_mime: string; p_size: number };
+        Returns: Json;
+      };
+      begin_avatar_upload: { Args: never; Returns: string };
       begin_chat_upload: {
         Args: {
-          p_conversation_id: string
-          p_kind: string
-          p_mime: string
-          p_size: number
-        }
-        Returns: Json
-      }
-      begin_post_upload: { Args: { p_photos: Json }; Returns: Json }
+          p_conversation_id: string;
+          p_kind: string;
+          p_mime: string;
+          p_size: number;
+        };
+        Returns: Json;
+      };
+      begin_letter_upload: {
+        Args: { p_mime: string; p_size: number };
+        Returns: Json;
+      };
+      begin_post_upload: { Args: { p_photos: Json }; Returns: Json };
       begin_publish: {
         Args: {
-          p_category: string
-          p_message_id: string
-          p_module_id: number
-          p_paper_year?: number
-          p_scope?: string
-          p_title?: string
-        }
-        Returns: Json
-      }
+          p_category: string;
+          p_message_id: string;
+          p_module_id: number;
+          p_paper_year?: number;
+          p_scope?: string;
+          p_title?: string;
+        };
+        Returns: Json;
+      };
       begin_resource_upload: {
         Args: {
-          p_category: string
-          p_mime: string
-          p_module_id: number
-          p_paper_year?: number
-          p_scope?: string
-          p_size: number
-          p_title: string
-        }
-        Returns: Json
-      }
+          p_category: string;
+          p_mime: string;
+          p_module_id: number;
+          p_paper_year?: number;
+          p_scope?: string;
+          p_size: number;
+          p_title: string;
+        };
+        Returns: Json;
+      };
       begin_shop_upload: {
-        Args: { p_kind: string; p_mime?: string; p_size: number }
-        Returns: Json
-      }
+        Args: { p_kind: string; p_mime?: string; p_size: number };
+        Returns: Json;
+      };
       begin_sticker_upload: {
-        Args: { p_animated: boolean; p_hash: string; p_size: number }
-        Returns: Json
-      }
-      block_user: { Args: { p_user_id: string }; Returns: undefined }
+        Args: { p_animated: boolean; p_hash: string; p_size: number };
+        Returns: Json;
+      };
+      block_user: { Args: { p_user_id: string }; Returns: undefined };
       blocked_users: {
-        Args: never
+        Args: never;
         Returns: {
-          avatar_path: string
-          blocked_at: string
-          full_name: string
-          institution: string
-          user_id: string
-        }[]
-      }
+          avatar_path: string;
+          blocked_at: string;
+          full_name: string;
+          institution: string;
+          user_id: string;
+        }[];
+      };
+      cancel_deletion: { Args: never; Returns: undefined };
       cancel_kuppi: {
-        Args: { p_reason?: string; p_session_id: string }
-        Returns: Json
-      }
-      cancel_order: { Args: { p_order_id: string }; Returns: Json }
-      cancel_rsvp: { Args: { p_session_id: string }; Returns: Json }
+        Args: { p_reason?: string; p_session_id: string };
+        Returns: Json;
+      };
+      cancel_order: { Args: { p_order_id: string }; Returns: Json };
+      cancel_rsvp: { Args: { p_session_id: string }; Returns: Json };
       chat_file_checked: {
         Args: {
-          p_message_id: string
-          p_ok: boolean
-          p_reason?: string
-          p_sha256?: string
-        }
-        Returns: undefined
-      }
+          p_message_id: string;
+          p_ok: boolean;
+          p_reason?: string;
+          p_sha256?: string;
+        };
+        Returns: undefined;
+      };
       chat_files: {
         Args: {
-          p_before?: string
-          p_conversation_id: string
-          p_kind: string
-          p_limit?: number
-        }
+          p_before?: string;
+          p_conversation_id: string;
+          p_kind: string;
+          p_limit?: number;
+        };
         Returns: {
-          attachment: Json
-          body: string
-          created_at: string
-          id: string
-          kind: string
-          sender_name: string
-        }[]
-      }
+          attachment: Json;
+          body: string;
+          created_at: string;
+          id: string;
+          kind: string;
+          sender_name: string;
+        }[];
+      };
       chat_folders: {
-        Args: { p_conversation_id: string; p_message_ids: string[] }
-        Returns: Json
-      }
+        Args: { p_conversation_id: string; p_message_ids: string[] };
+        Returns: Json;
+      };
       chat_members: {
         Args: {
-          p_after_id?: string
-          p_after_name?: string
-          p_conversation_id: string
-          p_limit?: number
-        }
+          p_after_id?: string;
+          p_after_name?: string;
+          p_conversation_id: string;
+          p_limit?: number;
+        };
         Returns: {
-          avatar_path: string
-          full_name: string
-          institution: string
-          is_admin: boolean
-          user_id: string
-        }[]
-      }
+          avatar_path: string;
+          full_name: string;
+          institution: string;
+          is_admin: boolean;
+          user_id: string;
+        }[];
+      };
       chat_messages: {
         Args: {
-          p_after?: string
-          p_before?: string
-          p_conversation_id: string
-          p_limit?: number
-        }
+          p_after?: string;
+          p_before?: string;
+          p_conversation_id: string;
+          p_limit?: number;
+        };
         Returns: {
-          attachment: Json
-          body: string
-          created_at: string
-          deleted: boolean
-          edited_at: string
-          forwarded: boolean
-          id: string
-          kind: string
-          link: Json
-          mentions: string[]
-          reply: Json
-          reply_to_id: string
-          sender_avatar: string
-          sender_id: string
-          sender_name: string
-        }[]
-      }
-      chat_settings: { Args: { p_conversation_id: string }; Returns: Json }
+          attachment: Json;
+          body: string;
+          created_at: string;
+          deleted: boolean;
+          edited_at: string;
+          forwarded: boolean;
+          id: string;
+          kind: string;
+          link: Json;
+          mentions: string[];
+          reply: Json;
+          reply_to_id: string;
+          sender_avatar: string;
+          sender_id: string;
+          sender_name: string;
+        }[];
+      };
+      chat_settings: { Args: { p_conversation_id: string }; Returns: Json };
+      check_university_email: { Args: { p_email: string }; Returns: Json };
       close_kuppi_request: {
-        Args: { p_request_id: string }
-        Returns: undefined
-      }
+        Args: { p_request_id: string };
+        Returns: undefined;
+      };
       comments: {
-        Args: { p_limit?: number; p_question?: string; p_resource_id: string }
-        Returns: Json
-      }
+        Args: { p_limit?: number; p_question?: string; p_resource_id: string };
+        Returns: Json;
+      };
       commit_sticker: {
         Args: {
-          p_animated: boolean
-          p_hash: string
-          p_size: number
-          p_user_id: string
-        }
-        Returns: string
-      }
+          p_animated: boolean;
+          p_hash: string;
+          p_size: number;
+          p_user_id: string;
+        };
+        Returns: string;
+      };
       create_group: {
-        Args: { p_member_ids: string[]; p_title: string }
-        Returns: Json
-      }
+        Args: { p_member_ids: string[]; p_title: string };
+        Returns: Json;
+      };
       create_kuppi: {
         Args: {
-          p_capacity: number
-          p_description?: string
-          p_meeting_url?: string
-          p_minutes: number
-          p_mode: string
-          p_module_id: number
-          p_request_id?: string
-          p_scope?: string
-          p_starts_at: string
-          p_title: string
-          p_venue?: string
-        }
-        Returns: Json
-      }
-      create_post: { Args: { p_post: Json }; Returns: Json }
-      delete_ad: { Args: { p_ad_id: string }; Returns: undefined }
+          p_capacity: number;
+          p_description?: string;
+          p_meeting_url?: string;
+          p_minutes: number;
+          p_mode: string;
+          p_module_id: number;
+          p_request_id?: string;
+          p_scope?: string;
+          p_starts_at: string;
+          p_title: string;
+          p_venue?: string;
+        };
+        Returns: Json;
+      };
+      create_post: { Args: { p_post: Json }; Returns: Json };
+      decide_appeal: {
+        Args: { p_appeal_id: string; p_decision: string; p_note?: string };
+        Returns: undefined;
+      };
+      delete_ad: { Args: { p_ad_id: string }; Returns: undefined };
       delete_comment:
         | {
-            Args: { p_comment_id: number }
+            Args: { p_comment_id: number };
             Returns: {
-              error: true
-            } & "Could not choose the best candidate function between: api.delete_comment(p_comment_id => int8), api.delete_comment(p_comment_id => uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+              error: true;
+            } & 'Could not choose the best candidate function between: api.delete_comment(p_comment_id => int8), api.delete_comment(p_comment_id => uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved';
           }
         | {
-            Args: { p_comment_id: string }
+            Args: { p_comment_id: string };
             Returns: {
-              error: true
-            } & "Could not choose the best candidate function between: api.delete_comment(p_comment_id => int8), api.delete_comment(p_comment_id => uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-          }
+              error: true;
+            } & 'Could not choose the best candidate function between: api.delete_comment(p_comment_id => int8), api.delete_comment(p_comment_id => uuid). Try renaming the parameters or the function itself in the database so function overloading can be resolved';
+          };
+      delete_fresher_item: {
+        Args: { p_id: number; p_kind: string };
+        Returns: undefined;
+      };
       delete_message: {
         Args: {
-          p_conversation_id: string
-          p_for_everyone: boolean
-          p_message_id: string
-        }
-        Returns: undefined
-      }
-      delete_post: { Args: { p_post_id: number }; Returns: Json }
-      drop_push_tokens: { Args: { p_tokens: string[] }; Returns: undefined }
+          p_conversation_id: string;
+          p_for_everyone: boolean;
+          p_message_id: string;
+        };
+        Returns: undefined;
+      };
+      delete_post: { Args: { p_post_id: number }; Returns: Json };
+      drop_push_tokens: { Args: { p_tokens: string[] }; Returns: undefined };
       edit_comment: {
-        Args: { p_body: string; p_comment_id: string }
-        Returns: Json
-      }
+        Args: { p_body: string; p_comment_id: string };
+        Returns: Json;
+      };
       edit_message: {
         Args: {
-          p_body: string
-          p_conversation_id: string
-          p_message_id: string
-        }
-        Returns: string
-      }
-      edit_post: { Args: { p_post: Json; p_post_id: number }; Returns: Json }
+          p_body: string;
+          p_conversation_id: string;
+          p_message_id: string;
+        };
+        Returns: string;
+      };
+      edit_post: { Args: { p_post: Json; p_post_id: number }; Returns: Json };
       explore: {
         Args: {
-          p_before?: string
-          p_category?: string
-          p_limit?: number
-          p_module_id?: number
-          p_national?: boolean
-          p_query?: string
-        }
-        Returns: Json
-      }
-      explore_overview: { Args: never; Returns: Json }
-      feed: { Args: { p_seen?: number[]; p_tag?: string }; Returns: Json }
+          p_before?: string;
+          p_category?: string;
+          p_limit?: number;
+          p_module_id?: number;
+          p_national?: boolean;
+          p_query?: string;
+        };
+        Returns: Json;
+      };
+      explore_overview: { Args: never; Returns: Json };
+      export_my_data: { Args: never; Returns: Json };
+      extend_fresher: {
+        Args: { p_days: number; p_user_id: string };
+        Returns: string;
+      };
+      feed: { Args: { p_seen?: number[]; p_tag?: string }; Returns: Json };
       feed_posts: {
-        Args: { p_ids: number[]; p_seen?: number[] }
-        Returns: Json
-      }
-      feed_review: { Args: never; Returns: Json }
-      feed_seen: { Args: { p_ids: number[] }; Returns: undefined }
+        Args: { p_ids: number[]; p_seen?: number[] };
+        Returns: Json;
+      };
+      feed_review: { Args: never; Returns: Json };
+      feed_seen: { Args: { p_ids: number[] }; Returns: undefined };
+      files_deleted: { Args: { p_files: Json }; Returns: undefined };
+      files_to_delete: { Args: { p_limit?: number }; Returns: Json };
       find_modules: {
-        Args: { p_query: string }
+        Args: { p_query: string };
         Returns: {
-          batches: number
-          code: string
-          id: number
-          name: string
-        }[]
-      }
+          batches: number;
+          code: string;
+          id: number;
+          name: string;
+        }[];
+      };
       find_subjects: {
-        Args: { p_query: string }
+        Args: { p_query: string };
         Returns: {
-          id: number
-          name: string
-        }[]
-      }
+          id: number;
+          name: string;
+        }[];
+      };
       finish_resource: {
         Args: {
-          p_ok: boolean
-          p_reason?: string
-          p_resource_id: string
-          p_sha256?: string
-          p_size?: number
-        }
-        Returns: Json
-      }
-      hide_post: { Args: { p_post_id: number }; Returns: Json }
-      home_ads: { Args: never; Returns: Json }
+          p_ok: boolean;
+          p_reason?: string;
+          p_resource_id: string;
+          p_sha256?: string;
+          p_size?: number;
+        };
+        Returns: Json;
+      };
+      fresher_batches: { Args: never; Returns: Json };
+      fresher_letter: { Args: { p_user_id: string }; Returns: Json };
+      fresher_question: { Args: { p_id: number }; Returns: Json };
+      fresher_questions: { Args: { p_before?: string }; Returns: Json };
+      fresher_queue: {
+        Args: {
+          p_after_submitted_at?: string;
+          p_after_user_id?: string;
+          p_limit?: number;
+        };
+        Returns: Json;
+      };
+      freshers_badge: { Args: never; Returns: Json };
+      help_contacts: { Args: never; Returns: Json };
+      hide_post: { Args: { p_post_id: number }; Returns: Json };
+      home_ads: { Args: never; Returns: Json };
       join_batch: {
         Args: {
-          p_intake_year?: number
-          p_programme_id?: number
-          p_programme_name?: string
-        }
-        Returns: Json
-      }
-      kuppi: { Args: { p_session_id: string }; Returns: Json }
+          p_intake_year?: number;
+          p_programme_id?: number;
+          p_programme_name?: string;
+        };
+        Returns: Json;
+      };
+      kuppi: { Args: { p_session_id: string }; Returns: Json };
       kuppi_list: {
         Args: {
-          p_after?: string
-          p_limit?: number
-          p_module_id?: number
-          p_scope?: string
-        }
-        Returns: Json
-      }
+          p_after?: string;
+          p_limit?: number;
+          p_module_id?: number;
+          p_scope?: string;
+        };
+        Returns: Json;
+      };
       kuppi_requests: {
-        Args: { p_module_id?: number; p_scope?: string }
-        Returns: Json
-      }
+        Args: { p_module_id?: number; p_scope?: string };
+        Returns: Json;
+      };
       kuppi_search: {
-        Args: { p_limit?: number; p_query: string }
-        Returns: Json
-      }
-      leave_group: { Args: { p_conversation_id: string }; Returns: undefined }
+        Args: { p_limit?: number; p_query: string };
+        Returns: Json;
+      };
+      leave_group: { Args: { p_conversation_id: string }; Returns: undefined };
+      letter_upload_checked: {
+        Args: { p_ok: boolean; p_path: string; p_sha256?: string };
+        Returns: undefined;
+      };
+      letter_upload_to_check: { Args: { p_path: string }; Returns: Json };
+      letters_deleted: { Args: { p_paths: string[] }; Returns: undefined };
+      letters_to_delete: { Args: { p_limit?: number }; Returns: string[] };
       library: {
         Args: {
-          p_before?: string
-          p_category?: string
-          p_limit?: number
-          p_module_id: number
-        }
-        Returns: Json
-      }
-      library_item: { Args: { p_message_id: string }; Returns: Json }
-      library_overview: { Args: never; Returns: Json }
+          p_before?: string;
+          p_category?: string;
+          p_limit?: number;
+          p_module_id: number;
+        };
+        Returns: Json;
+      };
+      library_item: { Args: { p_message_id: string }; Returns: Json };
+      library_overview: { Args: never; Returns: Json };
       library_search: {
-        Args: { p_limit?: number; p_query: string }
-        Returns: Json
-      }
+        Args: { p_limit?: number; p_query: string };
+        Returns: Json;
+      };
       library_to_sort: {
-        Args: { p_before?: string; p_limit?: number }
-        Returns: Json
-      }
-      like_post: { Args: { p_on: boolean; p_post_id: number }; Returns: Json }
-      link_preview_allowed: { Args: never; Returns: boolean }
-      listing_interest: { Args: { p_listing_id: string }; Returns: Json }
-      listing_orders: { Args: { p_listing_id: string }; Returns: Json }
+        Args: { p_before?: string; p_limit?: number };
+        Returns: Json;
+      };
+      like_post: { Args: { p_on: boolean; p_post_id: number }; Returns: Json };
+      link_preview_allowed: { Args: never; Returns: boolean };
+      listing_interest: { Args: { p_listing_id: string }; Returns: Json };
+      listing_orders: { Args: { p_listing_id: string }; Returns: Json };
       mark_delivered: {
-        Args: { p_conversation_id: string; p_up_to: string }
-        Returns: undefined
-      }
+        Args: { p_conversation_id: string; p_up_to: string };
+        Returns: undefined;
+      };
       mark_read: {
-        Args: { p_conversation_id: string; p_up_to: string }
-        Returns: string
-      }
-      media_access: { Args: { p_paths: string[] }; Returns: string[] }
-      merch_leads: { Args: never; Returns: Json }
+        Args: { p_conversation_id: string; p_up_to: string };
+        Returns: string;
+      };
+      media_access: { Args: { p_paths: string[] }; Returns: string[] };
+      merch_leads: { Args: never; Returns: Json };
       merge_modules: {
-        Args: { p_from: number; p_into: number }
-        Returns: undefined
-      }
+        Args: { p_from: number; p_into: number };
+        Returns: undefined;
+      };
       merge_subjects: {
-        Args: { p_from: number; p_into: number }
-        Returns: undefined
-      }
-      message_previews: { Args: never; Returns: boolean }
-      module_colours: { Args: never; Returns: Json }
-      module_subject: { Args: { p_module_id: number }; Returns: Json }
+        Args: { p_from: number; p_into: number };
+        Returns: undefined;
+      };
+      message_previews: { Args: never; Returns: boolean };
+      module_colours: { Args: never; Returns: Json };
+      module_subject: { Args: { p_module_id: number }; Returns: Json };
       mute_author: {
-        Args: { p_on: boolean; p_user_id: string }
-        Returns: undefined
-      }
-      my_account: { Args: never; Returns: Json }
+        Args: { p_on: boolean; p_user_id: string };
+        Returns: undefined;
+      };
+      my_account: { Args: never; Returns: Json };
       my_chats: {
-        Args: never
+        Args: never;
         Returns: {
-          announcement_only: boolean
-          archived: boolean
-          conversation_id: string
-          created_at: string
-          kind: string
-          last_message_at: string
-          last_message_preview: string
-          last_sender_id: string
-          last_sender_name: string
-          list_pinned_at: string
-          member_count: number
-          muted: boolean
-          my_last_read_at: string
-          my_role: string
-          other_avatar_path: string
-          other_delivered_at: string
-          other_last_read_at: string
-          other_user_id: string
-          pinned: Json
-          request: string
-          slow_mode_seconds: number
-          title: string
-          unread: number
-        }[]
-      }
-      my_exams: { Args: never; Returns: Json }
-      my_home: { Args: never; Returns: Json }
-      my_listings: { Args: never; Returns: Json }
-      my_modules: { Args: never; Returns: Json }
-      my_orders: { Args: never; Returns: Json }
+          announcement_only: boolean;
+          archived: boolean;
+          conversation_id: string;
+          created_at: string;
+          kind: string;
+          last_message_at: string;
+          last_message_preview: string;
+          last_sender_id: string;
+          last_sender_name: string;
+          list_pinned_at: string;
+          member_count: number;
+          muted: boolean;
+          my_last_read_at: string;
+          my_role: string;
+          other_avatar_path: string;
+          other_delivered_at: string;
+          other_last_read_at: string;
+          other_user_id: string;
+          pinned: Json;
+          request: string;
+          slow_mode_seconds: number;
+          title: string;
+          unread: number;
+        }[];
+      };
+      my_consents: { Args: never; Returns: Json };
+      my_exams: { Args: never; Returns: Json };
+      my_fresher: { Args: never; Returns: Json };
+      my_home: { Args: never; Returns: Json };
+      my_listings: { Args: never; Returns: Json };
+      my_modules: { Args: never; Returns: Json };
+      my_orders: { Args: never; Returns: Json };
+      my_standing: { Args: never; Returns: Json };
       my_stickers: {
-        Args: never
+        Args: never;
         Returns: {
-          animated: boolean
-          favourite: boolean
-          mine: boolean
-          sticker: string
-          used_at: string
-        }[]
-      }
-      needs_text: { Args: { p_sha256: string }; Returns: boolean }
-      notification_settings: { Args: never; Returns: Json }
+          animated: boolean;
+          favourite: boolean;
+          mine: boolean;
+          sticker: string;
+          used_at: string;
+        }[];
+      };
+      needs_text: { Args: { p_sha256: string }; Returns: boolean };
+      notification_settings: { Args: never; Returns: Json };
       organise_item: {
         Args: {
-          p_category?: string
-          p_hidden?: boolean
-          p_message_id: string
-          p_module_id?: number
-          p_pinned?: boolean
-        }
-        Returns: Json
-      }
+          p_category?: string;
+          p_hidden?: boolean;
+          p_message_id: string;
+          p_module_id?: number;
+          p_pinned?: boolean;
+        };
+        Returns: Json;
+      };
       pending_accounts: {
         Args: {
-          p_after_registered_at?: string
-          p_after_user_id?: string
-          p_institution_id?: number
-          p_limit?: number
-        }
+          p_after_registered_at?: string;
+          p_after_user_id?: string;
+          p_institution_id?: number;
+          p_limit?: number;
+        };
         Returns: {
-          email: string
-          email_confirmed_at: string
-          full_name: string
-          institution_id: number
-          institution_name: string
-          registered_at: string
-          user_id: string
-        }[]
-      }
-      pending_resource: { Args: { p_resource_id: string }; Returns: Json }
-      person: { Args: { p_user_id: string }; Returns: Json }
+          email: string;
+          email_confirmed_at: string;
+          full_name: string;
+          institution_id: number;
+          institution_name: string;
+          registered_at: string;
+          user_id: string;
+        }[];
+      };
+      pending_resource: { Args: { p_resource_id: string }; Returns: Json };
+      person: { Args: { p_user_id: string }; Returns: Json };
       pin_message: {
-        Args: { p_conversation_id: string; p_message_id: string }
-        Returns: Json
-      }
+        Args: { p_conversation_id: string; p_message_id: string };
+        Returns: Json;
+      };
       place_order: {
         Args: {
-          p_lines: Json
-          p_listing_id: string
-          p_note?: string
-          p_phone: string
-          p_slip_path?: string
-        }
-        Returns: Json
-      }
+          p_lines: Json;
+          p_listing_id: string;
+          p_note?: string;
+          p_phone: string;
+          p_slip_path?: string;
+        };
+        Returns: Json;
+      };
       poll_results: {
-        Args: { p_conversation_id: string; p_message_ids: string[] }
+        Args: { p_conversation_id: string; p_message_ids: string[] };
         Returns: {
-          counts: Json
-          message_id: string
-          mine: number[]
-          voters: number
-        }[]
-      }
+          counts: Json;
+          message_id: string;
+          mine: number[];
+          voters: number;
+        }[];
+      };
       poll_voters: {
-        Args: { p_conversation_id: string; p_message_id: string }
+        Args: { p_conversation_id: string; p_message_id: string };
         Returns: {
-          avatar_path: string
-          full_name: string
-          option: number
-          user_id: string
-          voted_at: string
-        }[]
-      }
+          avatar_path: string;
+          full_name: string;
+          option: number;
+          user_id: string;
+          voted_at: string;
+        }[];
+      };
       post_comments: {
-        Args: { p_after?: number; p_post_id: number }
-        Returns: Json
-      }
+        Args: { p_after?: number; p_post_id: number };
+        Returns: Json;
+      };
       post_uploads_checked: {
-        Args: { p_bad: string[]; p_ok: string[] }
-        Returns: undefined
-      }
-      post_uploads_to_check: { Args: { p_ids: string[] }; Returns: Json }
-      presence: { Args: { p_user_id: string }; Returns: Json }
-      privacy_extras: { Args: never; Returns: Json }
+        Args: { p_bad: string[]; p_ok: string[] };
+        Returns: undefined;
+      };
+      post_uploads_to_check: { Args: { p_ids: string[] }; Returns: Json };
+      presence: { Args: { p_user_id: string }; Returns: Json };
+      privacy_extras: { Args: never; Returns: Json };
+      profile_visibility: { Args: never; Returns: Json };
       push_batch: {
-        Args: { p_created_at: string; p_message_id: string }
-        Returns: Json
-      }
+        Args: { p_created_at: string; p_message_id: string };
+        Returns: Json;
+      };
       react: {
         Args: {
-          p_conversation_id: string
-          p_emoji: string
-          p_message_id: string
-        }
-        Returns: undefined
-      }
+          p_conversation_id: string;
+          p_emoji: string;
+          p_message_id: string;
+        };
+        Returns: undefined;
+      };
       reaction_details: {
-        Args: { p_conversation_id: string; p_message_id: string }
+        Args: { p_conversation_id: string; p_message_id: string };
         Returns: {
-          avatar_path: string
-          emoji: string
-          full_name: string
-          user_id: string
-        }[]
-      }
+          avatar_path: string;
+          emoji: string;
+          full_name: string;
+          user_id: string;
+        }[];
+      };
       reactions: {
-        Args: { p_conversation_id: string; p_message_ids: string[] }
+        Args: { p_conversation_id: string; p_message_ids: string[] };
         Returns: {
-          count: number
-          emoji: string
-          message_id: string
-          mine: boolean
-        }[]
-      }
+          count: number;
+          emoji: string;
+          message_id: string;
+          mine: boolean;
+        }[];
+      };
       register_push_token: {
-        Args: { p_platform: string; p_token: string }
-        Returns: undefined
-      }
-      remove_exam: { Args: { p_exam_id: string }; Returns: Json }
+        Args: { p_platform: string; p_token: string };
+        Returns: undefined;
+      };
+      remove_exam: { Args: { p_exam_id: string }; Returns: Json };
       remove_group_member: {
-        Args: { p_conversation_id: string; p_user_id: string }
-        Returns: undefined
-      }
-      remove_merch_lead: { Args: { p_user_id: string }; Returns: Json }
-      remove_resource: { Args: { p_resource_id: string }; Returns: undefined }
+        Args: { p_conversation_id: string; p_user_id: string };
+        Returns: undefined;
+      };
+      remove_merch_lead: { Args: { p_user_id: string }; Returns: Json };
+      remove_resource: { Args: { p_resource_id: string }; Returns: undefined };
       rename_module: {
-        Args: { p_module_id: number; p_name: string }
-        Returns: Json
-      }
+        Args: { p_module_id: number; p_name: string };
+        Returns: Json;
+      };
       report: {
         Args: {
-          p_category: string
-          p_conversation_id?: string
-          p_details?: string
-          p_kind: string
-          p_target_id: string
-        }
-        Returns: string
-      }
+          p_category: string;
+          p_conversation_id?: string;
+          p_details?: string;
+          p_kind: string;
+          p_target_id: string;
+        };
+        Returns: string;
+      };
       report_categories: {
-        Args: never
+        Args: never;
         Returns: {
-          code: string
-          label: string
-        }[]
-      }
+          code: string;
+          label: string;
+        }[];
+      };
       report_comment: {
-        Args: { p_category: string; p_comment_id: string; p_details?: string }
-        Returns: string
-      }
+        Args: { p_category: string; p_comment_id: string; p_details?: string };
+        Returns: string;
+      };
+      report_fresher_item: {
+        Args: {
+          p_category: string;
+          p_details?: string;
+          p_id: number;
+          p_kind: string;
+        };
+        Returns: string;
+      };
       report_kuppi: {
-        Args: { p_category: string; p_details?: string; p_session_id: string }
-        Returns: string
-      }
+        Args: { p_category: string; p_details?: string; p_session_id: string };
+        Returns: string;
+      };
       report_kuppi_request: {
-        Args: { p_category: string; p_details?: string; p_request_id: string }
-        Returns: string
-      }
+        Args: { p_category: string; p_details?: string; p_request_id: string };
+        Returns: string;
+      };
       report_listing: {
-        Args: { p_category: string; p_details?: string; p_listing_id: string }
-        Returns: string
-      }
+        Args: { p_category: string; p_details?: string; p_listing_id: string };
+        Returns: string;
+      };
       report_post: {
         Args: {
-          p_category: string
-          p_details?: string
-          p_id: number
-          p_kind: string
-        }
-        Returns: string
-      }
+          p_category: string;
+          p_details?: string;
+          p_id: number;
+          p_kind: string;
+        };
+        Returns: string;
+      };
       report_resource: {
-        Args: { p_category: string; p_details?: string; p_resource_id: string }
-        Returns: string
-      }
+        Args: { p_category: string; p_details?: string; p_resource_id: string };
+        Returns: string;
+      };
+      reports_queue: { Args: never; Returns: Json };
+      request_deletion: { Args: { p_email: string }; Returns: string };
       request_kuppi: {
         Args: {
-          p_details?: string
-          p_module_id: number
-          p_scope?: string
-          p_topic: string
-        }
-        Returns: Json
-      }
-      resource: { Args: { p_resource_id: string }; Returns: Json }
-      resources_start: { Args: never; Returns: Json }
+          p_details?: string;
+          p_module_id: number;
+          p_scope?: string;
+          p_topic: string;
+        };
+        Returns: Json;
+      };
+      resource: { Args: { p_resource_id: string }; Returns: Json };
+      resources_start: { Args: never; Returns: Json };
       respond_request: {
-        Args: { p_accept: boolean; p_conversation_id: string }
-        Returns: string
-      }
-      reveal_link: { Args: { p_session_id: string }; Returns: Json }
+        Args: { p_accept: boolean; p_conversation_id: string };
+        Returns: string;
+      };
+      reveal_link: { Args: { p_session_id: string }; Returns: Json };
       review_account: {
-        Args: { p_decision: string; p_reason?: string; p_user_id: string }
-        Returns: string
-      }
+        Args: { p_decision: string; p_reason?: string; p_user_id: string };
+        Returns: string;
+      };
+      review_fresher: {
+        Args: {
+          p_decision: string;
+          p_institution_id?: number;
+          p_intake_year?: number;
+          p_letter_number?: string;
+          p_programme_id?: number;
+          p_programme_name?: string;
+          p_reason?: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
       review_post: {
-        Args: { p_action: string; p_post_id: number }
-        Returns: undefined
-      }
-      rsvp: { Args: { p_session_id: string }; Returns: Json }
-      save_ad: { Args: { p_ad: Json; p_ad_id?: string }; Returns: Json }
+        Args: { p_action: string; p_post_id: number };
+        Returns: undefined;
+      };
+      rsvp: { Args: { p_session_id: string }; Returns: Json };
+      save_ad: { Args: { p_ad: Json; p_ad_id?: string }; Returns: Json };
       save_listing: {
-        Args: { p_listing: Json; p_listing_id?: string }
-        Returns: Json
-      }
+        Args: { p_listing: Json; p_listing_id?: string };
+        Returns: Json;
+      };
       save_semester: {
-        Args: { p_items: Json; p_semester: number; p_year: number }
-        Returns: Json
-      }
+        Args: { p_items: Json; p_semester: number; p_year: number };
+        Returns: Json;
+      };
       save_sticker: {
-        Args: { p_favourite?: boolean; p_mine?: boolean; p_sticker: string }
-        Returns: undefined
-      }
+        Args: { p_favourite?: boolean; p_mine?: boolean; p_sticker: string };
+        Returns: undefined;
+      };
       search_people: {
-        Args: { p_query: string }
+        Args: { p_query: string };
         Returns: {
-          avatar_path: string
-          blocked: boolean
-          corrected: boolean
-          full_name: string
-          institution: string
-          intake_year: number
-          programme: string
-          relation: string
-          user_id: string
-        }[]
-      }
+          avatar_path: string;
+          blocked: boolean;
+          corrected: boolean;
+          full_name: string;
+          institution: string;
+          intake_year: number;
+          programme: string;
+          relation: string;
+          user_id: string;
+        }[];
+      };
       search_programmes: {
-        Args: { p_intake_year?: number; p_query: string }
+        Args: { p_intake_year?: number; p_query: string };
         Returns: {
-          id: number
-          members: number
-          name: string
-        }[]
-      }
+          id: number;
+          members: number;
+          name: string;
+        }[];
+      };
       semester_plan: {
-        Args: { p_semester: number; p_year: number }
-        Returns: Json
-      }
+        Args: { p_semester: number; p_year: number };
+        Returns: Json;
+      };
       send_message: {
         Args: {
-          p_attachment?: Json
-          p_body?: string
-          p_conversation_id: string
-          p_forward_from?: string
-          p_id: string
-          p_kind?: string
-          p_link?: Json
-          p_mentions?: string[]
-          p_reply_to_id?: string
-        }
-        Returns: Json
-      }
+          p_attachment?: Json;
+          p_body?: string;
+          p_conversation_id: string;
+          p_forward_from?: string;
+          p_id: string;
+          p_kind?: string;
+          p_link?: Json;
+          p_mentions?: string[];
+          p_reply_to_id?: string;
+        };
+        Returns: Json;
+      };
       set_ad_active: {
-        Args: { p_active: boolean; p_ad_id: string }
-        Returns: undefined
-      }
+        Args: { p_active: boolean; p_ad_id: string };
+        Returns: undefined;
+      };
+      set_ambassador: {
+        Args: { p_on: boolean; p_user_id: string };
+        Returns: boolean;
+      };
       set_batch_term: {
-        Args: { p_semester: number; p_year: number }
-        Returns: Json
-      }
+        Args: { p_semester: number; p_year: number };
+        Returns: Json;
+      };
       set_chat_state: {
         Args: {
-          p_archived?: boolean
-          p_conversation_id: string
-          p_pinned?: boolean
-        }
-        Returns: undefined
-      }
+          p_archived?: boolean;
+          p_conversation_id: string;
+          p_pinned?: boolean;
+        };
+        Returns: undefined;
+      };
+      set_consent: {
+        Args: { p_code: string; p_granted: boolean; p_where?: string };
+        Returns: Json;
+      };
       set_exam: {
         Args: {
-          p_kind: string
-          p_module_id: number
-          p_starts_at: string
-          p_venue?: string
-        }
-        Returns: Json
-      }
-      set_findable_by: { Args: { p_findable_by: string }; Returns: string }
+          p_kind: string;
+          p_module_id: number;
+          p_starts_at: string;
+          p_venue?: string;
+        };
+        Returns: Json;
+      };
+      set_field_visibility: {
+        Args: { p_field: string; p_level: string };
+        Returns: Json;
+      };
+      set_findable_by: { Args: { p_findable_by: string }; Returns: string };
+      set_help_contacts: {
+        Args: { p_contacts: Json; p_institution_id: number };
+        Returns: Json;
+      };
       set_listing_status: {
-        Args: { p_listing_id: string; p_status: string }
-        Returns: Json
-      }
+        Args: { p_listing_id: string; p_status: string };
+        Returns: Json;
+      };
       set_member_role: {
-        Args: { p_conversation_id: string; p_role: string; p_user_id: string }
-        Returns: undefined
-      }
-      set_message_previews: { Args: { p_on: boolean }; Returns: boolean }
+        Args: { p_conversation_id: string; p_role: string; p_user_id: string };
+        Returns: undefined;
+      };
+      set_message_previews: { Args: { p_on: boolean }; Returns: boolean };
       set_module_choice: {
-        Args: { p_choice: string; p_module_id: number }
-        Returns: Json
-      }
+        Args: { p_choice: string; p_module_id: number };
+        Returns: Json;
+      };
       set_module_colour: {
-        Args: { p_colour: string; p_module_id: number }
-        Returns: Json
-      }
+        Args: { p_colour: string; p_module_id: number };
+        Returns: Json;
+      };
       set_module_subject: {
-        Args: { p_module_id: number; p_subject: string }
-        Returns: Json
-      }
+        Args: { p_module_id: number; p_subject: string };
+        Returns: Json;
+      };
       set_muted: {
-        Args: { p_conversation_id: string; p_hours?: number; p_on: boolean }
-        Returns: string
-      }
-      set_my_avatar: { Args: { p_path: string }; Returns: string }
-      set_my_name: { Args: { p_full_name: string }; Returns: string }
+        Args: { p_conversation_id: string; p_hours?: number; p_on: boolean };
+        Returns: string;
+      };
+      set_my_avatar: { Args: { p_path: string }; Returns: string };
+      set_my_name: { Args: { p_full_name: string }; Returns: string };
       set_order_status: {
-        Args: { p_note?: string; p_order_id: string; p_status: string }
-        Returns: Json
-      }
+        Args: { p_note?: string; p_order_id: string; p_status: string };
+        Returns: Json;
+      };
       set_post_resolved: {
-        Args: { p_post_id: number; p_resolved: boolean }
-        Returns: Json
-      }
-      set_presence: { Args: { p_active: boolean }; Returns: undefined }
+        Args: { p_post_id: number; p_resolved: boolean };
+        Returns: Json;
+      };
+      set_presence: { Args: { p_active: boolean }; Returns: undefined };
       set_quiet_hours: {
-        Args: { p_enabled: boolean; p_end?: number; p_start?: number }
-        Returns: Json
-      }
-      set_show_last_seen: { Args: { p_on: boolean }; Returns: boolean }
+        Args: { p_enabled: boolean; p_end?: number; p_start?: number };
+        Returns: Json;
+      };
+      set_setting: {
+        Args: { p_key: string; p_value: Json };
+        Returns: undefined;
+      };
+      set_show_last_seen: { Args: { p_on: boolean }; Returns: boolean };
       shop_feed: {
         Args: {
-          p_before?: string
-          p_category?: string
-          p_filter?: string
-          p_limit?: number
-          p_query?: string
-          p_scope?: string
-        }
-        Returns: Json
-      }
-      shop_listing: { Args: { p_listing_id: string }; Returns: Json }
-      shop_push_batch: { Args: { p_batch_id: string }; Returns: Json }
+          p_before?: string;
+          p_category?: string;
+          p_filter?: string;
+          p_limit?: number;
+          p_query?: string;
+          p_scope?: string;
+        };
+        Returns: Json;
+      };
+      shop_listing: { Args: { p_listing_id: string }; Returns: Json };
+      shop_push_batch: { Args: { p_batch_id: string }; Returns: Json };
       shop_upload_checked: {
-        Args: { p_ok: boolean; p_path: string }
-        Returns: undefined
-      }
-      shop_upload_to_check: { Args: { p_path: string }; Returns: Json }
+        Args: { p_ok: boolean; p_path: string };
+        Returns: undefined;
+      };
+      shop_upload_to_check: { Args: { p_path: string }; Returns: Json };
       star_message: {
-        Args: { p_conversation_id: string; p_message_id: string; p_on: boolean }
-        Returns: undefined
-      }
+        Args: { p_conversation_id: string; p_message_id: string; p_on: boolean };
+        Returns: undefined;
+      };
       starred_messages: {
-        Args: { p_before?: string; p_limit?: number }
+        Args: { p_before?: string; p_limit?: number };
         Returns: {
-          attachment: Json
-          body: string
-          chat_kind: string
-          chat_title: string
-          conversation_id: string
-          created_at: string
-          id: string
-          kind: string
-          link: Json
-          sender_avatar: string
-          sender_id: string
-          sender_name: string
-          starred_at: string
-        }[]
-      }
-      start_direct: { Args: { p_user_id: string }; Returns: Json }
+          attachment: Json;
+          body: string;
+          chat_kind: string;
+          chat_title: string;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          kind: string;
+          link: Json;
+          sender_avatar: string;
+          sender_id: string;
+          sender_name: string;
+          starred_at: string;
+        }[];
+      };
+      start_batch: { Args: { p_cohort_id: number }; Returns: undefined };
+      start_direct: { Args: { p_user_id: string }; Returns: Json };
       store_file_text: {
-        Args: { p_sha256: string; p_text: string }
-        Returns: undefined
-      }
+        Args: { p_sha256: string; p_text: string };
+        Returns: undefined;
+      };
       tag_item: {
-        Args: { p_category?: string; p_message_id: string; p_module_id: number }
-        Returns: undefined
-      }
+        Args: { p_category?: string; p_message_id: string; p_module_id: number };
+        Returns: undefined;
+      };
       tag_message: {
         Args: {
-          p_category?: string
-          p_conversation_id: string
-          p_message_id: string
-          p_module_id: number
-        }
-        Returns: undefined
-      }
-      unblock_user: { Args: { p_user_id: string }; Returns: undefined }
-      undo_hide_post: { Args: { p_post_id: number }; Returns: undefined }
-      unregister_push_token: { Args: { p_token: string }; Returns: undefined }
-      update_bio: { Args: { p_bio: string }; Returns: string }
+          p_category?: string;
+          p_conversation_id: string;
+          p_message_id: string;
+          p_module_id: number;
+        };
+        Returns: undefined;
+      };
+      take_action: {
+        Args: {
+          p_action: string;
+          p_days?: number;
+          p_reason?: string;
+          p_remove?: boolean;
+          p_target_id?: string;
+          p_target_kind?: string;
+          p_user_id?: string;
+        };
+        Returns: Json;
+      };
+      unblock_user: { Args: { p_user_id: string }; Returns: undefined };
+      undo_hide_post: { Args: { p_post_id: number }; Returns: undefined };
+      unregister_push_token: { Args: { p_token: string }; Returns: undefined };
+      update_bio: { Args: { p_bio: string }; Returns: string };
       update_chat_settings: {
         Args: {
-          p_announcement_only?: boolean
-          p_conversation_id: string
-          p_slow_mode_seconds?: number
-          p_title?: string
-        }
-        Returns: Json
-      }
+          p_announcement_only?: boolean;
+          p_conversation_id: string;
+          p_slow_mode_seconds?: number;
+          p_title?: string;
+        };
+        Returns: Json;
+      };
       update_privacy: {
-        Args: { p_findable_by?: string; p_who_can_message?: string }
-        Returns: Json
-      }
+        Args: { p_findable_by?: string; p_who_can_message?: string };
+        Returns: Json;
+      };
       vote_comment: {
-        Args: { p_comment_id: string; p_on: boolean }
-        Returns: Json
-      }
+        Args: { p_comment_id: string; p_on: boolean };
+        Returns: Json;
+      };
       vote_kuppi_request: {
-        Args: { p_on: boolean; p_request_id: string }
-        Returns: Json
-      }
+        Args: { p_on: boolean; p_request_id: string };
+        Returns: Json;
+      };
       vote_poll: {
         Args: {
-          p_conversation_id: string
-          p_message_id: string
-          p_options: number[]
-        }
-        Returns: Json
-      }
-    }
+          p_conversation_id: string;
+          p_message_id: string;
+          p_options: number[];
+        };
+        Returns: Json;
+      };
+    };
     Enums: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
+      [_ in never]: never;
+    };
+  };
+};
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
+    keyof (DefaultSchema['Tables'] & DefaultSchema['Views']) | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+      Row: infer R;
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
       }
       ? R
       : never
-    : never
+    : never;
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+      Insert: infer I;
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I;
       }
       ? I
       : never
-    : never
+    : never;
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+      Update: infer U;
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U;
       }
       ? U
       : never
-    : never
+    : never;
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums'] | { schema: keyof DatabaseWithoutInternals },
   EnumName extends (DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
     : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
+    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+    : never;
 
 export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+  PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes'] | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
     : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
+    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+    : never;
 
 export const Constants = {
   api: {
     Enums: {},
   },
-} as const
+} as const;

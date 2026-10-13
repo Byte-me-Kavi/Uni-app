@@ -22,6 +22,7 @@ import {
   editPost,
   FACILITIES,
   GENDER_LABEL,
+  PER_LABEL,
   peekPost,
   pickPostPhotos,
   photoUrl,
@@ -31,6 +32,8 @@ import {
   type BodimRoom,
   type Facility,
   type FeedStart,
+  type JobDetails,
+  type JobPer,
   type LostFoundDetails,
   type PickedPhoto,
   type PostTag,
@@ -58,12 +61,17 @@ const PLACEHOLDER: Record<Kind, string> = {
   lost_found: 'What is it? Colour, brand, anything that helps.',
   notice: 'What does everyone need to know?',
   bodim: 'Anything else: rules, the landlord, how to get there (optional)',
+  job: 'What they will do, who you need, how to apply (optional)',
 };
+
+// "Apply by": a week, two weeks or a month from today, or no closing day.
+const closingDays = () => [7, 14, 30].map((n) => new Date(Date.now() + n * 86_400_000));
 
 // Writing or editing a post. First the kind, as coloured tiles (Post, Question, Lost & found,
 // Bodim, and Notice for reps, merch leads and staff); each kind asks only what it needs. A bodim
 // asks for the rent, who it is for, the kind of place, where, how far to walk, facilities, when it
-// is free and an optional phone. Lost & found asks lost or found, and where. Then who sees it. The
+// is free and an optional phone. A job asks what it is, the pay, where (or remote), hours, a closing
+// day and an optional phone. Lost & found asks lost or found, and where. Then who sees it. The
 // Post button sits above the keyboard. Opened from the photo button, it starts on the picker;
 // opened with ?type=bodim, on that kind; with ?edit=<id>, on that post (kind and photos fixed).
 export default function NewPost() {
@@ -77,8 +85,9 @@ export default function NewPost() {
     session.status === 'signed_in' ? (readCache<FeedStart>(`${session.session.user.id}:feed`)?.notice_as ?? null) : null,
   );
   const startKind: Kind =
-    editing?.tag ?? (['question', 'lost_found', 'bodim'].includes(params.type ?? '') ? (params.type as Kind) : 'post');
+    editing?.tag ?? (['question', 'lost_found', 'bodim', 'job'].includes(params.type ?? '') ? (params.type as Kind) : 'post');
   const startBodim = editing?.tag === 'bodim' ? (editing.details as BodimDetails) : null;
+  const startJob = editing?.tag === 'job' ? (editing.details as JobDetails) : null;
   const startLost = editing?.tag === 'lost_found' ? (editing.details as LostFoundDetails) : null;
 
   const [kind, setKind] = useState<Kind>(startKind);
@@ -92,11 +101,19 @@ export default function NewPost() {
   const [rent, setRent] = useState(startBodim ? String(startBodim.rent) : '');
   const [gender, setGender] = useState<BodimGender | null>(startBodim?.gender ?? null);
   const [room, setRoom] = useState<BodimRoom | null>(startBodim?.room ?? null);
-  const [area, setArea] = useState(startBodim?.area ?? '');
+  const [area, setArea] = useState(startBodim?.area ?? startJob?.area ?? '');
   const [walk, setWalk] = useState(startBodim?.walk !== undefined ? String(startBodim.walk) : '');
   const [facilities, setFacilities] = useState<Facility[]>(startBodim?.facilities ?? []);
   const [freeFrom, setFreeFrom] = useState<string | null>(startBodim?.available_from ?? null);
-  const [phone, setPhone] = useState(startBodim?.phone ?? '');
+  const [phone, setPhone] = useState(startBodim?.phone ?? startJob?.phone ?? '');
+  // Job (area and phone shared with bodim above)
+  const [role, setRole] = useState(startJob?.role ?? '');
+  const [pay, setPay] = useState(startJob?.pay ? String(startJob.pay) : '');
+  const [per, setPer] = useState<JobPer>(startJob?.per ?? 'hour');
+  const [remote, setRemote] = useState(!!startJob?.remote);
+  const [hours, setHours] = useState(startJob?.hours ?? '');
+  const [closesOn, setClosesOn] = useState<string | null>(startJob?.closes_on ?? null);
+  const [closing] = useState(closingDays);
 
   const [preparing, setPreparing] = useState(false);
   const [sending, setSending] = useState(false);
@@ -127,7 +144,7 @@ export default function NewPost() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function details(): LostFoundDetails | BodimDetails | null | string {
+  function details(): LostFoundDetails | BodimDetails | JobDetails | null | string {
     if (kind === 'lost_found') {
       if (!lostKind) return 'Say whether you lost or found it.';
       return { kind: lostKind, ...(where.trim() ? { where: where.trim() } : {}) };
@@ -149,6 +166,20 @@ export default function NewPost() {
         ...(freeFrom ? { available_from: freeFrom } : {}),
       };
     }
+    if (kind === 'job') {
+      if (role.trim().length < 2) return 'Say what the job is.';
+      if (!remote && area.trim().length < 2) return 'Say where the work is, or choose Remote.';
+      const amount = Number(pay.replace(/[^0-9]/g, ''));
+      return {
+        role: role.trim(),
+        ...(amount ? { pay: amount, per } : {}),
+        ...(remote ? { remote: true } : {}),
+        ...(area.trim() ? { area: area.trim() } : {}),
+        ...(hours.trim() ? { hours: hours.trim() } : {}),
+        ...(phone.trim() ? { phone: phone.trim() } : {}),
+        ...(closesOn ? { closes_on: closesOn } : {}),
+      };
+    }
     return null;
   }
 
@@ -157,7 +188,7 @@ export default function NewPost() {
     const d = details();
     if (typeof d === 'string') return setError(d);
     const tag = kind === 'post' ? null : kind;
-    if (!body.trim() && photos.length === 0 && !editing?.photos.length && tag !== 'bodim') {
+    if (!body.trim() && photos.length === 0 && !editing?.photos.length && tag !== 'bodim' && tag !== 'job') {
       return setError('Write something or add a photo.');
     }
     setSending(true);
@@ -172,8 +203,8 @@ export default function NewPost() {
   }
 
   const kinds: Kind[] = noticeAs
-    ? ['post', 'question', 'lost_found', 'bodim', 'notice']
-    : ['post', 'question', 'lost_found', 'bodim'];
+    ? ['post', 'question', 'lost_found', 'bodim', 'job', 'notice']
+    : ['post', 'question', 'lost_found', 'bodim', 'job'];
   const lookFor = (k: Kind) =>
     k === 'post'
       ? null
@@ -203,7 +234,9 @@ export default function NewPost() {
                             ? 'Post'
                             : k === 'bodim'
                               ? 'Bodim'
-                              : 'Question'
+                              : k === 'job'
+                                ? 'Job'
+                                : 'Question'
                     }
                     onPress={() => setKind(k)}
                   />
@@ -317,9 +350,78 @@ export default function NewPost() {
               </>
             ) : null}
 
+            {kind === 'job' ? (
+              <>
+                <TextField
+                  label="What is the job?"
+                  value={role}
+                  onChangeText={setRole}
+                  placeholder="e.g. Maths tutor for O/L"
+                  maxLength={80}
+                />
+                <TextField
+                  label="Pay in Rs (optional)"
+                  value={pay}
+                  onChangeText={(v) => setPay(v.replace(/[^0-9,]/g, ''))}
+                  placeholder="e.g. 1500"
+                  keyboardType="number-pad"
+                  maxLength={9}
+                  hint={pay.trim() ? undefined : 'Leave empty to agree the pay with whoever applies.'}
+                />
+                {pay.trim() ? (
+                  <ChipGroup label="Pay is">
+                    {(Object.keys(PER_LABEL) as JobPer[]).map((k) => (
+                      <ChoiceChip key={k} label={PER_LABEL[k]} active={per === k} onPress={() => setPer(k)} />
+                    ))}
+                  </ChipGroup>
+                ) : null}
+                <ChipGroup label="Where is the work?">
+                  <ChoiceChip label="In person" active={!remote} onPress={() => setRemote(false)} />
+                  <ChoiceChip label="Remote" active={remote} onPress={() => setRemote(true)} />
+                </ChipGroup>
+                <TextField
+                  label={remote ? 'Area (optional)' : 'Where?'}
+                  value={area}
+                  onChangeText={setArea}
+                  placeholder="e.g. Peradeniya town"
+                  maxLength={80}
+                />
+                <TextField
+                  label="Hours (optional)"
+                  value={hours}
+                  onChangeText={setHours}
+                  placeholder="e.g. Weekends, 4 hours"
+                  maxLength={60}
+                />
+                <ChipGroup label="Apply by">
+                  <ChoiceChip label="No closing day" active={!closesOn} onPress={() => setClosesOn(null)} />
+                  {closing.map((d) => (
+                    <ChoiceChip
+                      key={isoDay(d)}
+                      label={dayMonth(d)}
+                      active={closesOn === isoDay(d)}
+                      onPress={() => setClosesOn(isoDay(d))}
+                    />
+                  ))}
+                </ChipGroup>
+                <TextField
+                  label="Phone (optional)"
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="07X XXX XXXX"
+                  keyboardType="phone-pad"
+                  maxLength={20}
+                  hint="Shown with a Call button. Leave empty to be messaged in the app instead."
+                />
+                <Text style={styles.hint}>
+                  Every job shows “Never pay to get a job”. Posts that ask students for money to start work are removed.
+                </Text>
+              </>
+            ) : null}
+
             <View style={styles.group}>
-              {kind === 'bodim' || kind === 'lost_found' ? (
-                <Text style={styles.label}>{kind === 'bodim' ? 'More about it' : 'Describe it'}</Text>
+              {kind === 'bodim' || kind === 'lost_found' || kind === 'job' ? (
+                <Text style={styles.label}>{kind === 'lost_found' ? 'Describe it' : 'More about it'}</Text>
               ) : null}
               <TextInput
                 ref={input}
@@ -332,7 +434,7 @@ export default function NewPost() {
                 style={[
                   styles.input,
                   kind === 'question' && styles.questionInput,
-                  (kind === 'bodim' || kind === 'lost_found') && styles.boxedInput,
+                  (kind === 'bodim' || kind === 'lost_found' || kind === 'job') && styles.boxedInput,
                 ]}
                 accessibilityLabel="Post text"
                 textAlignVertical="top"
@@ -404,9 +506,11 @@ export default function NewPost() {
                     ? 'Save'
                     : kind === 'bodim'
                       ? 'List bodim'
-                      : kind === 'question'
-                        ? 'Ask'
-                        : 'Post'
+                      : kind === 'job'
+                        ? 'Post job'
+                        : kind === 'question'
+                          ? 'Ask'
+                          : 'Post'
               }
               onPress={send}
               loading={sending && progress === null}

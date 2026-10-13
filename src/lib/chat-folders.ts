@@ -2,17 +2,30 @@ import { useSyncExternalStore } from 'react';
 
 import { supabase } from '@/lib/supabase';
 import type { Category } from '@/lib/library';
+import { onSignOut } from '@/lib/resets';
 
 // Where each file, photo and link in a chat is filed for this student (api.chat_folders), for the
 // small folder tag under the bubble. Each bubble subscribes to its own message only, so a new
 // answer redraws just the bubbles it is about.
 
-export type Folder = { module_id?: number; code?: string; name?: string; category?: Category; blocked?: boolean; reason?: string };
+export type Folder = {
+  module_id?: number;
+  code?: string;
+  name?: string;
+  category?: Category;
+  blocked?: boolean;
+  reason?: string;
+};
 
 const folders = new Map<string, Folder | null>();
 const listeners = new Map<string, Set<() => void>>();
 const asked = new Set<string>();
 let pressHandler: ((messageId: string) => void) | null = null;
+
+onSignOut(() => {
+  folders.clear();
+  asked.clear();
+});
 
 function emit(id: string) {
   listeners.get(id)?.forEach((l) => l());
@@ -63,7 +76,11 @@ export function pressFolder(messageId: string) {
 
 /** The sender chooses a module while sending; recorded even before the message reaches the server. */
 export async function tagMessage(conversationId: string, messageId: string, moduleId: number) {
-  const { error } = await supabase.rpc('tag_message', { p_conversation_id: conversationId, p_message_id: messageId, p_module_id: moduleId });
+  const { error } = await supabase.rpc('tag_message', {
+    p_conversation_id: conversationId,
+    p_message_id: messageId,
+    p_module_id: moduleId,
+  });
   if (!error) {
     asked.delete(messageId);
     await loadFolders(conversationId, [messageId]);

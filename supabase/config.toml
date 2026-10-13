@@ -405,6 +405,10 @@ verify_jwt = false
 [functions.files]
 verify_jwt = false
 
+# Checks the student's token through the database; the cleanup call carries LETTERS_SECRET instead.
+[functions.letters]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327
